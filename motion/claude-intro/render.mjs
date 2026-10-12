@@ -14,7 +14,7 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, 'out');
 const URL_ = 'file://' + path.join(HERE, 'claude-intro.html') + '?render=1';
-const FPS = 60, TOTAL = 30 * FPS;
+const FPS = 60, TOTAL = 40 * FPS;
 const ARGS = ['--run-all-compositor-stages-before-draw', '--disable-threaded-animation',
   '--disable-checker-imaging', '--font-render-hinting=none', '--force-color-profile=srgb', '--disable-gpu'];
 
