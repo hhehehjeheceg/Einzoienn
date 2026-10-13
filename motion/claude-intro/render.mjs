@@ -14,7 +14,7 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, 'out');
 const URL_ = 'file://' + path.join(HERE, 'claude-intro.html') + '?render=1';
-const FPS = 60, TOTAL = 40 * FPS;
+const FPS = 60, TOTAL = 48 * FPS;
 const ARGS = ['--run-all-compositor-stages-before-draw', '--disable-threaded-animation',
   '--disable-checker-imaging', '--font-render-hinting=none', '--force-color-profile=srgb', '--disable-gpu'];
 
@@ -55,6 +55,12 @@ if (mode === 'cues') {
   const all = files.map((_, i) => `[v${i}]`).join('') + Array.from({ length: cols * rows - files.length }, (_, i) => `[p${i}]`).join('');
   const layout = Array.from({ length: cols * rows }, (_, i) => `${(i % cols) * 640}_${Math.floor(i / cols) * 360}`).join('|');
   spawnSync('ffmpeg', ['-v', 'error', '-y', ...inputs, '-filter_complex', `${lbl}${pad ? ';' + pad : ''};${all}xstack=inputs=${cols * rows}:layout=${layout}[o]`, '-map', '[o]', '-frames:v', '1', path.join(dir, 'sheet.png')], { stdio: 'inherit' });
+} else if (mode === 'dchunk') {   // quick draft chunk: 30 fps, no motion blur, 1280 wide
+  const a = +rest[0], b = +rest[1], name = rest[2];
+  await page.evaluate(() => { window.renderFrame = f => window.seek(f / 60); });
+  const ff = spawn('ffmpeg', ['-v', 'error', '-y', '-f', 'image2pipe', '-framerate', '30', '-i', '-', '-vf', 'scale=1280:-2,format=yuv420p', '-c:v', 'libx264', '-crf', '24', '-preset', 'veryfast', path.join(OUT, name + '.mp4')], { stdio: ['pipe', 'inherit', 'inherit'] });
+  for (let f = a; f < b; f += 2) { const buf = await grab(page, canvas, f); if (!ff.stdin.write(buf)) await new Promise(r => ff.stdin.once('drain', r)); }
+  ff.stdin.end(); await new Promise(r => ff.on('close', r)); console.log(name + ' done');
 } else if (mode === 'chunk' || mode === 'draft') {
   const draft = mode === 'draft';
   const a = draft ? 0 : +rest[0], b = draft ? TOTAL : +rest[1], step = draft ? 2 : 1;

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude, présentation</title>
+<style>
+/*FONTS*/
+html,body{margin:0;height:100%;background:#0c0c0b;overflow:hidden;font-family:InterV,Inter,sans-serif}
+#stage{position:absolute;inset:0 0 56px 0;display:flex;align-items:center;justify-content:center}
+canvas{display:block;max-width:100%;max-height:100%;aspect-ratio:16/9;width:100%;height:auto}
+#hud{position:absolute;left:0;right:0;bottom:0;height:56px;display:flex;align-items:center;gap:14px;padding:0 18px;box-sizing:border-box;color:#d9d6cc;font-size:14px}
+#hud button{background:#d97757;color:#141413;border:0;border-radius:8px;width:44px;height:32px;font-size:15px;cursor:pointer}
+#hud input{flex:1;accent-color:#d97757}
+#hud span{font-variant-numeric:tabular-nums;min-width:120px;text-align:right}
+body.render #hud{display:none}
+body.render #stage{inset:0}
+body.render canvas{width:1920px;height:1080px;max-width:none;max-height:none}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c" width="1920" height="1080"></canvas></div>
+<div id="hud"><button id="pp" title="Lecture / pause (Espace)">▶</button><input id="sc" type="range" min="0" max="2879" value="0"><span id="tc">0.00 s</span></div>
+<audio id="au" src="claude-intro-audio.m4a" preload="auto"></audio>
+<script>
+/*SCRIPT*/
+</script>
+</body>
+</html>
