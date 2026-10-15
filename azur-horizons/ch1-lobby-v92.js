@@ -244,21 +244,18 @@
     const ui = doc.getElementById("ui");
     if (!ui || ui.__ch1Obs) return;
     ui.__ch1Obs = true;
-    let pending = false;
+    /* Décoration synchrone (micro-tâche) : le chargement réécrit #ui entre deux images, une
+     * attente d'animation laisserait voir l'ancien écran. On n'observe que les enfants directs de
+     * #ui, donc nos propres ajouts à l'intérieur ne relancent pas l'observateur. */
     new MutationObserver(() => {
-      if (pending) return;
-      pending = true;
-      requestAnimationFrame(() => {
-        pending = false;
-        const g = root.AZUR;
-        if (!g) return;
-        try {
-          if (g.screen === "loading") decorateLoading(g, ui);
-          else decorate(g);
-        } catch (err) {
-          console.warn("[ch1-lobby]", err);
-        }
-      });
+      const g = root.AZUR;
+      if (!g) return;
+      try {
+        if (g.screen === "loading") decorateLoading(g, ui);
+        else decorate(g);
+      } catch (err) {
+        console.warn("[ch1-lobby]", err);
+      }
     }).observe(ui, { childList: true });
   }
   hookObserver();
