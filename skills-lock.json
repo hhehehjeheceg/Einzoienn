@@ -1,0 +1,473 @@
+{
+  "version": 1,
+  "skills": {
+    "after-effects": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/after-effects/SKILL.md",
+      "computedHash": "9db077d9664f5c45157c53b754d3c72bb346999a260c63d3d4892745a3eefd02"
+    },
+    "animation-principles": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/animation-principles/SKILL.md",
+      "computedHash": "140b00a44e08aa7649fb1cce1c48670ff2e76f3889fbac0b5311cc5bb818d7b7"
+    },
+    "beat-sync-editing": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/beat-sync-editing/SKILL.md",
+      "computedHash": "4089a0b65782c529ebd4fe9a576588fb51cf716573b4d683b0494e6554e61e03"
+    },
+    "cli-a2a": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-a2a/SKILL.md",
+      "computedHash": "cf639cb493edacfffcc05e9984584bb6317b9109d77bb9014b216f1f2ead9d31"
+    },
+    "cli-backup-sync": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-backup-sync/SKILL.md",
+      "computedHash": "dbaddc9ce6af9fa254f3bdbbcdb47938dab4ced7edbffc9836551aa3edb304ad"
+    },
+    "cli-batches": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-batches/SKILL.md",
+      "computedHash": "3d6f30d8223178482495678e8c417081a5a1319c44c7a3627815b23626f592c1"
+    },
+    "cli-chat": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-chat/SKILL.md",
+      "computedHash": "c68ee3ecfe03adfc17a5cb235ffb7f8b9ad0e3f9cb18908a0e804276df42e1f4"
+    },
+    "cli-compression": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-compression/SKILL.md",
+      "computedHash": "27cf98438af0ffe7e5ee945295d40e1a76a9d019d03955f9925b56f4beefccff"
+    },
+    "cli-contexts": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-contexts/SKILL.md",
+      "computedHash": "8b1ca6bdabb3e082eeabfe073835040e25156dd5b07d1c0efe87ac1191f7c769"
+    },
+    "cli-cost-usage": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-cost-usage/SKILL.md",
+      "computedHash": "d0dcaffab4182cbcd0f821c76a8d73208d386442e0d7f9ae18bece54a243533d"
+    },
+    "cli-eval": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-eval/SKILL.md",
+      "computedHash": "6b2012da713247037ad2ce9aadd68404fe4ff431b3bcc48e774547a032219c42"
+    },
+    "cli-health": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-health/SKILL.md",
+      "computedHash": "42ebe1a3c141aa4eed2439b0feceb2beb910eda1ea9f5901cbea2d296e9e2a25"
+    },
+    "cli-keys": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-keys/SKILL.md",
+      "computedHash": "d69e9d95b634b02ecbd88909d1212f0d6041930810de7465910636dcdf20a58c"
+    },
+    "cli-mcp": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-mcp/SKILL.md",
+      "computedHash": "1db58a8e35b4cf06fdc7290d9e6f3800d45c1b24474b8fd1b61d897129f2b92e"
+    },
+    "cli-models": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-models/SKILL.md",
+      "computedHash": "1197883c346d1840a89eb4714bffa5bea1e8f26f808275be99607ab7033b4f95"
+    },
+    "cli-plugins-skills": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-plugins-skills/SKILL.md",
+      "computedHash": "d5b96dff4fc9808894a15db599012a20818551ee7ded9704de0b898aab864a3b"
+    },
+    "cli-policy-audit": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-policy-audit/SKILL.md",
+      "computedHash": "094f37e63eaf65f73575ddb5bbfd5f3214815d841dc41ac0a50eafa9f83ad5d0"
+    },
+    "cli-providers": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-providers/SKILL.md",
+      "computedHash": "b1e2f5b6c8460ea92ddcb18252a809417754485f6c20ccf55a8a9ba06e4ae7df"
+    },
+    "cli-resilience": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-resilience/SKILL.md",
+      "computedHash": "37454c11bd6c9773997a5f2280b86638e6f9d0f9f0b7106afd8f80888fe74e33"
+    },
+    "cli-routing": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-routing/SKILL.md",
+      "computedHash": "c38f18e910ffa3808969f000f106f3fd3932267924ff6ee434ffbba94435b8bb"
+    },
+    "cli-serve": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-serve/SKILL.md",
+      "computedHash": "80bd9949f97ced463653f0107cdc9c8c6de40801fa6efa15db45ba128c32e7fb"
+    },
+    "cli-setup": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-setup/SKILL.md",
+      "computedHash": "155cb3ffe415952124dd2a58770b383c9fd8947e872c120a2199f4d98c38adcd"
+    },
+    "cli-skill-collector": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-skill-collector/SKILL.md",
+      "computedHash": "b7770d0f08051f7fcb96b37f2edef2a0c3c9123c3d494d3df7f918de41ae2b19"
+    },
+    "cli-tunnel": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/cli-tunnel/SKILL.md",
+      "computedHash": "e93ef682b06e1f05532675bb69b02e1a824faf8ace396d47e53ae9be699b247a"
+    },
+    "color-motion": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/color-motion/SKILL.md",
+      "computedHash": "7c05f7d35427d5fbe2fd1b5b6c0622252314a049797085fce085085cbf4c3e6e"
+    },
+    "config-codex-cli": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/config-codex-cli/SKILL.md",
+      "computedHash": "331a102c0a453f313f7f1d99babcc22770f646f6081b323d7f9738935ef32cba"
+    },
+    "embedded-captions": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/embedded-captions/SKILL.md",
+      "computedHash": "002ecd86409f69934acd6c624b3242480d472ea5b54b2988ee74f75799fb99c4"
+    },
+    "faceless-explainer": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/faceless-explainer/SKILL.md",
+      "computedHash": "495d25c528aae0107dcadbca8336e007f6db9e6fc85873b715eb5aa506ad4165"
+    },
+    "figma": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/figma/SKILL.md",
+      "computedHash": "0aed427d5eaac09e92181b85a7ccc9bbdeab138a01272a02c13349546c10bbc8"
+    },
+    "general-video": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/general-video/SKILL.md",
+      "computedHash": "2ab2f937386bbe6c54f795460737ea768a90406b965e5c32ae0fa8ab9d486707"
+    },
+    "hyperframes": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes/SKILL.md",
+      "computedHash": "1e613b9a542ece5b80bc6cbe255a58ca9b9fbe22d506e39e6890ad5eb1a66f15"
+    },
+    "hyperframes-animation": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes-animation/SKILL.md",
+      "computedHash": "3d6678f0e325d69026678982b8616e181f8e92a4e7075f1f51a9b9696a265aba"
+    },
+    "hyperframes-audio": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes-audio/SKILL.md",
+      "computedHash": "fed70bda20b7480227413f6876682d8ba4935aa069b5491642d55141d9508b24"
+    },
+    "hyperframes-cli": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes-cli/SKILL.md",
+      "computedHash": "95ce387ba831c8baf63e73fb046991ac906db4c81b52a324a73f8ee4da94825a"
+    },
+    "hyperframes-core": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes-core/SKILL.md",
+      "computedHash": "f50ee4785cb80fc4b6061ebd5576facf99fe01ee766544261ed917c60c805b21"
+    },
+    "hyperframes-creative": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes-creative/SKILL.md",
+      "computedHash": "09964279b80ce3a74e1cec848c795734385ba57567c9b967c8dac4e3c94e9afa"
+    },
+    "hyperframes-keyframes": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes-keyframes/SKILL.md",
+      "computedHash": "99f3b420941f6f91d49c36865fb21e46a562cd43a3b88a1f2297f79d55542c35"
+    },
+    "hyperframes-registry": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes-registry/SKILL.md",
+      "computedHash": "54b17fdebee3ac56d279f0e2c1cfdab78839c05344bb4c0874c6f3941621e2ff"
+    },
+    "hyperframes-studio": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/hyperframes-studio/SKILL.md",
+      "computedHash": "073b806d264702d330426248608b7d70efb50050b8c61800f74dd6d77a317559"
+    },
+    "logo-animation": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/logo-animation/SKILL.md",
+      "computedHash": "3bba34771ff84fa7e68dc8026e195aab411a82b01091c9427fc8f3c8e48e7d99"
+    },
+    "media-use": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/media-use/SKILL.md",
+      "computedHash": "1498b6c6a86c2c3b3b7046888035413dea6b7717ff941f14f115092433bb2a8c"
+    },
+    "motion-art-direction": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/motion-art-direction/SKILL.md",
+      "computedHash": "bcba09b729fd3d99b3b1a388c3aaac655a3771b26dc3e8d077a110dfdd9e1631"
+    },
+    "motion-background": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/motion-background/SKILL.md",
+      "computedHash": "99a576ac6549791b410abbc48a18074fed9e7925cf3ee5392108c59ad9e25fa4"
+    },
+    "motion-design": {
+      "source": "LottieFiles/motion-design-skill",
+      "sourceType": "github",
+      "skillPath": "skills/motion-design/SKILL.md",
+      "computedHash": "9fcf9130cc46ee8fd1d8e09a9263347a9d76efbcbfa46591cc4cefaf19bbb453"
+    },
+    "motion-graphics": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/motion-graphics/SKILL.md",
+      "computedHash": "f2ecbb79ac73f817c38fc002f5bde99be4a020e8cc544f71d3817df994f26986"
+    },
+    "music-to-video": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/music-to-video/SKILL.md",
+      "computedHash": "8fcdb92e400f2ec38d019352b021632054c05dc80d247963b158d60c60495f6f"
+    },
+    "omni-agents-a2a": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-agents-a2a/SKILL.md",
+      "computedHash": "d2fd78e65d0707c1b76627599fa50b892f14d653bc8993c9216cfc40ae51615b"
+    },
+    "omni-api-keys": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-api-keys/SKILL.md",
+      "computedHash": "2f80720d7e6028158b3519a2b9c892a05cdb701176fb9d62298bb81e57f867ef"
+    },
+    "omni-auth": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-auth/SKILL.md",
+      "computedHash": "3b65d6f473f68e24ad6534faf39b19b9eadea70c5ac3c8560517e63c5d255922"
+    },
+    "omni-budget": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-budget/SKILL.md",
+      "computedHash": "849d9a45fa41e957b2bbafa6069add2b7d8ef0bebb5e3bbb1a589d5e6df2d62f"
+    },
+    "omni-cache": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-cache/SKILL.md",
+      "computedHash": "7d4f97798877b2edab4c8e1ff1e5c9f7cfb9b7a2831244da5ae68d7605d0dca7"
+    },
+    "omni-cli-tools": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-cli-tools/SKILL.md",
+      "computedHash": "827e39ccdeb3cfc61b5b10463852ab8af149697458bda3a96062acc1194c5e85"
+    },
+    "omni-combos-routing": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-combos-routing/SKILL.md",
+      "computedHash": "544b9eaab904a47c85fe20bd6f26434c49387d41bd96acfb2d2d98ab556446b8"
+    },
+    "omni-compression": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-compression/SKILL.md",
+      "computedHash": "670998e8be50e1447989ad93cf0f76272a0bed1581b1ba4a14d961ed1a522397"
+    },
+    "omni-context-rtk": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-context-rtk/SKILL.md",
+      "computedHash": "cbb4c035556ad1632fc0f5ad64273772b03942158ce922d92803701b7874b9b8"
+    },
+    "omni-db-backups": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-db-backups/SKILL.md",
+      "computedHash": "ef1c1033bfa677180844779bdf747a59e5dd84defc1a78053498a1ba81ae67ac"
+    },
+    "omni-github-skills": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-github-skills/SKILL.md",
+      "computedHash": "c06092fac64ba2129ba3194537aea124a6b9b5a6946bdf39f940422d543acc18"
+    },
+    "omni-inference": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-inference/SKILL.md",
+      "computedHash": "3a2c4ac063b9d0d29e64acda8fcfc55e03599459530f85177018819bde6455f3"
+    },
+    "omni-mcp": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-mcp/SKILL.md",
+      "computedHash": "fffb2a414cd249a0098126c9268a14d62581b0fd2c9791e936e1eaa2d611a878"
+    },
+    "omni-models": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-models/SKILL.md",
+      "computedHash": "7a056684a9b7c5869e8dd8664fca6d93faeaf8605b78d891b35aa33af8d74ff6"
+    },
+    "omni-providers": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-providers/SKILL.md",
+      "computedHash": "f91f9dbd06edc68a21133b4b4ee9284569bba008fdae782b2797eb235e958475"
+    },
+    "omni-proxies": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-proxies/SKILL.md",
+      "computedHash": "51fb8ec3055e80d057a19e12945d6dd57e96fe7f5cee3486d8db6e3e27500046"
+    },
+    "omni-resilience": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-resilience/SKILL.md",
+      "computedHash": "e6ba48be169940ee4b53c91325de188a2771bfec51d79e18acbd7ce7c75126b0"
+    },
+    "omni-settings": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-settings/SKILL.md",
+      "computedHash": "53ffaf69f518e1f202692a0f8ad271426e74ced1121bb9cbb2f13aff7faf7b08"
+    },
+    "omni-sync-cloud": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-sync-cloud/SKILL.md",
+      "computedHash": "bca34ed61db4faa3f51f86f6b6de0831c12f0644e87d312ad8ce71d4c7f43d45"
+    },
+    "omni-tunnels": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-tunnels/SKILL.md",
+      "computedHash": "33ede9064f37f73497f912e980dbee431e149c6719dec64d4d3407001a29fe5f"
+    },
+    "omni-usage-logs": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-usage-logs/SKILL.md",
+      "computedHash": "c09dbec6d33a86c04e9c5f88e5e262740b1254f783fcdba76c5c259a1863fe17"
+    },
+    "omni-version-manager": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-version-manager/SKILL.md",
+      "computedHash": "46efe0489f5fc867725a803001739184cc982c7db1ccf39acc7579784f78a973"
+    },
+    "omni-webhooks": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/omni-webhooks/SKILL.md",
+      "computedHash": "e79197ef6ae943252562230d770eda51f365710c0c4a8d882f3f74b3ed56c0e9"
+    },
+    "ponytail": {
+      "source": "diegosouzapw/OmniRoute",
+      "sourceType": "github",
+      "skillPath": "skills/ponytail/SKILL.md",
+      "computedHash": "39ae890345be7ae29085867416db000744cea73c48c19c86c4dbc3191915afaa"
+    },
+    "pr-to-video": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/pr-to-video/SKILL.md",
+      "computedHash": "2144a8cd1f8ff1efdf8895eee2d99d02c0a1b01985e0941e40314f82648f8573"
+    },
+    "product-launch-video": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/product-launch-video/SKILL.md",
+      "computedHash": "c5d95afc26de07fe10e59d753eef66e804bcbc5a4e54759bf4d2057023c5b77a"
+    },
+    "remotion-to-hyperframes": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-to-hyperframes/SKILL.md",
+      "computedHash": "17c26590575d28118b783f6a534288ac38df50fae5b95826ee9d4976328ad687"
+    },
+    "remotion-video": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-video/SKILL.md",
+      "computedHash": "940885087443f4aa5d3baf6edb4ed25edafea2435b52922e120200b4c1af99ba"
+    },
+    "saas-motion-video": {
+      "source": "tugrawork-creator/saas-motion-kit",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/saas-motion-video/SKILL.md",
+      "computedHash": "0a9b274c15510e1354de5c8a83fbc5211ca988ab9f499e5a89765a69e1782867"
+    },
+    "shot-composition": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/shot-composition/SKILL.md",
+      "computedHash": "9ff4551d175f951fb443a0680020871eb93c5ae07a0f36a2008ca98e5d0fa324"
+    },
+    "slideshow": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/slideshow/SKILL.md",
+      "computedHash": "fa178947b4cfe834d416c4d826d50cdd1f92dfb22395569032a40aa5d26819cc"
+    },
+    "talking-head-recut": {
+      "source": "heygen-com/hyperframes",
+      "sourceType": "github",
+      "skillPath": "skills/talking-head-recut/SKILL.md",
+      "computedHash": "83df91f488236abbc53d3c817f31b4554de8e772c2e8a17a15c0a72664da9eca"
+    }
+  }
+}
