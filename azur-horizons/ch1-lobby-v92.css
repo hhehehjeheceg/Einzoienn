@@ -1,1 +1,618 @@
-/* AZUR v92 — ch1-lobby-v92.css : styles "Chapitre 1" (voir design/azur-reference-spec.md). */
+/* AZUR v92 — ch1-lobby-v92.css : salon et écran de chargement "Chapitre 1" (voir design/azur-reference-spec.md §6).
+ * Chargée après toutes les autres feuilles : sélecteurs ancrés sur body.ch1-ui + #ui pour gagner la cascade. */
+
+@font-face {
+  font-family: "Ch1 Condensed";
+  src: url("./fonts/barlow-condensed-latin-800-normal.woff2") format("woff2");
+  font-weight: 800;
+  font-display: swap;
+}
+
+:root {
+  --ch1-navy: #0e1838;
+  --ch1-navy2: #1a2c66;
+  --ch1-yellow: #ffe62e;
+  --ch1-yellow2: #ffc400;
+  --ch1-cyan: #27d3ff;
+  --ch1-purple: #9a4dff;
+  --ch1-font: "Ch1 Condensed", "Barlow Condensed", "Arial Narrow", sans-serif;
+}
+
+/* ------------------------------------------------------------------ barre d'onglets */
+html body.ch1-ui[data-screen="menu"] #ui .topbar {
+  background: linear-gradient(180deg, var(--ch1-navy2), var(--ch1-navy)) !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35) !important;
+  height: 56px !important;
+  min-height: 56px !important;
+}
+html body.ch1-ui[data-screen="menu"] #ui .topbar .classic-lobby-title,
+html body.ch1-ui[data-screen="menu"] #ui .topbar .v18-section-title {
+  display: none !important;
+}
+html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks {
+  display: flex !important;
+  align-items: stretch !important;
+  gap: 2px !important;
+  height: 56px !important;
+}
+html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks .ch1-tab {
+  font-family: var(--ch1-font) !important;
+  font-weight: 800 !important;
+  font-size: 19px !important;
+  letter-spacing: 0.02em !important;
+  color: #fff !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 14px !important;
+  min-width: 0 !important;
+  width: auto !important;
+  height: 56px !important;
+  text-transform: uppercase !important;
+  opacity: 0.86;
+  box-shadow: none !important;
+}
+html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks .ch1-tab svg {
+  display: none !important;
+}
+html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks .ch1-tab span {
+  display: inline !important;
+  font: inherit !important;
+}
+html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks .ch1-tab:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks .ch1-tab.active {
+  opacity: 1;
+  color: #10163a !important;
+  background: linear-gradient(180deg, #fff86e, var(--ch1-yellow)) !important;
+}
+html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks .ch1-tab-aux {
+  width: 44px !important;
+  min-width: 44px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  opacity: 0.8;
+}
+html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks .ch1-tab-aux span {
+  display: none !important;
+}
+html body.ch1-ui[data-screen="menu"] #ui .topbar .currency {
+  font-family: var(--ch1-font) !important;
+  font-size: 18px !important;
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 4px !important;
+  color: #fff !important;
+}
+
+/* ------------------------------------------------------------------ fond du salon */
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui:before {
+  background: linear-gradient(90deg, rgba(5, 12, 38, 0.62), rgba(5, 12, 38, 0.08) 30%, transparent 55%, rgba(5, 12, 38, 0.1) 72%, rgba(5, 12, 38, 0.55)) !important;
+}
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .v18-lobby-rail,
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-player-label small {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------------ colonne gauche */
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-progress {
+  position: absolute !important;
+  top: 76px !important;
+  left: 2.2vw !important;
+  width: min(300px, 24vw) !important;
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  color: #fff !important;
+  font-family: var(--ch1-font) !important;
+  transform: none !important;
+}
+.ch1-season span {
+  display: block;
+  font-size: clamp(14px, 1.6vw, 22px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #cfe3ff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+}
+.ch1-season strong {
+  display: block;
+  font-size: clamp(34px, 4.6vw, 64px);
+  line-height: 0.9;
+  font-weight: 800;
+  font-style: italic;
+  color: #fff;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.35), 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+.ch1-level {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 4px 8px;
+}
+.ch1-level > span {
+  font-size: clamp(18px, 1.9vw, 26px);
+  font-weight: 800;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.ch1-level > span b {
+  font-size: 1.25em;
+}
+.ch1-level > em {
+  font-style: normal;
+  font-size: 13px;
+  opacity: 0.85;
+}
+.ch1-xpbar {
+  grid-column: 1 / -1;
+  display: block;
+  height: 12px;
+  background: rgba(10, 14, 40, 0.75);
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.ch1-xpbar > i {
+  display: block;
+  height: 100%;
+  min-width: 3%;
+  background: linear-gradient(90deg, #6c2cff, var(--ch1-purple), #d27bff);
+  box-shadow: 0 0 10px rgba(170, 90, 255, 0.8);
+}
+.ch1-punch span,
+.ch1-missions > span {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #fff;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.5);
+}
+.ch1-medals {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.ch1-medal {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(10, 18, 50, 0.7);
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.06);
+}
+.ch1-medal.on {
+  background: radial-gradient(circle at 35% 30%, #fff6a8, #ffcc1a 45%, #d98a00);
+  border-color: #fff3a0;
+  box-shadow: 0 0 8px rgba(255, 210, 60, 0.7);
+}
+.ch1-missions {
+  background: linear-gradient(180deg, rgba(20, 34, 90, 0.82), rgba(10, 18, 54, 0.82));
+  border: 1px solid rgba(120, 170, 255, 0.35);
+  border-radius: 4px;
+  padding: 8px 10px 10px;
+}
+.ch1-missions p {
+  margin: 4px 0 6px;
+  font-family: "Barlow", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.2;
+  color: #e9f1ff;
+}
+.ch1-mrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ch1-mbar {
+  flex: 1;
+  display: block;
+  height: 9px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.ch1-mbar > i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #22c8ff, #4bf0ff);
+}
+.ch1-mrow b {
+  font-size: 15px;
+}
+.ch1-missions small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #ffe56a;
+}
+html body.ch1-ui #ui .ch1-missions .ch1-cycle {
+  margin-top: 8px;
+  font-family: var(--ch1-font) !important;
+  font-size: 14px !important;
+  padding: 4px 12px !important;
+  min-height: 0 !important;
+  background: var(--ch1-cyan) !important;
+  color: #062038 !important;
+  border: 0 !important;
+  border-radius: 3px !important;
+}
+
+/* ------------------------------------------------------------------ compte à rebours rouge */
+html body.ch1-ui #ui .ch1-countdown {
+  position: absolute;
+  top: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  text-align: center;
+  pointer-events: none;
+}
+html body.ch1-ui:not([data-tab="play"]) #ui .ch1-countdown {
+  display: none;
+}
+.ch1-countdown small {
+  display: block;
+  font-family: var(--ch1-font);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: #ffd2d2;
+  text-shadow: 0 1px 3px #000;
+}
+.ch1-countdown b {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 4px 12px 3px;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-weight: 900;
+  font-size: clamp(20px, 2.3vw, 32px);
+  letter-spacing: 0.08em;
+  color: #ff2b2b;
+  background: linear-gradient(180deg, #120404, #000);
+  border: 2px solid #3a0d0d;
+  border-radius: 3px;
+  text-shadow: 0 0 8px rgba(255, 40, 40, 0.85);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+/* ------------------------------------------------------------------ nom du joueur */
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-player-label {
+  font-family: var(--ch1-font) !important;
+}
+
+/* ------------------------------------------------------------------ carte événement (en haut à droite) */
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .v83-event-card {
+  position: absolute !important;
+  top: 76px !important;
+  right: 1.6vw !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: min(300px, 24vw) !important;
+  border-radius: 3px !important;
+  border: 2px solid rgba(255, 255, 255, 0.85) !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45) !important;
+  transform: none !important;
+}
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .v83-event-card strong {
+  font-family: var(--ch1-font) !important;
+  font-style: italic !important;
+}
+
+/* ------------------------------------------------------------------ carte de mode + JOUER ! */
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-play-card {
+  position: absolute !important;
+  right: 1.6vw !important;
+  left: auto !important;
+  bottom: 64px !important;
+  top: auto !important;
+  width: min(330px, 27vw) !important;
+  display: grid !important;
+  grid-template-columns: 1fr auto !important;
+  grid-template-areas: "mode change" "play play" "note note" !important;
+  gap: 8px 8px !important;
+  padding: 12px !important;
+  background: linear-gradient(180deg, rgba(14, 28, 80, 0.92), rgba(8, 16, 50, 0.92)) !important;
+  border: 2px solid rgba(255, 255, 255, 0.9) !important;
+  border-radius: 3px !important;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5) !important;
+  transform: none !important;
+}
+.ch1-mode {
+  grid-area: mode;
+  align-self: center;
+  font-family: var(--ch1-font);
+  color: #fff;
+  min-width: 0;
+}
+.ch1-mode strong {
+  display: block;
+  font-size: clamp(22px, 2.4vw, 34px);
+  font-weight: 800;
+  font-style: italic;
+  line-height: 0.95;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+.ch1-mode span {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  color: #9fd6ff;
+  letter-spacing: 0.02em;
+}
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-play-card .ch1-change {
+  grid-area: change;
+  align-self: center;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 7px 14px !important;
+  font-family: var(--ch1-font) !important;
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  color: #04213b !important;
+  background: linear-gradient(180deg, #7deaff, var(--ch1-cyan)) !important;
+  border: 0 !important;
+  border-radius: 3px !important;
+  box-shadow: 0 3px 0 #0b7aa8 !important;
+}
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-play-card .play-btn {
+  grid-area: play;
+  min-height: 74px !important;
+  font-family: var(--ch1-font) !important;
+  font-size: clamp(30px, 3.4vw, 46px) !important;
+  font-weight: 800 !important;
+  font-style: italic !important;
+  letter-spacing: 0.01em !important;
+  color: #11163a !important;
+  background: linear-gradient(180deg, #fff98a 0%, var(--ch1-yellow) 45%, var(--ch1-yellow2) 100%) !important;
+  border: 0 !important;
+  border-radius: 3px !important;
+  box-shadow: 0 5px 0 #b98700, 0 0 0 2px rgba(255, 255, 255, 0.6) inset !important;
+  transform: skewX(-6deg) !important;
+  text-shadow: none !important;
+}
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-play-card .play-btn:hover {
+  filter: brightness(1.06);
+}
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-ready-note {
+  grid-area: note;
+  font-family: var(--ch1-font) !important;
+  font-size: 12px !important;
+  color: #c9dcff !important;
+  text-align: center !important;
+  background: none !important;
+}
+
+/* ------------------------------------------------------------------ barre du bas */
+html body.ch1-ui #ui .ch1-lobby-actions {
+  position: absolute;
+  right: 1.6vw;
+  bottom: 40px;
+  display: none;
+  gap: 6px;
+  z-index: 4;
+}
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .ch1-lobby-actions {
+  display: flex;
+}
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-play-card ~ .ch1-lobby-actions {
+  bottom: 30px;
+}
+html body.ch1-ui #ui .ch1-lobby-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--ch1-font) !important;
+  font-weight: 800 !important;
+  font-size: 14px !important;
+  padding: 4px 10px !important;
+  min-height: 0 !important;
+  color: #fff !important;
+  background: rgba(8, 16, 46, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  border-radius: 3px !important;
+}
+html body.ch1-ui #ui .ch1-lobby-actions .btn i {
+  font-style: normal;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 12px;
+}
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-play-card {
+  bottom: 74px !important;
+}
+
+/* ------------------------------------------------------------------ petits écrans (téléphone) */
+@media (max-height: 520px), (max-width: 760px) {
+  html body.ch1-ui[data-screen="menu"] #ui .topbar,
+  html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks,
+  html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks .ch1-tab {
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+  html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks .ch1-tab {
+    font-size: 13px !important;
+    padding: 0 7px !important;
+  }
+  html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks .ch1-tab-aux {
+    width: 30px !important;
+    min-width: 30px !important;
+  }
+  html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-progress {
+    top: 48px !important;
+    width: 30vw !important;
+    gap: 5px !important;
+  }
+  .ch1-season strong {
+    font-size: 30px;
+  }
+  .ch1-punch,
+  .ch1-missions p,
+  .ch1-missions small {
+    display: none;
+  }
+  html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .v83-event-card {
+    top: 48px !important;
+    width: 30vw !important;
+  }
+  html body.ch1-ui #ui .ch1-countdown {
+    top: 46px;
+  }
+  html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-play-card {
+    width: 34vw !important;
+    bottom: 44px !important;
+    padding: 7px !important;
+    gap: 5px !important;
+  }
+  html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-play-card .play-btn {
+    min-height: 46px !important;
+    font-size: 26px !important;
+  }
+  html body.ch1-ui #ui .ch1-lobby-actions {
+    bottom: 8px;
+  }
+  html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-play-card ~ .ch1-lobby-actions {
+    bottom: 8px;
+  }
+}
+@media (max-width: 760px) and (orientation: portrait) {
+  html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks .ch1-tab {
+    font-size: 11px !important;
+    padding: 0 5px !important;
+  }
+  html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-progress {
+    width: 46vw !important;
+  }
+  html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .v83-event-card {
+    display: none !important;
+  }
+  html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-play-card {
+    left: 3vw !important;
+    right: 3vw !important;
+    width: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------------ écran de chargement */
+html body.ch1-ui #ui .v6-loading[data-ch1] > *:not(.ch1-loading) {
+  visibility: hidden !important;
+}
+html body.ch1-ui #ui .v6-loading[data-ch1] {
+  background: #0b1a3c !important;
+}
+.ch1-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  font-family: var(--ch1-font);
+  color: #fff;
+  overflow: hidden;
+}
+.ch1-loading-art {
+  position: absolute;
+  inset: 0;
+  background: url("./assets/horizon.webp") center / cover no-repeat;
+  animation: ch1-kenburns 18s ease-out both;
+}
+@keyframes ch1-kenburns {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.ch1-loading-title {
+  position: absolute;
+  left: 4vw;
+  top: 5vh;
+  text-shadow: 0 3px 6px rgba(0, 0, 0, 0.55);
+}
+.ch1-loading-title small {
+  display: block;
+  font-size: clamp(14px, 1.6vw, 22px);
+  font-weight: 800;
+}
+.ch1-loading-title strong {
+  display: block;
+  font-size: clamp(30px, 4vw, 58px);
+  font-weight: 800;
+  line-height: 0.95;
+}
+.ch1-loading-banner {
+  position: absolute;
+  right: 3vw;
+  top: 4vh;
+  padding: 0.35em 1.1em;
+  font-size: clamp(22px, 3vw, 44px);
+  font-weight: 800;
+  color: #141414;
+  background: linear-gradient(180deg, #fff35a, #ffd900);
+  transform: rotate(-2deg) skewX(-4deg);
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.35);
+}
+.ch1-loading-bar {
+  position: absolute;
+  left: 4vw;
+  bottom: 7vh;
+  width: min(460px, 38vw);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+.ch1-loading-bar b {
+  display: block;
+  font-size: clamp(18px, 1.8vw, 26px);
+}
+.ch1-loading-bar span {
+  display: block;
+  font-family: "Barlow", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  opacity: 0.9;
+  margin-bottom: 6px;
+}
+.ch1-loading-bar > i {
+  display: block;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.35);
+}
+.ch1-loading-bar > i > i {
+  display: block;
+  height: 100%;
+  background: #fff;
+  transition: width 0.25s ease;
+}
+.ch1-loading-tip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: min(620px, 52vw);
+  padding: 22px 30px 26px;
+  font-family: "Barlow", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: clamp(13px, 1.3vw, 18px);
+  background: linear-gradient(180deg, rgba(88, 74, 200, 0.92), rgba(70, 55, 170, 0.95));
+  clip-path: polygon(3% 0, 100% 10%, 100% 100%, 0 100%);
+}
+
+/* corrections : pseudo-éléments hérités du bouton de mode (lobby-v48) et fondu de la carte v83 */
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui aside.classic-play-card .classic-mode.ch1-change:after,
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui aside.classic-play-card .classic-mode.ch1-change:before {
+  content: none !important;
+  display: none !important;
+}
+html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .v83-event-card {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
