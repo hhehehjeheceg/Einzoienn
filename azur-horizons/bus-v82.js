@@ -12,6 +12,8 @@
   var T = root.THREE, A = root.AZArt;
   if (!T || !A || typeof A.aircraft !== 'function' || !A.Model) return;
   var Model = A.Model, previous = A.aircraft;
+  /* v92 « Chapitre 1 » : bus bleu vif sous un ballon turquoise et blanc à couronne jaune (design/azur-reference-spec.md §3.4). */
+  var BUS_BLUE = '#2d63d8', BUS_LOW = '#1a2f6a', BUS_ROOF = '#2b3f70', BUS_BELT = '#d6e4ff', B_TEAL = '#15a6b8', B_TEAL2 = '#1192a3', B_WHITE = '#eef8f8', B_YELLOW = '#ffd23a', B_SEAM = '#0d5f6b';
   var NAVY = '#173a6e', BLUE = '#2368c4', CREAM = '#f3ead6', CHROME = '#c9d4de', DARK = '#151b24', GLASS = '#173750', GOLD = '#e8b54a', TEAL = '#1fb5c6', WOOD = '#a8703c', RED = '#d8473c';
 
   function std(color, o) {
@@ -57,7 +59,7 @@
     // deux tons : bas bleu, ceinture crème, toit crème (couleur par hauteur)
     shell = shell.toNonIndexed(); var pos = shell.attributes.position, col = new Float32Array(pos.count * 3), c = new T.Color();
     for (var i = 0; i < pos.count; i++) {
-      var y = pos.getY(i); c.set(y > 1.12 ? CREAM : y > -.02 && y < .18 ? CREAM : y < -.86 ? NAVY : BLUE);
+      var y = pos.getY(i); c.set(y > 1.12 ? BUS_ROOF : y > -.02 && y < .18 ? BUS_BELT : y < -.86 ? BUS_LOW : BUS_BLUE); /* v92 : carrosserie bleue comme le bus de la référence */
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
     }
     shell.setAttribute('color', new T.BufferAttribute(col, 3));
@@ -159,11 +161,11 @@
       prof.push(new T.Vector2(Math.max(.02, rr), yb));
     }
     var env = new T.LatheGeometry(prof, 32).toNonIndexed(); env.computeVertexNormals();
-    var ep = env.attributes.position, ec = new Float32Array(ep.count * 3), c1 = new T.Color(TEAL), c2 = new T.Color(CREAM), cg = new T.Color(GOLD), cn = new T.Color(NAVY);
+    var ep = env.attributes.position, ec = new Float32Array(ep.count * 3), c1 = new T.Color(TEAL), c2 = new T.Color(CREAM), cg = new T.Color(GOLD), cn = new T.Color(NAVY); var bT = new T.Color(B_TEAL), bT2 = new T.Color(B_TEAL2), bW = new T.Color(B_WHITE), bY = new T.Color(B_YELLOW), bS = new T.Color(B_SEAM);
     for (var f = 0; f < ep.count; f += 3) {
       var mx = (ep.getX(f) + ep.getX(f + 1) + ep.getX(f + 2)) / 3, my = (ep.getY(f) + ep.getY(f + 1) + ep.getY(f + 2)) / 3, mz = (ep.getZ(f) + ep.getZ(f + 1) + ep.getZ(f + 2)) / 3;
       var ang = Math.atan2(mz, mx), gore = Math.floor(((ang + Math.PI) / (Math.PI * 2)) * 16) % 2;
-      var cc = (my > 19.0 && my < 19.7) ? cg : (my > 12.9 && my < 13.5) ? cn : my > 20.6 ? cg : gore ? c1 : c2;
+      var cc = my > 21.5 ? bY : (my > 12.9 && my < 13.35) ? bS : my > 13.35 ? (gore ? bT : bT2) : my > 8.7 ? bW : (gore ? bT : bT2); /* v92 : turquoise en haut, blanc en bas, couronne jaune */
       for (var vv = 0; vv < 3; vv++) { ec[(f + vv) * 3] = cc.r; ec[(f + vv) * 3 + 1] = cc.g; ec[(f + vv) * 3 + 2] = cc.b; }
     }
     env.setAttribute('color', new T.BufferAttribute(ec, 3));
@@ -172,7 +174,7 @@
     var emb = emblemTex();
     for (var es = -1; es <= 1; es += 2) {
       var disc = new T.Mesh(new T.CircleGeometry(2.1, 32), new T.MeshStandardMaterial({ map: emb, roughness: .6, transparent: true }));
-      disc.position.set(es * 7.42, 15.4, 0); disc.rotation.y = es * Math.PI / 2; balloon.add(disc);
+      disc.position.set(es * 7.42, 15.4, 0); disc.rotation.y = es * Math.PI / 2; disc.visible = false; /* v92 : ballon uni comme la référence */ balloon.add(disc);
     }
     // gouvernes de queue, anneau de charge, jupe, brûleur, gréement
     var fin = new T.Shape(); fin.moveTo(0, 0); fin.lineTo(3.6, .6); fin.lineTo(3.9, 2.8); fin.lineTo(.4, 1.6); fin.closePath();
