@@ -1,0 +1,341 @@
+/* ==========================================================================
+   AZUR v19 — GAINS & INTERFACE
+   Récompenses plus lisibles, animations d'interface avec ease (pas de snap),
+   notifications élégantes, écran de fin de match gratifiant.
+   Chargé en dernier : ses règles prennent le dessus à spécificité égale.
+   ========================================================================== */
+
+/* --- Ouverture des panneaux et dialogues : fondu + rebond doux --- */
+.modal-shade { animation: v19-shade .28s ease-out; }
+.modal-shade > .dialog { animation: v19-pop .42s cubic-bezier(.2,.9,.25,1.18); }
+@keyframes v19-shade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes v19-pop {
+  from { opacity: 0; transform: translateY(26px) scale(.96); }
+  to { opacity: 1; transform: none; }
+}
+
+/* --- Changement d'onglet dans les menus : glissement doux --- */
+.scroll-panel { animation: v19-panel-in .3s ease-out; }
+@keyframes v19-panel-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* --- Notifications (toasts) : icônes, couleurs par type, sortie en douceur --- */
+.toast-item { display: flex; align-items: center; gap: 9px; }
+.toast-item .toast-icon { font-size: 1.15em; line-height: 1; filter: drop-shadow(0 0 6px currentColor); }
+.toast-item.toast-kind-xp { border-color: #38bdf899; }
+.toast-item.toast-kind-xp .toast-icon { color: #7dd3fc; }
+.toast-item.toast-kind-quest { border-color: #ffd16699; box-shadow: 0 0 22px #ffd1662e, 0 7px 25px rgba(5,30,50,.2); }
+.toast-item.toast-kind-quest .toast-icon { color: #ffd166; }
+.toast-item.toast-kind-coins { border-color: #ffd166cc; }
+.toast-item.toast-kind-coins .toast-icon { color: #ffe98c; }
+.toast-item.toast-kind-victory { border-color: #ffe98c; box-shadow: 0 0 26px #ffe88740; }
+.toast-item.toast-kind-victory .toast-icon { color: #ffe98c; }
+.toast-item.is-leaving { opacity: 0; transform: translateY(10px); transition: opacity .45s ease, transform .45s ease; }
+
+/* --- Panneau notifications du profil : plus élégant --- */
+.exp-notifications article {
+  animation: v19-row-in .35s ease-out both;
+  border-left: 3px solid #38bdf866;
+  border-radius: 0 8px 8px 0;
+  background: #ffffff08;
+  padding: 9px 12px;
+}
+.exp-notifications article.is-unread {
+  border-left-color: #ffd166;
+  background: linear-gradient(90deg, #ffd16614, transparent);
+}
+
+/* ==========================================================================
+   Écran de fin de match
+   ========================================================================== */
+.v19-results { position: relative; overflow: hidden; }
+.v19-results.is-victory { animation: v19-victory-glow 2.6s ease-in-out infinite alternate, v19-pop .42s cubic-bezier(.2,.9,.25,1.18); }
+@keyframes v19-victory-glow {
+  from { box-shadow: 0 0 34px #ffe88726; }
+  to { box-shadow: 0 0 92px #ffe8875c; }
+}
+.v19-results-title { animation: v19-title-in .55s cubic-bezier(.2,.9,.25,1.25) both .08s; }
+.v19-rank { animation: v19-title-in .5s cubic-bezier(.2,.9,.25,1.25) both .22s; }
+@keyframes v19-title-in {
+  from { opacity: 0; transform: scale(.65); }
+  to { opacity: 1; transform: none; }
+}
+.v19-gains-total {
+  display: flex; gap: 10px; justify-content: center; margin: 6px 0 2px;
+  animation: v19-row-in .45s ease-out both .34s;
+}
+.v19-gain-xp, .v19-gain-coins {
+  flex: 1; max-width: 220px;
+  display: grid; gap: 2px; justify-items: center;
+  padding: 12px 8px; border-radius: 10px;
+  background: #ffffff0a; border: 1px solid #ffffff1c;
+}
+.v19-gain-xp small, .v19-gain-coins small { font-size: .62rem; letter-spacing: .14em; opacity: .75; }
+.v19-gain-xp b, .v19-gain-coins b {
+  font-size: 1.9rem; line-height: 1; font-variant-numeric: tabular-nums;
+  background: linear-gradient(180deg, #fff8dc, #ffd166);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.v19-gain-xp b { background: linear-gradient(180deg, #e8fbff, #38bdf8); -webkit-background-clip: text; background-clip: text; }
+.v19-gain-coins { position: relative; }
+.v19-gain-coins i { position: absolute; top: 8px; right: 10px; color: #ffe98c; font-style: normal; }
+.v19-gains-total b.is-done { animation: v19-num-pop .45s cubic-bezier(.2,.9,.25,1.4); display: inline-block; }
+@keyframes v19-num-pop {
+  0% { transform: scale(1); } 45% { transform: scale(1.22); } 100% { transform: scale(1); }
+}
+.v19-breakdown { display: grid; gap: 5px; margin: 8px 0 2px; text-align: left; }
+.v19-breakdown .eyebrow { text-align: center; }
+.v19-bd-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  padding: 7px 12px; border-radius: 8px; background: #ffffff07; border: 1px solid #ffffff12;
+  font-size: .82rem; animation: v19-row-in .4s ease-out both;
+}
+.v19-bd-row:nth-child(2) { animation-delay: .42s; }
+.v19-bd-row:nth-child(3) { animation-delay: .5s; }
+.v19-bd-row:nth-child(4) { animation-delay: .58s; }
+.v19-bd-row:nth-child(5) { animation-delay: .66s; }
+.v19-bd-row:nth-child(6) { animation-delay: .74s; }
+.v19-bd-row:nth-child(7) { animation-delay: .82s; }
+.v19-bd-row b { color: #ffe98c; white-space: nowrap; font-variant-numeric: tabular-nums; }
+@keyframes v19-row-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.v19-level-wrap { margin: 10px 0 2px; animation: v19-row-in .45s ease-out both .7s; }
+.v19-level-head { display: flex; justify-content: space-between; align-items: center; font-size: .78rem; letter-spacing: .08em; margin-bottom: 6px; }
+.v19-levelup-badge {
+  color: #0b2434; background: linear-gradient(120deg, #ffe98c, #ffb35c);
+  padding: 4px 12px; border-radius: 99px; font-weight: 800;
+}
+.v19-results.leveled .v19-levelup-badge { animation: v19-num-pop .55s cubic-bezier(.2,.9,.25,1.5); display: inline-block; }
+.v19-level-track {
+  height: 11px; border-radius: 99px; background: #ffffff14;
+  border: 1px solid #ffffff1e; overflow: hidden;
+}
+.v19-level-track i {
+  display: block; height: 100%; width: 0; border-radius: 99px;
+  background: linear-gradient(90deg, #38bdf8, #7df9ff, #ffd166);
+  box-shadow: 0 0 14px #38bdf8aa;
+  transition: width 1.5s cubic-bezier(.25,.8,.25,1);
+}
+.v19-quests { display: grid; gap: 5px; margin: 8px 0 2px; text-align: left; }
+.v19-quests .eyebrow { text-align: center; }
+.v19-quest-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  padding: 7px 12px; border-radius: 8px; font-size: .82rem;
+  background: linear-gradient(90deg, #ffd16612, transparent);
+  border: 1px solid #ffd1662e; animation: v19-row-in .4s ease-out both .85s;
+}
+.v19-quest-row b { color: #7df9ff; white-space: nowrap; }
+.v19-match-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px;
+  animation: v19-row-in .45s ease-out both .95s;
+}
+.v19-match-stats > div {
+  padding: 10px 6px; border-radius: 10px; background: #ffffff07; border: 1px solid #ffffff12;
+  display: grid; gap: 2px; justify-items: center;
+}
+.v19-match-stats b { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.v19-match-stats small { font-size: .6rem; letter-spacing: .12em; opacity: .7; }
+
+/* Confettis de victoire */
+.v19-confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: inherit; }
+.v19-confetti i {
+  position: absolute; top: -14px; width: 8px; height: 14px; border-radius: 2px;
+  animation-name: v19-fall; animation-timing-function: linear; animation-fill-mode: forwards;
+}
+@keyframes v19-fall {
+  to { transform: translateY(560px) rotate(720deg); opacity: 0; }
+}
+
+/* ==========================================================================
+   Fenêtre de récompense (passe, boutique, tout-réclamer)
+   ========================================================================== */
+.v19-reward .v19-reward-orb { position: relative; }
+.v19-sparkles { position: absolute; inset: -14px; pointer-events: none; }
+.v19-sparkles i {
+  position: absolute; width: 10px; height: 10px;
+  background: radial-gradient(circle, #fff8dc 20%, #ffd166 60%, transparent 75%);
+  border-radius: 50%; opacity: 0;
+  animation: v19-spark 1.6s ease-out infinite;
+}
+.v19-sparkles i:nth-child(1) { top: 0; left: 50%; animation-delay: 0s; }
+.v19-sparkles i:nth-child(2) { top: 22%; right: 2%; animation-delay: .27s; }
+.v19-sparkles i:nth-child(3) { bottom: 22%; right: 6%; animation-delay: .54s; }
+.v19-sparkles i:nth-child(4) { bottom: 0; left: 50%; animation-delay: .81s; }
+.v19-sparkles i:nth-child(5) { bottom: 22%; left: 6%; animation-delay: 1.08s; }
+.v19-sparkles i:nth-child(6) { top: 22%; left: 2%; animation-delay: 1.35s; }
+@keyframes v19-spark {
+  0% { opacity: 0; transform: scale(.3); }
+  40% { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 0; transform: scale(.5); }
+}
+.v19-coin-count {
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(180deg, #fff8dc, #ffd166);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* --- Bannière "tout réclamer" du passe --- */
+.v19-claimall {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 12px 0; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid #ffd16666;
+  background: linear-gradient(120deg, #ffd1661c, transparent 60%);
+  animation: v19-row-in .4s ease-out both;
+}
+.v19-claimall > div { display: grid; gap: 2px; }
+.v19-claimall b { font-size: .95rem; }
+.v19-claimall small { opacity: .7; font-size: .75rem; }
+
+/* --- Barre XP du lobby : pulsation douce à l'arrivée --- */
+.v6-xp i em { transition: width 1s cubic-bezier(.25,.8,.25,1); }
+
+/* --- Accessibilité : réduire les animations si demandé --- */
+@media (prefers-reduced-motion: reduce) {
+  .modal-shade > .dialog, .v19-results.is-victory, .v19-confetti,
+  .v19-sparkles i, .v6-reward-orb { animation: none !important; }
+  .v19-level-track i, .v6-xp i em { transition: none !important; }
+}
+
+/* --- Petit écran : l'écran de fin reste lisible --- */
+@media (max-width: 560px) {
+  .v19-gain-xp b, .v19-gain-coins b { font-size: 1.5rem; }
+  .v19-bd-row, .v19-quest-row { font-size: .76rem; padding: 6px 10px; }
+  .v19-results .dialog-actions { flex-wrap: wrap; }
+}
+
+/* ==========================================================================
+   AZUR v21 — GAINS XXL
+   Toasts plus lisibles, écran de fin enrichi (lignes de gains nombreuses),
+   paliers jalons du passe, historique des gains.
+   ========================================================================== */
+
+/* --- Toasts : contraste renforcé, plus grands, entrée glissée --- */
+.toast-item {
+  background: rgba(8, 22, 36, .94);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border: 1px solid #ffffff2e; border-radius: 12px;
+  padding: 12px 16px; min-height: 48px;
+  font-size: .92rem; line-height: 1.35;
+  max-width: min(92vw, 430px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45), 0 0 0 1px #00000040;
+  animation: v21-toast-in .38s cubic-bezier(.2, .9, .25, 1.2);
+}
+@keyframes v21-toast-in {
+  from { opacity: 0; transform: translateY(-18px) scale(.94); }
+  to { opacity: 1; transform: none; }
+}
+.toast-item .toast-icon { font-size: 1.35em; }
+.toast-item.toast-kind-match { border-color: #7df9ff99; box-shadow: 0 0 22px #7df9ff2e, 0 10px 30px rgba(0, 0, 0, .45); }
+.toast-item.toast-kind-match .toast-icon { color: #7df9ff; }
+
+/* --- Écran de fin : lignes de gains nombreuses, cascade prolongée --- */
+.v19-bd-row:nth-child(8) { animation-delay: .9s; }
+.v19-bd-row:nth-child(9) { animation-delay: .98s; }
+.v19-bd-row:nth-child(10) { animation-delay: 1.06s; }
+.v19-bd-row:nth-child(11) { animation-delay: 1.14s; }
+.v19-bd-row:nth-child(12) { animation-delay: 1.22s; }
+.v19-bd-row:nth-child(13) { animation-delay: 1.3s; }
+.v19-bd-row:nth-child(14) { animation-delay: 1.38s; }
+.v19-bd-row:nth-child(15) { animation-delay: 1.46s; }
+.v19-bd-row:nth-child(16) { animation-delay: 1.54s; }
+.v19-bd-row span { overflow: hidden; text-overflow: ellipsis; }
+/* Les gros gains (victoire, défis) ressortent davantage */
+.v19-bd-row b {
+  background: linear-gradient(180deg, #fff8dc, #ffd166);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-size: .9rem;
+}
+.v19-gains-total { margin: 10px 0 4px; }
+.v19-gain-xp, .v19-gain-coins {
+  border-width: 1px; border-color: #ffffff2a;
+  box-shadow: inset 0 1px 0 #ffffff14, 0 6px 22px rgba(0, 0, 0, .3);
+}
+.v19-results .v19-breakdown .eyebrow,
+.v19-results .v19-quests .eyebrow {
+  letter-spacing: .18em; opacity: .85; margin: 4px 0 2px;
+}
+
+/* --- Passe : valeur totale --- */
+.v21-pass-value {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  margin: 12px 0; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid #38bdf855;
+  background: linear-gradient(120deg, #38bdf81a, transparent 65%);
+  animation: v19-row-in .4s ease-out both;
+}
+.v21-pass-value > div { display: grid; gap: 2px; justify-items: center; text-align: center; }
+.v21-pass-value span { font-size: .62rem; letter-spacing: .14em; opacity: .7; }
+.v21-pass-value b {
+  font-size: 1.3rem; font-variant-numeric: tabular-nums;
+  background: linear-gradient(180deg, #fff8dc, #ffd166);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.v21-pass-value small { font-size: .72rem; opacity: .75; }
+.v21-pass-value .is-jalon b {
+  background: linear-gradient(180deg, #fff3bd, #ffb35c);
+  -webkit-background-clip: text; background-clip: text;
+}
+
+/* --- Passe : paliers jalons mis en avant --- */
+.exp-tier.is-milestone {
+  border: 1px solid #ffd16688; border-radius: 12px;
+  background: linear-gradient(120deg, #ffd16614, transparent 70%);
+  box-shadow: 0 0 24px #ffd16622;
+  padding: 8px; margin: 0 -8px;
+}
+.exp-tier.is-milestone > strong span {
+  color: #0b2434; background: linear-gradient(120deg, #ffe98c, #ffb35c);
+  padding: 2px 10px; border-radius: 99px; font-weight: 800;
+  animation: v19-num-pop .5s cubic-bezier(.2, .9, .25, 1.4);
+}
+
+/* --- Carrière : historique des gains --- */
+.v21-gains-summary {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  margin: 10px 0; animation: v19-row-in .4s ease-out both;
+}
+.v21-gains-summary > div {
+  display: grid; gap: 2px; justify-items: center; text-align: center;
+  padding: 10px 6px; border-radius: 10px;
+  background: #ffffff07; border: 1px solid #ffffff12;
+}
+.v21-gains-summary span { font-size: .6rem; letter-spacing: .12em; opacity: .7; }
+.v21-gains-summary b { font-size: 1.15rem; font-variant-numeric: tabular-nums; color: #7df9ff; }
+.v21-gain-line {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 4px; padding: 3px 10px; border-radius: 99px;
+  background: #38bdf814; border: 1px solid #38bdf833;
+  font-size: .74rem;
+}
+.v21-gain-line b { color: #7df9ff; font-variant-numeric: tabular-nums; }
+.v21-gain-line b.is-coins { color: #ffe98c; }
+.v21-gain-line i { font-style: normal; opacity: .5; }
+.v21-history article { animation: v19-row-in .35s ease-out both; }
+
+/* --- Quêtes : total d'XP à gagner --- */
+.v21-quest-total {
+  margin: 10px 2px 2px; font-size: .85rem;
+  padding: 8px 12px; border-radius: 10px;
+  background: linear-gradient(90deg, #ffd16612, transparent);
+  border: 1px solid #ffd1662e;
+  animation: v19-row-in .4s ease-out both;
+}
+.v21-quest-total b { color: #7df9ff; }
+.v21-quest-total small { opacity: .65; }
+
+/* --- Accessibilité : réduire les animations si demandé --- */
+@media (prefers-reduced-motion: reduce) {
+  .toast-item, .v21-pass-value, .v21-gains-summary, .v21-quest-total,
+  .exp-tier.is-milestone > strong span { animation: none !important; }
+}
+
+/* --- Petit écran : valeur du passe et résumé des gains en colonne --- */
+@media (max-width: 560px) {
+  .v21-pass-value, .v21-gains-summary { grid-template-columns: 1fr 1fr; }
+  .v21-pass-value > div:last-child, .v21-gains-summary > div:last-child { grid-column: 1 / -1; }
+  .toast-item { font-size: .85rem; padding: 10px 13px; }
+}

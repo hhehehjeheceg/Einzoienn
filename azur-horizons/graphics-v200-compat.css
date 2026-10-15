@@ -1,0 +1,50 @@
+/* Compatibilité visuelle : la peau graphique Renaissance habille la version 1.8
+   sans remplacer ses menus, ses commandes, son édition ni ses modes de jeu. */
+.azur-v2 .v13-emote-dock,
+.azur-v2 .touch-emote-mini {
+  display: flex !important;
+}
+
+/* La barre 1.8 reste prioritaire : seuls les matériaux, contrastes et volumes
+   du thème graphique 2.0 sont repris. */
+body.azur-v2[data-screen="menu"] .topbar,
+body.azur-v2[data-screen="menu"] .navlinks,
+body.azur-v2[data-screen="menu"] .account-bar {
+  pointer-events: auto;
+}
+
+body.azur-v2[data-screen="menu"] .v18-section-title strong,
+body.azur-v2[data-screen="menu"] .navlinks .btn span,
+body.azur-v2[data-screen="menu"] .currency,
+body.azur-v2[data-screen="menu"] .account-bar {
+  color: #f2fbff;
+}
+
+body.azur-v2.touch-ui .inventory-bar .tool-slot {
+  display: flex !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .azur-v2 .v13-emote-dock,
+  .azur-v2 .touch-emote-mini {
+    transition: none !important;
+  }
+}
+
+/* ===== AZUR v21 — compat polish ===== */
+.azur-v2 .v13-emote-dock {
+  gap: 6px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(3, 20, 31, .55);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 24px rgba(0, 8, 15, .35);
+}
+.azur-v2 .touch-emote-mini {
+  box-shadow: 0 4px 14px rgba(0, 8, 15, .4);
+  transition: transform .12s ease, box-shadow .15s ease;
+}
+.azur-v2 .touch-emote-mini:active { transform: scale(.9); }
+@media (prefers-reduced-motion: reduce) {
+  .azur-v2 .touch-emote-mini { transition: none !important; }
+}

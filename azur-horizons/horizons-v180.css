@@ -1,0 +1,34 @@
+/* Horizons 1.8 — navigation et lisibilité multi-écrans. */
+:root{--v18-ink:#03152d;--v18-blue:#0a4f8e;--v18-blue-deep:#062b5c;--v18-cyan:#49e9e1;--v18-yellow:#f7d955;}
+body[data-screen="menu"] .topbar{z-index:8!important;height:64px!important;min-height:64px!important;padding:0 18px!important;gap:8px!important;align-items:stretch!important;background:linear-gradient(180deg,#0a4a86,#062c5f)!important;border-bottom:1px solid rgba(132,205,245,.34)!important;box-shadow:0 8px 28px rgba(0,10,35,.38)!important}
+body[data-screen="menu"] .wordmark{width:70px!important;min-width:70px!important;padding:0 8px!important;display:flex!important;align-items:center!important;justify-content:center!important;border-radius:0!important;background:rgba(8,39,83,.34)!important;color:#fff!important}
+body[data-screen="menu"] .v18-section-title{display:flex;align-items:center;gap:9px;min-width:132px;padding:0 13px;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.3)}
+.v18-section-title svg{width:25px;height:25px;stroke-width:1.85}.v18-section-title strong{font:800 25px/1 BarlowCondensed,sans-serif;letter-spacing:-.015em}
+body[data-screen="menu"] .classic-lobby-title{display:none!important}
+body[data-screen="menu"] .navlinks{height:64px!important;display:flex!important;gap:0!important;flex:1 1 auto!important;overflow:visible!important}
+body[data-screen="menu"] .navlinks .btn{position:relative!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;width:auto!important;min-width:61px!important;height:64px!important;padding:3px 7px 2px!important;border:0!important;border-radius:0!important;background:transparent!important;color:rgba(205,231,251,.65)!important;font:800 .51rem/1 Barlow,sans-serif!important;letter-spacing:.055em!important}
+body[data-screen="menu"] .navlinks .btn svg{display:block!important;width:22px!important;height:22px!important;opacity:.82!important}
+body[data-screen="menu"] .navlinks .btn span{display:block}
+body[data-screen="menu"] .navlinks .btn.active{color:#041a35!important;background:var(--v18-yellow)!important;clip-path:polygon(0 0,100% 0,100% 88%,50% 100%,0 88%)}
+body[data-screen="menu"] .navlinks .btn.active:after{display:none!important}
+body[data-screen="menu"] .navlinks .btn:not(.active):hover{color:#fff!important;background:rgba(143,211,255,.11)!important}
+body[data-screen="menu"] .account-bar{height:64px!important;align-items:center!important}
+body[data-screen="menu"] .currency{background:rgba(3,27,57,.42)!important;border:1px solid rgba(123,204,240,.2)!important}
+body[data-screen="menu"]:not([data-tab="play"]) #scene{opacity:1!important}
+body[data-screen="menu"] .v6-panel{border:1px solid rgba(107,195,230,.28)!important;background:linear-gradient(160deg,rgba(5,30,62,.96),rgba(8,61,92,.91))!important;box-shadow:0 18px 55px rgba(0,8,30,.42)!important}
+body[data-screen="menu"] .v6-panel h2{letter-spacing:-.02em;text-shadow:0 3px 10px rgba(0,0,0,.28)}
+.v18-lobby-rail{position:absolute;left:50%;bottom:25px;transform:translateX(-50%);z-index:4;display:flex;gap:1px;padding:1px;background:rgba(100,199,235,.2);box-shadow:0 10px 30px rgba(0,8,26,.32)}
+.v18-lobby-rail span{display:flex;align-items:center;gap:7px;min-height:30px;padding:5px 11px;background:rgba(3,28,61,.83);color:#cfefff;font:600 .65rem/1 Barlow,sans-serif;letter-spacing:.035em;white-space:nowrap}
+.v18-lobby-rail b{color:var(--v18-yellow);font-weight:900}
+.v18-sky-free{position:fixed;top:max(82px,calc(env(safe-area-inset-top) + 70px));left:50%;z-index:4;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(4,29,54,.78);color:#d9ffff;border-bottom:2px solid var(--v18-cyan);font:700 .56rem/1 Barlow,sans-serif;letter-spacing:.075em;pointer-events:none;box-shadow:0 8px 18px rgba(0,10,30,.25)}
+.v18-sky-free b{color:var(--v18-yellow);font-weight:900}
+.world-edit-head{background:linear-gradient(90deg,rgba(53,229,213,.14),transparent)!important}.world-edit-grid button.solid{box-shadow:inset 0 0 0 2px rgba(219,255,248,.55),0 0 15px rgba(74,239,220,.17)!important}.build-toolbar{filter:drop-shadow(0 10px 22px rgba(0,8,25,.28))}
+@media(max-width:1150px){body[data-screen="menu"] .v18-section-title{min-width:92px;padding:0 7px}.v18-section-title strong{font-size:20px}body[data-screen="menu"] .navlinks .btn{min-width:48px;padding-inline:4px}body[data-screen="menu"] .navlinks .btn span{font-size:.45rem}}
+@media(max-width:760px),(max-height:560px){body[data-screen="menu"] .topbar{height:82px!important;min-height:82px!important;padding:0 6px!important;align-content:flex-start!important;flex-wrap:wrap!important}body[data-screen="menu"] .wordmark{width:50px!important;min-width:50px!important;height:36px!important;padding:0 3px!important}body[data-screen="menu"] .v18-section-title{height:36px;min-width:72px;gap:5px;padding:0 4px}.v18-section-title svg{width:18px;height:18px}.v18-section-title strong{font-size:17px}body[data-screen="menu"] .account-bar{height:36px!important;margin-left:auto!important}body[data-screen="menu"] .navlinks{position:absolute!important;left:4px!important;right:4px!important;top:38px!important;width:auto!important;height:44px!important;display:grid!important;grid-template-columns:repeat(8,minmax(0,1fr))!important}body[data-screen="menu"] .navlinks .btn{min-width:0!important;width:100%!important;height:43px!important;padding:0!important;gap:0!important}body[data-screen="menu"] .navlinks .btn svg{width:19px!important;height:19px!important}body[data-screen="menu"] .navlinks .btn span{display:none!important}.v18-lobby-rail{display:none}.v18-sky-free{top:max(57px,calc(env(safe-area-inset-top) + 46px));max-width:72vw;padding:5px 7px}.v18-sky-free span{display:none}body[data-screen="menu"] .v6-panel{top:88px!important;max-height:calc(100vh - 124px)!important}}
+@media(prefers-reduced-motion:reduce){.v18-lobby-rail,.v18-sky-free{transition:none!important}}
+
+/* ===== AZUR v21 — menu topbar polish ===== */
+body[data-screen="menu"] .topbar{position:relative}
+body[data-screen="menu"] .topbar::after{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(140,220,255,.4),transparent);pointer-events:none}
+body[data-screen="menu"] .v18-section-title strong{text-shadow:0 2px 10px rgba(73,233,225,.2)}
+body[data-screen="menu"] .navlinks .btn{transition:background .15s,color .15s}

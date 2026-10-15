@@ -1,0 +1,100 @@
+/* AZUR v66 — interface du salon façon cartoon.
+   Couleurs, matières, typographie et animations uniquement : les tailles et
+   positions des couches précédentes (PC et mobile) ne sont pas modifiées. */
+
+:root {
+  --v66-ink: #120c2a;
+  --v66-violet: #4b2a8c;
+  --v66-blue: #1f6fe0;
+  --v66-cyan: #5ff0ff;
+  --v66-yellow: #ffd23f;
+  --v66-pink: #ff5d8f;
+}
+
+/* Barre du haut : bandeau violet profond, onglet actif jaune incliné. */
+html body[data-screen="menu"][data-tab]:not(.v66) header.topbar {
+  background: linear-gradient(180deg, rgba(36, 18, 82, .96), rgba(24, 12, 58, .9)) !important;
+  border-bottom: 3px solid rgba(255, 210, 63, .85) !important;
+  box-shadow: 0 6px 24px rgba(10, 4, 30, .55) !important;
+}
+html body[data-screen="menu"][data-tab]:not(.v66) header.topbar nav.navlinks button {
+  color: #d9d2ff !important; font-weight: 800 !important; letter-spacing: .04em;
+  transition: transform .15s ease, color .15s ease;
+}
+html body[data-screen="menu"][data-tab]:not(.v66) header.topbar nav.navlinks button:hover { color: #fff !important; transform: translateY(-2px); }
+html body[data-screen="menu"][data-tab]:not(.v66) header.topbar nav.navlinks button.active {
+  background: linear-gradient(180deg, #ffe46b, var(--v66-yellow)) !important; color: var(--v66-ink) !important;
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+  box-shadow: 0 0 22px rgba(255, 210, 63, .55) !important;
+}
+html body[data-screen="menu"][data-tab]:not(.v66) header.topbar nav.navlinks button.active svg { color: var(--v66-ink) !important; }
+html body[data-screen="menu"][data-tab]:not(.v66) header.topbar .currency {
+  background: linear-gradient(180deg, #2f2a7a, #1d1856) !important; border: 2px solid var(--v66-cyan) !important;
+  color: #fff !important; border-radius: 10px !important; box-shadow: 0 0 12px rgba(95, 240, 255, .35);
+}
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-lobby-title, html body[data-screen="menu"][data-tab]:not(.v66) .v18-section-title strong {
+  color: #fff !important; text-shadow: 0 3px 0 var(--v66-violet), 0 0 18px rgba(255, 93, 143, .6) !important;
+}
+
+/* Carte de progression à gauche. */
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-progress {
+  background: linear-gradient(160deg, rgba(75, 42, 140, .92), rgba(31, 18, 80, .92)) !important;
+  border: 3px solid rgba(255, 255, 255, .85) !important; border-radius: 16px !important;
+  box-shadow: 0 10px 30px rgba(10, 4, 30, .5), inset 0 0 0 2px rgba(95, 240, 255, .25) !important;
+  transform: rotate(-1.2deg);
+}
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-season { color: var(--v66-yellow) !important; letter-spacing: .12em; }
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-level-shield {
+  background: linear-gradient(180deg, var(--v66-pink), #c22a63) !important; color: #fff !important;
+  box-shadow: 0 0 14px rgba(255, 93, 143, .6) !important;
+}
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-xp i { background: linear-gradient(90deg, var(--v66-cyan), var(--v66-yellow)) !important; }
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-challenge em { color: var(--v66-yellow) !important; }
+
+/* Carte JOUER : gros bouton jaune biseauté qui respire. */
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-play-card {
+  background: linear-gradient(180deg, rgba(48, 26, 110, .95), rgba(20, 12, 54, .95)) !important;
+  border: 3px solid #fff !important; border-radius: 18px !important;
+  box-shadow: 0 14px 40px rgba(10, 4, 30, .6), 0 0 0 4px rgba(255, 210, 63, .35) !important;
+}
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-play-card .classic-mode { color: #fff !important; font-weight: 900 !important; letter-spacing: .06em; }
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-play-card .play-btn {
+  background: linear-gradient(180deg, #fff27a 0%, var(--v66-yellow) 55%, #f2b400 100%) !important;
+  color: var(--v66-ink) !important; font-weight: 900 !important; letter-spacing: .08em !important;
+  border: 3px solid var(--v66-ink) !important; border-radius: 12px !important;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, .6);
+  box-shadow: 0 6px 0 #b47d00, 0 0 30px rgba(255, 210, 63, .55) !important;
+  animation: v66-breathe 2.4s ease-in-out infinite;
+}
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-play-card .play-btn:hover { filter: brightness(1.08); transform: translateY(-2px) scale(1.02); }
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-play-card .play-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #b47d00 !important; }
+@keyframes v66-breathe { 0%, 100% { box-shadow: 0 6px 0 #b47d00, 0 0 22px rgba(255, 210, 63, .4); } 50% { box-shadow: 0 6px 0 #b47d00, 0 0 42px rgba(255, 210, 63, .8); } }
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-ready-note { color: #cfc6ff !important; }
+
+/* Nom du joueur, invitations, bandeau d'infos, pied de page. */
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-player-label strong { color: #fff !important; text-shadow: 0 2px 0 var(--v66-violet), 0 0 12px rgba(0, 0, 0, .5) !important; }
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-player-label span { color: var(--v66-yellow) !important; }
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-invite {
+  background: rgba(36, 18, 82, .65) !important; border: 2px dashed rgba(255, 255, 255, .8) !important; color: #fff !important;
+  border-radius: 14px !important; transition: transform .15s ease, background .15s ease;
+}
+html body[data-screen="menu"][data-tab]:not(.v66) .classic-invite:hover { background: rgba(255, 210, 63, .85) !important; color: var(--v66-ink) !important; transform: scale(1.08); }
+html body[data-screen="menu"][data-tab]:not(.v66) .v18-lobby-rail span { background: rgba(36, 18, 82, .75) !important; border-color: rgba(255, 255, 255, .25) !important; color: #e8e2ff !important; }
+html body[data-screen="menu"][data-tab]:not(.v66) .v18-lobby-rail b { color: var(--v66-yellow) !important; }
+html body[data-screen="menu"][data-tab]:not(.v66) footer.bottom-bar { background: linear-gradient(0deg, rgba(18, 10, 44, .95), rgba(18, 10, 44, .6)) !important; }
+
+/* Bannière de l'événement « C'EST LA FIN. » : lettres qui se déchirent. */
+html body:not(.v66) .azevent-lobby-banner {
+  color: #fff !important; text-shadow: 2px 0 0 var(--v66-pink), -2px 0 0 var(--v66-cyan), 0 0 24px rgba(255, 255, 255, .5) !important;
+  animation: v66-glitch 3.2s steps(1) infinite;
+}
+@keyframes v66-glitch {
+  0%, 88%, 100% { transform: none; opacity: 1; }
+  90% { transform: translateX(-3px) skewX(-8deg); opacity: .85; }
+  92% { transform: translateX(4px); opacity: 1; }
+  94% { transform: translateX(-1px) skewX(6deg); opacity: .7; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html body[data-screen="menu"][data-tab]:not(.v66) .classic-play-card .play-btn, html body:not(.v66) .azevent-lobby-banner { animation: none !important; }
+  html body[data-screen="menu"][data-tab]:not(.v66) .classic-progress { transform: none; }
+}

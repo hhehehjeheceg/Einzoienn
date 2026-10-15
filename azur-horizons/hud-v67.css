@@ -1,0 +1,266 @@
+/* AZUR v67 — HUD : vie et bouclier, disposition PC et mobile, boutons tactiles.
+   L'ancien bloc de vie est remplacé par .v67-vitals (construit par hud-v67.js).
+   Règles préfixées par « html body » pour passer devant les couches précédentes. */
+
+:root {
+  --v67-ink: #0b1026;
+  --v67-hp-a: #b7ff8a; --v67-hp-b: #4fdc5c; --v67-hp-c: #17923f;
+  --v67-sh-a: #c4f3ff; --v67-sh-b: #45b8ff; --v67-sh-c: #1662d8;
+  --v67-low-a: #ffc0a8; --v67-low-b: #ff4d4d; --v67-low-c: #a8122a;
+  --v67-gold: #ffd23f;
+}
+
+/* ---------- Vie et bouclier ---------- */
+html body #health-block.health-block { display: none !important; }
+.v67-vitals {
+  position: absolute; left: 24px; bottom: 60px; width: 300px; z-index: 6; pointer-events: none;
+  display: flex; flex-direction: column; gap: 6px; font-family: "Barlow Condensed", Impact, sans-serif; color: #fff;
+}
+.v67-row { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr) 62px; align-items: center; gap: 8px; }
+.v67-ico {
+  width: 30px; height: 30px; display: grid; place-items: center;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: linear-gradient(180deg, var(--v67-hp-a), var(--v67-hp-c));
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .45));
+}
+.v67-ico svg { width: 16px; height: 16px; fill: #fff; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .5)); }
+.v67-shield .v67-ico { background: linear-gradient(180deg, var(--v67-sh-a), var(--v67-sh-c)); }
+.v67-bar {
+  position: relative; height: 24px; overflow: hidden; transform: skewX(-16deg);
+  background: linear-gradient(180deg, rgba(10, 14, 38, .86), rgba(22, 28, 60, .78));
+  border: 2px solid rgba(255, 255, 255, .92); border-radius: 3px;
+  box-shadow: 0 3px 0 rgba(4, 6, 20, .55), inset 0 0 0 1px rgba(0, 0, 0, .4);
+}
+.v67-shield .v67-bar { height: 14px; }
+.v67-fill, .v67-trail, .v67-gain { position: absolute; left: 0; top: 0; bottom: 0; width: 0; }
+.v67-trail { background: #fff4b8; transition: width .6s cubic-bezier(.4, 0, .2, 1) .35s; }
+.v67-gain { background: rgba(255, 255, 255, .85); opacity: 0; }
+.v67-gain.on { animation: v67-gain .7s ease-out; }
+.v67-fill { background: linear-gradient(180deg, var(--v67-hp-a) 0%, var(--v67-hp-b) 48%, var(--v67-hp-c) 100%); transition: width .16s ease-out; }
+.v67-shield .v67-fill { background: linear-gradient(180deg, var(--v67-sh-a) 0%, var(--v67-sh-b) 48%, var(--v67-sh-c) 100%); }
+.v67-fill::before {
+  content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, .16) 0 6px, transparent 6px 14px);
+  background-size: 40px 40px; animation: v67-flow 1.6s linear infinite;
+}
+.v67-fill::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 42%; background: rgba(255, 255, 255, .32); }
+.v67-ticks {
+  position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(25% - 2px), rgba(10, 14, 38, .85) calc(25% - 2px) 25%);
+}
+.v67-hp .v67-ticks { background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(10, 14, 38, .35) calc(10% - 1px) 10%); }
+.v67-num { display: flex; align-items: baseline; gap: 2px; font-style: italic; font-weight: 800; line-height: 1; white-space: nowrap; }
+.v67-num b {
+  font-size: 28px; font-variant-numeric: tabular-nums; letter-spacing: .01em;
+  text-shadow: 0 2px 0 var(--v67-ink), 2px 0 0 var(--v67-ink), -2px 0 0 var(--v67-ink), 0 -2px 0 var(--v67-ink), 2px 2px 0 var(--v67-ink);
+}
+.v67-num small { font-size: 13px; opacity: .8; text-shadow: 0 1px 0 var(--v67-ink), 1px 0 0 var(--v67-ink), -1px 0 0 var(--v67-ink); }
+.v67-shield .v67-num b { font-size: 19px; }
+.v67-shield .v67-num small { font-size: 11px; }
+.v67-shield.empty .v67-num b { opacity: .55; }
+.v67-row.bump .v67-num b { animation: v67-bump .3s ease-out; }
+
+/* Danger : rouge qui bat comme un cœur. */
+.v67-vitals.low .v67-hp .v67-fill { background: linear-gradient(180deg, var(--v67-low-a) 0%, var(--v67-low-b) 48%, var(--v67-low-c) 100%); animation: v67-heart 1s ease-in-out infinite; }
+.v67-vitals.low .v67-hp .v67-ico { background: linear-gradient(180deg, var(--v67-low-a), var(--v67-low-c)); animation: v67-heart 1s ease-in-out infinite; }
+.v67-vitals.low .v67-hp .v67-num b { color: #ffd1c9; }
+.v67-vitals.down { filter: grayscale(.85) brightness(.8); }
+.v67-vitals.hit { animation: v67-shake .34s ease-out; }
+
+/* Chiffres de dégâts / soins qui s'envolent de la barre. */
+.v67-chip {
+  position: absolute; bottom: 100%; font: italic 900 22px/1 "Barlow Condensed", Impact, sans-serif; white-space: nowrap;
+  text-shadow: 0 2px 0 var(--v67-ink), 2px 0 0 var(--v67-ink), -2px 0 0 var(--v67-ink), 0 -2px 0 var(--v67-ink);
+  animation: v67-chip .95s cubic-bezier(.2, .7, .3, 1) forwards;
+}
+.v67-chip.hp { color: #ff6b6b; } .v67-chip.sh { color: #8ad8ff; } .v67-chip.heal { color: #9dff8f; } .v67-chip.shup { color: #c9f1ff; }
+.v67-chip.break { color: #fff; font-size: 16px; letter-spacing: .08em; background: linear-gradient(90deg, #1662d8, #45b8ff); padding: 3px 8px 2px; border-radius: 3px; transform: skewX(-12deg); text-shadow: none; box-shadow: 0 3px 0 var(--v67-ink); }
+.v67-shield.shatter .v67-bar { animation: v67-shatter .45s ease-out; }
+
+html body.v67-damage::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50; box-shadow: inset 0 0 140px rgba(255, 36, 60, .6); animation: v67-fade .5s ease-out forwards; }
+html body.v67-lowpulse::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 49; box-shadow: inset 0 0 90px rgba(200, 0, 30, .45); animation: v67-heartv 1s ease-in-out infinite; }
+
+@keyframes v67-flow { to { background-position: 40px 0; } }
+@keyframes v67-gain { 0% { opacity: .95; } 100% { opacity: 0; } }
+@keyframes v67-bump { 40% { transform: scale(1.22); } }
+@keyframes v67-heart { 0%, 100% { filter: brightness(1); } 15% { filter: brightness(1.5); } 30% { filter: brightness(1.05); } 45% { filter: brightness(1.35); } }
+@keyframes v67-heartv { 0%, 100% { opacity: .35; } 15% { opacity: 1; } 30% { opacity: .5; } 45% { opacity: .85; } }
+@keyframes v67-shake { 0% { transform: none; } 20% { transform: translate(-6px, 2px); } 40% { transform: translate(5px, -2px); } 60% { transform: translate(-3px, 1px); } 80% { transform: translate(2px, 0); } 100% { transform: none; } }
+@keyframes v67-chip { 0% { opacity: 0; transform: translate(0, 6px) scale(.6); } 15% { opacity: 1; transform: translate(0, -6px) scale(1.15); } 100% { opacity: 0; transform: translate(14px, -38px) scale(.9); } }
+@keyframes v67-shatter { 0% { filter: brightness(3); transform: skewX(-16deg) scale(1.08); } 100% { filter: none; transform: skewX(-16deg); } }
+@keyframes v67-fade { to { opacity: 0; } }
+
+/* ---------- Disposition PC ---------- */
+html body[data-screen="game"] .event-v27-header { left: 50% !important; right: auto !important; top: 50px !important; transform: translateX(-50%); justify-content: center !important; }
+html body[data-screen="game"] .event-v27-controls { margin: 0 !important; }
+html body[data-screen="game"] .event-v27-time {
+  display: inline-block; font: italic 800 22px/1 "Barlow Condensed", Impact, sans-serif; letter-spacing: .06em; color: #fff;
+  padding: 5px 14px 4px; border-radius: 4px; background: linear-gradient(180deg, rgba(38, 18, 86, .9), rgba(16, 8, 44, .9));
+  border: 2px solid rgba(255, 255, 255, .85); box-shadow: 0 3px 0 rgba(4, 6, 20, .5); text-shadow: none;
+}
+html body .resonance-controls { top: 272px !important; right: 21px !important; left: auto !important; }
+html body .resonance-controls button { font: 800 10px/1 "Barlow", sans-serif !important; padding: 8px 10px !important; border-radius: 6px !important; background: rgba(18, 10, 44, .82) !important; border: 2px solid rgba(255, 255, 255, .35) !important; }
+html body .resonance-controls button[aria-pressed="true"] { border-color: var(--v67-gold) !important; color: #fff !important; }
+html body.azur-v2 .fps-label { left: 6px !important; }
+
+/* Barre de construction : grosses tuiles cartoon, pièce active en jaune. */
+html body .build-bar { background: linear-gradient(180deg, rgba(36, 18, 82, .94), rgba(18, 10, 44, .94)) !important; border: 3px solid #fff !important; border-radius: 14px !important; box-shadow: 0 8px 0 rgba(10, 6, 30, .55) !important; }
+html body .build-bar .btn { border-radius: 9px !important; font-weight: 900 !important; letter-spacing: .04em; color: #fff !important; border: 2px solid rgba(255, 255, 255, .25) !important; background: rgba(79, 195, 255, .14) !important; }
+html body .build-bar .btn.btn-primary { background: linear-gradient(180deg, #fff27a, var(--v67-gold)) !important; color: #120c2a !important; border-color: #120c2a !important; box-shadow: 0 0 16px rgba(255, 210, 63, .6) !important; }
+html body .build-bar kbd { background: rgba(0, 0, 0, .35) !important; color: #fff !important; border-radius: 4px; }
+html body .build-status { font-weight: 900 !important; letter-spacing: .06em; border: 2px solid #4fc3ff !important; background: rgba(18, 10, 44, .9) !important; color: #dff6ff !important; }
+html body .build-status.invalid { border-color: #ff4d5a !important; color: #ffd0d4 !important; }
+html body.v67-editing .crosshair { filter: drop-shadow(0 0 4px #4fc3ff) !important; }
+
+/* ---------- Mobile ---------- */
+html body.touch-ui .v67-vitals { left: max(12px, env(safe-area-inset-left)); top: 46px; bottom: auto; width: 176px; gap: 4px; }
+html body.touch-ui .v67-row { grid-template-columns: 18px minmax(0, 1fr) 34px; gap: 5px; }
+html body.touch-ui .v67-ico { width: 18px; height: 18px; }
+html body.touch-ui .v67-ico svg { width: 10px; height: 10px; }
+html body.touch-ui .v67-bar { height: 13px; border-width: 2px; }
+html body.touch-ui .v67-shield .v67-bar { height: 8px; border-width: 1.5px; }
+html body.touch-ui .v67-num b { font-size: 17px; }
+html body.touch-ui .v67-shield .v67-num b { font-size: 13px; }
+html body.touch-ui .v67-num small { display: none; }
+html body.touch-ui .v67-chip { font-size: 15px; }
+html body.touch-ui .v67-chip.break { font-size: 11px; }
+
+html body.touch-ui[data-screen="game"] .event-v27-header { top: 34px !important; }
+html body.touch-ui[data-screen="game"] .event-v27-time { font-size: 15px; padding: 3px 9px 2px; border-width: 1.5px; }
+html body.touch-ui .resonance-controls { top: auto !important; bottom: auto !important; left: max(12px, env(safe-area-inset-left)) !important; right: auto !important; top: 98px !important; gap: 4px !important; }
+html body.touch-ui .resonance-controls button { font-size: 8px !important; padding: 6px 7px !important; }
+html body.touch-ui .resonance-controls .rk { display: none; }
+
+html body.touch-ui[data-screen="game"] .game-toolbar { top: 10px !important; right: calc(max(12px, env(safe-area-inset-right)) + 84px) !important; left: auto !important; bottom: auto !important; }
+html body.touch-ui[data-screen="game"] .ammo-readout small, html body.touch-ui[data-screen="game"] .ammo-readout > small { display: none !important; }
+
+/* Groupe du bas : pioche · 5 emplacements · construire · modifier. */
+html body.touch-ui[data-screen="game"] .inventory-bar { left: 50% !important; right: auto !important; bottom: max(10px, env(safe-area-inset-bottom)) !important; transform: translateX(-50%) !important; gap: 4px !important; }
+html body.touch-ui[data-screen="game"] .inventory-bar .slot { width: 36px !important; height: 38px !important; border-radius: 8px !important; }
+html body.touch-ui[data-screen="game"] .materials { left: calc(50% - 118px) !important; right: auto !important; bottom: calc(max(10px, env(safe-area-inset-bottom)) + 46px) !important; transform: none !important; font-size: 9px !important; padding: 3px 7px !important; gap: 9px !important; }
+html body.touch-ui[data-screen="game"] .ammo-readout { left: auto !important; right: calc(50% - 118px) !important; bottom: calc(max(10px, env(safe-area-inset-bottom)) + 44px) !important; max-width: 110px !important; text-align: right !important; }
+html body.touch-ui[data-screen="game"] .ammo-readout > b { font-size: 20px !important; }
+html body.touch-ui[data-screen="game"] .ammo-readout strong { font-size: 13px !important; }
+
+/* Joystick et sprint : plus grands, collés au coin. */
+html body.touch-ui[data-screen="game"] .touch-controls .joy {
+  left: max(22px, env(safe-area-inset-left)) !important; bottom: 22px !important; width: 108px !important; height: 108px !important;
+  border-radius: 50% !important; background: radial-gradient(circle, rgba(255, 255, 255, .06) 0 55%, rgba(255, 255, 255, .14) 56% 58%, rgba(10, 14, 38, .3) 59%) !important;
+  border: 2px solid rgba(255, 255, 255, .45) !important; box-shadow: 0 4px 0 rgba(4, 6, 20, .35) !important;
+}
+html body.touch-ui[data-screen="game"] .touch-controls .joy-nub {
+  width: 44px !important; height: 44px !important; left: calc(50% - 22px) !important; top: calc(50% - 22px) !important;
+  background: radial-gradient(circle at 35% 30%, #fff, #cfe6ff 45%, #7fa7d8) !important; border: 2px solid var(--v67-ink) !important; box-shadow: 0 3px 0 rgba(4, 6, 20, .45) !important;
+}
+html body.touch-ui[data-screen="game"] .touch-controls .touch-btn.v7-touch-sprint { left: calc(max(22px, env(safe-area-inset-left)) + 108px) !important; bottom: 112px !important; width: 42px !important; height: 42px !important; min-width: 42px !important; min-height: 42px !important; }
+
+/* Boutons d'action : un gros bouton de tir et des boutons en arc autour. */
+html body.touch-ui[data-screen="game"] .touch-controls .touch-right {
+  position: absolute !important; display: block !important; right: max(12px, env(safe-area-inset-right)) !important; bottom: var(--v67-arc-b, 8px) !important;
+  width: 214px !important; height: 210px !important; grid-template-columns: none !important; gap: 0 !important; left: auto !important; top: auto !important; transform: none !important;
+}
+html body.touch-ui[data-screen="game"] .touch-controls .touch-btn {
+  border-radius: 50% !important; padding: 0 !important; display: grid; place-items: center; align-content: center; gap: 1px;
+  background: radial-gradient(circle at 50% 30%, rgba(60, 46, 130, .82), rgba(18, 10, 44, .82)) !important;
+  border: 2px solid rgba(255, 255, 255, .75) !important; color: #fff !important;
+  box-shadow: 0 3px 0 rgba(4, 6, 20, .45) !important; font: 800 7px/1 "Barlow", sans-serif !important; letter-spacing: .04em;
+  transition: transform .08s ease, background .12s ease !important;
+}
+html body.touch-ui[data-screen="game"] .touch-controls .touch-btn svg { width: 18px !important; height: 18px !important; }
+html body.touch-ui[data-screen="game"] .touch-controls .touch-btn span { font-size: 7px !important; line-height: 1 !important; }
+html body.touch-ui[data-screen="game"] .touch-controls .touch-btn.pressed, html body.touch-ui[data-screen="game"] .touch-controls .touch-btn:active { transform: scale(.9) !important; background: radial-gradient(circle at 50% 30%, #6fe3ff, #2a7fd6) !important; }
+html body.touch-ui[data-screen="game"] .touch-controls .touch-btn[aria-pressed="true"] { background: radial-gradient(circle at 50% 30%, #fff27a, #e3a800) !important; color: var(--v67-ink) !important; border-color: var(--v67-ink) !important; }
+html body.touch-ui[data-screen="game"] .touch-right > .touch-btn { position: absolute !important; margin: 0 !important; }
+html body.touch-ui[data-screen="game"] .touch-right > #touch-fire {
+  right: 8px !important; bottom: 52px !important; width: 76px !important; height: 76px !important; min-width: 76px !important; min-height: 76px !important;
+  background: radial-gradient(circle at 50% 30%, #ff8a7a, #d6283f 70%) !important; border: 3px solid #fff !important; box-shadow: 0 4px 0 rgba(4, 6, 20, .5), 0 0 18px rgba(255, 80, 90, .45) !important;
+}
+html body.touch-ui[data-screen="game"] .touch-right > #touch-fire svg { width: 30px !important; height: 30px !important; }
+html body.touch-ui[data-screen="game"] .touch-right > [data-act="jump"] svg { width: 24px !important; height: 24px !important; }
+html body.touch-ui[data-screen="game"] .touch-right > #touch-fire span { font-size: 9px !important; }
+html body.touch-ui[data-screen="game"] .touch-right > [data-act="jump"] { right: 96px !important; bottom: 14px !important; width: 58px !important; height: 58px !important; min-width: 58px !important; min-height: 58px !important; }
+html body.touch-ui[data-screen="game"] .touch-right > [data-act="aim"] { right: 104px !important; bottom: 86px !important; width: 46px !important; height: 46px !important; min-width: 46px !important; min-height: 46px !important; }
+html body.touch-ui[data-screen="game"] .touch-right > [data-act="reload"] { right: 36px !important; bottom: 140px !important; width: 42px !important; height: 42px !important; min-width: 42px !important; min-height: 42px !important; }
+html body.touch-ui[data-screen="game"] .touch-right > [data-act="interact"] { right: 86px !important; bottom: 142px !important; width: 42px !important; height: 42px !important; min-width: 42px !important; min-height: 42px !important; }
+html body.touch-ui[data-screen="game"] .touch-right > [data-act="crouch"] { right: 162px !important; bottom: 66px !important; width: 40px !important; height: 40px !important; min-width: 40px !important; min-height: 40px !important; }
+html body.touch-ui:not(.driving):not(.world-editing)[data-screen="game"] .touch-right > .v7-touch-crouch { display: grid !important; }
+/* Pioche, construire et modifier : de chaque côté de la barre d'objets. */
+html body.touch-ui[data-screen="game"] .touch-right > [data-act="tool"] { display: none !important; }
+html body.touch-ui[data-screen="game"] .touch-right > [data-act="build-mode"],
+html body.touch-ui[data-screen="game"] .touch-right > [data-act="edit"] {
+  position: fixed !important; bottom: max(10px, env(safe-area-inset-bottom)) !important; width: 40px !important; height: 40px !important; min-width: 40px !important; min-height: 40px !important; border-radius: 10px !important;
+}
+html body.touch-ui[data-screen="game"] .touch-right > [data-act="build-mode"] { right: auto !important; left: calc(50% + 124px) !important; background: radial-gradient(circle at 50% 30%, #4fa8ff, #1a4fb0) !important; }
+html body.touch-ui[data-screen="game"] .touch-right > [data-act="edit"] { right: auto !important; left: calc(50% + 168px) !important; }
+html body.touch-ui[data-screen="game"] .touch-right > [data-act="build-mode"][aria-pressed="true"] { background: radial-gradient(circle at 50% 30%, #fff27a, #e3a800) !important; }
+html body.touch-ui[data-screen="game"] .touch-controls .touch-emote-mini {
+  display: grid !important; position: absolute !important; right: calc(max(12px, env(safe-area-inset-right)) + 84px) !important; top: 46px !important; bottom: auto !important; left: auto !important;
+  width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important;
+}
+html body.touch-ui.driving[data-screen="game"] .touch-controls .touch-emote-mini { display: none !important; }
+html body.touch-ui[data-screen="game"] .touch-controls .creative-utility { right: auto !important; left: max(22px, env(safe-area-inset-left)) !important; bottom: 140px !important; top: auto !important; }
+html body.touch-ui[data-screen="game"] .creative-open, html body.touch-ui[data-screen="game"] .v2-arsenal-open { top: 92px !important; left: max(12px, env(safe-area-inset-left)) !important; }
+html body.touch-ui[data-screen="game"] .feed { left: max(12px, env(safe-area-inset-left)) !important; bottom: 186px !important; top: auto !important; }
+
+/* Petits téléphones en paysage : la barre d'objets glisse vers la gauche. */
+@media (max-width: 760px) and (orientation: landscape) {
+  html body.touch-ui[data-screen="game"] .inventory-bar { left: 43% !important; }
+  html body.touch-ui[data-screen="game"] .inventory-bar .slot { width: 32px !important; height: 34px !important; }
+  html body.touch-ui[data-screen="game"] .touch-right > [data-act="build-mode"] { left: calc(43% + 108px) !important; }
+  html body.touch-ui[data-screen="game"] .touch-right > [data-act="edit"] { left: calc(43% + 150px) !important; }
+  html body.touch-ui[data-screen="game"] .materials { left: calc(43% - 106px) !important; }
+  html body.touch-ui[data-screen="game"] .ammo-readout { right: calc(57% - 106px) !important; }
+}
+/* Téléphone tenu en hauteur : les boutons remontent au-dessus de la barre d'objets. */
+@media (orientation: portrait) {
+  html body.touch-ui[data-screen="game"] { --v67-arc-b: 66px; }
+  html body.touch-ui[data-screen="game"] .touch-controls .joy { bottom: 84px !important; }
+  html body.touch-ui[data-screen="game"] .phase-banner { top: 200px !important; }
+  html body.touch-ui[data-screen="game"] .touch-controls .touch-btn.v7-touch-sprint { left: max(22px, env(safe-area-inset-left)) !important; bottom: 202px !important; }
+  html body.touch-ui[data-screen="game"] .inventory-bar .slot { width: 32px !important; height: 34px !important; }
+  html body.touch-ui[data-screen="game"] .inventory-bar { left: 12px !important; transform: none !important; }
+  html body.touch-ui[data-screen="game"] .touch-right > [data-act="build-mode"] { left: 232px !important; width: 36px !important; min-width: 36px !important; height: 36px !important; min-height: 36px !important; }
+  html body.touch-ui[data-screen="game"] .touch-right > [data-act="edit"] { left: 272px !important; width: 36px !important; min-width: 36px !important; height: 36px !important; min-height: 36px !important; }
+  html body.touch-ui[data-screen="game"] .materials { left: max(12px, env(safe-area-inset-left)) !important; bottom: 52px !important; }
+  html body.touch-ui[data-screen="game"] .ammo-readout { right: max(12px, env(safe-area-inset-right)) !important; bottom: 282px !important; }
+  html body.touch-ui[data-screen="game"] .feed { bottom: 240px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v67-fill::before, .v67-vitals.low .v67-hp .v67-fill, .v67-vitals.low .v67-hp .v67-ico, .v67-vitals.hit, html body.v67-lowpulse::before { animation: none !important; }
+  html body.v67-damage::after { display: none; }
+}
+
+/* ---------- Viseur dynamique : 4 traits qui s'écartent au tir et en mouvement ---------- */
+html body #crosshair.crosshair { --v67-gap: 4px; width: calc(22px + var(--v67-gap) * 2) !important; height: calc(22px + var(--v67-gap) * 2) !important; transition: width .07s ease-out, height .07s ease-out; filter: drop-shadow(0 0 1px #0b1026) drop-shadow(0 1px 1px rgba(11, 16, 38, .8)) !important; }
+html body #crosshair.crosshair::before { width: 100% !important; height: 2px !important; left: 0 !important; top: calc(50% - 1px) !important; background: linear-gradient(90deg, #fff 0 8px, transparent 8px calc(100% - 8px), #fff calc(100% - 8px)) !important; }
+html body #crosshair.crosshair::after { height: 100% !important; width: 2px !important; top: 0 !important; left: calc(50% - 1px) !important; background: linear-gradient(180deg, #fff 0 8px, transparent 8px calc(100% - 8px), #fff calc(100% - 8px)) !important; }
+html body #crosshair.crosshair span { inset: calc(50% - 2px) !important; border: 0 !important; background: #fff !important; border-radius: 50% !important; }
+html body #crosshair.crosshair.v67-tool::before, html body #crosshair.crosshair.v67-tool::after { opacity: .0; }
+html body #crosshair.crosshair.v67-tool span { inset: calc(50% - 7px) !important; background: transparent !important; border: 2px solid #fff !important; }
+html body #crosshair.crosshair.hit::before { background: linear-gradient(90deg, #ffd23f 0 8px, transparent 8px calc(100% - 8px), #ffd23f calc(100% - 8px)) !important; }
+html body #crosshair.crosshair.hit::after { background: linear-gradient(180deg, #ffd23f 0 8px, transparent 8px calc(100% - 8px), #ffd23f calc(100% - 8px)) !important; }
+
+/* ---------- Barres de solidité des constructions ---------- */
+.v67-build-bars { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+.v67-build-bar {
+  position: absolute; left: 0; top: 0; width: 86px; height: 11px; margin: -22px 0 0 -43px; transition: opacity .2s;
+  background: rgba(10, 14, 38, .78); border: 2px solid #fff; border-radius: 3px; transform-origin: center; box-shadow: 0 2px 0 rgba(4, 6, 20, .5);
+}
+.v67-build-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(180deg, #d9f6ff, #5fc2ff 55%, #2a7fd6); transition: width .1s linear; }
+.v67-build-bar[data-mat="wood"] i { background: linear-gradient(180deg, #ffe0a8, #e0a35a 55%, #a8662b); }
+.v67-build-bar[data-mat="stone"] i { background: linear-gradient(180deg, #f2f2f2, #b9c0c8 55%, #7d8794); }
+.v67-build-bar[data-mat="metal"] i { background: linear-gradient(180deg, #e8f4ff, #8fb3d6 55%, #4f6f94); }
+.v67-build-bar b { position: absolute; left: 0; right: 0; top: -17px; text-align: center; font: italic 800 12px/1 "Barlow Condensed", Impact, sans-serif; color: #fff; text-shadow: 0 1px 0 #0b1026, 1px 0 0 #0b1026, -1px 0 0 #0b1026, 0 -1px 0 #0b1026; white-space: nowrap; }
+
+/* ---------- Event : mode cinéma (bandes noires, HUD secondaire effacé) ---------- */
+.v67-letterbox { position: fixed; inset: 0; pointer-events: none; z-index: 2147482000; }
+.v67-letterbox i { position: absolute; left: 0; right: 0; height: 0; background: #000; transition: height .9s cubic-bezier(.3, 0, .2, 1); }
+.v67-letterbox i:first-child { top: 0; } .v67-letterbox i:last-child { bottom: 0; }
+body.v67-cine .v67-letterbox i { height: 7.5vh; }
+body.v67-cine #ui .hud > .inventory-bar, body.v67-cine #ui .hud > .materials, body.v67-cine #ui .hud > .ammo-readout,
+body.v67-cine #ui .hud > .game-toolbar, body.v67-cine #ui .hud > .minimap-box, body.v67-cine #ui .hud > .compass,
+body.v67-cine #ui .hud > .hud-top, body.v67-cine .resonance-controls, body.v67-cine #ui .hud > .fps-label, body.v67-cine #flight-speed { opacity: 0 !important; transition: opacity .6s ease !important; }
+body.v67-cine #ui .hud > .v67-vitals { opacity: .55; transition: opacity .6s ease; }
+body.v67-cine .touch-controls { opacity: .35 !important; transition: opacity .6s ease; }
+#ui .hud > .inventory-bar, #ui .hud > .materials, #ui .hud > .ammo-readout, #ui .hud > .game-toolbar, #ui .hud > .minimap-box, #ui .hud > .compass, #ui .hud > .hud-top { transition: opacity .6s ease; }

@@ -1,0 +1,271 @@
+/* AZUR v48 — salon mobile.
+   Chargé en dernier : chaque règle reprend la spécificité des couches
+   précédentes (v150 → v200) pour que rien ne déborde ni ne se cache. */
+
+/* Les fenêtres (modes, résultats, pause) passent toujours au-dessus du salon. */
+#overlay { z-index: 200; }
+body:has(.modal-shade) .azevent-lobby-banner,
+body[data-screen="menu"]:not([data-tab="play"]) .azevent-lobby-banner,
+
+/* Le glyphe ✕ n'existe pas dans Barlow : croix dessinée en CSS. */
+.dialog-head [data-act="close-modes"] { position: relative; font-size: 0 !important; color: #dff6ff; }
+.dialog-head [data-act="close-modes"]::before,
+.dialog-head [data-act="close-modes"]::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 18px; height: 2px; border-radius: 2px;
+  background: currentColor; transform: translate(-50%, -50%) rotate(45deg);
+}
+.dialog-head [data-act="close-modes"]::after { transform: translate(-50%, -50%) rotate(-45deg); }
+
+/* Carte de l'événement dans « Ton prochain départ » : pleine largeur. */
+.v7-mode-option[data-id="event"] { grid-column: 1 / -1; }
+.v7-mode-option[data-id="event"] > span svg { color: #d9d3ff; }
+
+@media (max-width: 760px), (max-height: 560px) and (max-width: 960px) {
+  /* ---------------------------------------------------------- barre du haut */
+  html body[data-screen="menu"][data-tab] header.topbar {
+    height: calc(106px + env(safe-area-inset-top)) !important;
+    min-height: calc(106px + env(safe-area-inset-top)) !important;
+    padding: env(safe-area-inset-top) 8px 0 !important;
+    gap: 6px !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    align-content: flex-start !important;
+    overflow: visible !important;
+  }
+  html body[data-screen="menu"][data-tab] #ui:before { inset: calc(106px + env(safe-area-inset-top)) 0 40px !important; }
+  html body[data-screen="menu"][data-tab] header.topbar > .wordmark {
+    width: 44px !important; min-width: 44px !important; height: 44px !important;
+    padding: 0 4px !important; flex: 0 0 auto !important; align-self: flex-start !important;
+  }
+  html body[data-screen="menu"][data-tab] header.topbar > .wordmark .wordmark-edition { display: none !important; }
+  html body[data-screen="menu"][data-tab]:not([data-tab="play"]) header.topbar > .wordmark { font-size: 0 !important; overflow: hidden !important; justify-content: center !important; }
+  html body[data-screen="menu"][data-tab]:not([data-tab="play"]) header.topbar > .wordmark .brand-spark { font-size: 22px !important; color: var(--v18-yellow, #f7d955) !important; margin: 0 !important; }
+  html body[data-screen="menu"][data-tab] header.topbar > .v18-section-title {
+    height: 44px !important; min-width: 0 !important; padding: 0 4px !important; gap: 6px !important;
+    align-self: flex-start !important; flex: 1 1 auto !important; overflow: hidden !important;
+  }
+  html body[data-screen="menu"][data-tab] header.topbar > .v18-section-title strong {
+    font-size: 19px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important;
+  }
+  html body[data-screen="menu"][data-tab] header.topbar > .account-bar {
+    height: 44px !important; margin-left: auto !important; align-self: flex-start !important; flex: 0 0 auto !important; gap: 6px !important;
+  }
+  html body[data-screen="menu"][data-tab] header.topbar .currency {
+    height: 30px !important; padding: 0 10px !important; font-size: 13px !important; font-weight: 800 !important; white-space: nowrap !important;
+  }
+
+  /* Huit onglets visibles en même temps, icône + libellé, jamais coupés. */
+  html body[data-screen="menu"][data-tab] header.topbar nav.navlinks {
+    position: absolute !important;
+    left: 6px !important; right: 6px !important;
+    top: calc(48px + env(safe-area-inset-top)) !important;
+    width: auto !important; height: 54px !important;
+    display: grid !important;
+    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+    gap: 2px !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    border-radius: 10px !important;
+    background: rgba(2, 14, 34, .55) !important;
+  }
+  html body[data-screen="menu"][data-tab] header.topbar nav.navlinks .btn {
+    width: 100% !important; min-width: 0 !important; height: 54px !important;
+    padding: 4px 0 2px !important;
+    display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important;
+    gap: 3px !important;
+    font-size: 11px !important; border-radius: 8px !important;
+    color: #cfe7ff !important;
+  }
+  html body[data-screen="menu"][data-tab] header.topbar nav.navlinks .btn svg {
+    display: block !important; width: 21px !important; height: 21px !important; opacity: .9 !important; flex: 0 0 auto !important;
+  }
+  html body[data-screen="menu"][data-tab] header.topbar nav.navlinks .btn span {
+    display: block !important;
+    max-width: 100% !important;
+    font: 800 11px/1 BarlowCondensed, Impact, sans-serif !important;
+    letter-spacing: 0 !important;
+    white-space: nowrap !important; overflow: hidden !important; text-overflow: clip !important;
+    color: inherit !important;
+  }
+  html body[data-screen="menu"][data-tab] header.topbar nav.navlinks .btn.active {
+    color: #041a35 !important; background: var(--v18-yellow, #f7d955) !important;
+    clip-path: none !important; box-shadow: 0 0 0 2px rgba(247, 217, 85, .35), 0 6px 16px rgba(247, 217, 85, .25) !important;
+  }
+  html body[data-screen="menu"][data-tab] header.topbar nav.navlinks .btn.active svg { opacity: 1 !important; }
+
+  /* Les panneaux des autres onglets commencent sous la barre. */
+  html body[data-screen="menu"][data-tab] .v6-panel {
+    top: calc(112px + env(safe-area-inset-top)) !important;
+    max-height: calc(100dvh - 112px - 44px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+  }
+
+  /* ------------------------------------------------------------ pied de page */
+  html body[data-screen="menu"][data-tab] footer.bottom-bar {
+    height: calc(40px + env(safe-area-inset-bottom)) !important; min-height: 0 !important;
+    padding: 0 10px env(safe-area-inset-bottom) !important;
+    display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 8px !important;
+    background: rgba(2, 12, 30, .92) !important;
+  }
+  html body[data-screen="menu"][data-tab] footer.bottom-bar .save-state { font-size: 12px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; min-width: 0 !important; }
+  html body[data-screen="menu"][data-tab] footer.bottom-bar .desktop-footer { display: none !important; }
+  html body[data-screen="menu"][data-tab] footer.bottom-bar .footer-links { display: flex !important; gap: 6px !important; flex: 0 0 auto !important; }
+  html body[data-screen="menu"][data-tab] footer.bottom-bar .footer-links .btn { min-height: 32px !important; padding: 0 10px !important; font-size: 12px !important; }
+
+  /* ---------------------------------------------------------------- salon */
+  html body[data-screen="menu"][data-tab="play"] .azevent-lobby-banner {
+    top: calc(114px + env(safe-area-inset-top)) !important;
+    font-size: 18px !important; letter-spacing: .34em !important; text-indent: .34em !important;
+  }
+    top: calc(144px + env(safe-area-inset-top)) !important; right: 8px !important;
+    max-width: 44vw; padding: 9px 12px !important; font-size: 13px !important; line-height: 1.2 !important;
+    border-radius: 10px !important; text-align: center;
+  }
+
+  /* Progression : une carte compacte en haut à gauche. */
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress {
+    top: calc(144px + env(safe-area-inset-top)) !important; left: 8px !important;
+    width: min(176px, 48vw) !important;
+    border-radius: 12px !important; overflow: hidden !important;
+    background: rgba(3, 16, 38, .82) !important;
+    box-shadow: 0 0 0 1px rgba(120, 190, 255, .22), 0 10px 22px rgba(0, 6, 20, .35) !important;
+  }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress .classic-season {
+    font-size: 12px !important; padding: 6px 10px 2px !important; letter-spacing: .08em !important; background: none !important;
+  }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress .classic-level {
+    min-height: 0 !important; padding: 4px 10px 6px !important;
+    grid-template-columns: 30px 1fr !important; column-gap: 8px !important; row-gap: 4px !important;
+    background: none !important;
+  }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress .classic-level-shield { width: 30px !important; height: 34px !important; font-size: 16px !important; }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress .classic-level-copy { font-size: 12px !important; }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress .classic-level-copy b { font-size: 16px !important; }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress .classic-xp { height: 6px !important; }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress .classic-level-next { font-size: 11px !important; }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress .classic-challenge-title {
+    display: block !important; font-size: 11px !important; padding: 6px 10px 0 !important; color: #9fd8ff !important; border-top: 1px solid rgba(120, 190, 255, .16) !important;
+  }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress .classic-challenge {
+    display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 6px !important;
+    padding: 2px 10px 8px !important; font-size: 12px !important; line-height: 1.25 !important; background: none !important;
+  }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress .classic-challenge span { font-size: 12px !important; text-transform: none !important; }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress .classic-challenge b { font-size: 12px !important; white-space: nowrap !important; }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress .classic-challenge small { display: none !important; }
+
+  /* Pseudo au niveau des pieds, comme au-dessus de la plateforme. */
+  html body[data-screen="menu"][data-tab="play"] .classic-player-label {
+    top: auto !important; bottom: calc(196px + env(safe-area-inset-bottom)) !important;
+    max-width: 70vw !important; padding: 6px 14px !important; border-radius: 999px !important;
+    background: rgba(3, 16, 38, .62) !important; gap: 2px !important;
+  }
+  html body[data-screen="menu"][data-tab="play"] .classic-player-label strong { font-size: 15px !important; }
+  html body[data-screen="menu"][data-tab="play"] .classic-player-label span { font-size: 11px !important; }
+  html body[data-screen="menu"][data-tab="play"] .classic-player-label small { display: none !important; }
+  html body[data-screen="menu"][data-tab="play"] .classic-platform { bottom: calc(150px + env(safe-area-inset-bottom)) !important; }
+
+  /* Carte JOUER : mode sur toute la largeur, puis le gros bouton. */
+  html body[data-screen="menu"][data-tab="play"] aside.classic-play-card {
+    left: 8px !important; right: 8px !important; width: auto !important;
+    bottom: calc(48px + env(safe-area-inset-bottom)) !important;
+    display: grid !important; grid-template-columns: 1fr !important; gap: 0 !important;
+    border-radius: 14px !important; overflow: hidden !important; border-width: 2px !important;
+  }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-play-card .classic-mode {
+    width: 100% !important; min-height: 44px !important; padding: 0 14px !important;
+    justify-content: space-between !important; text-align: left !important;
+    font-size: 16px !important; letter-spacing: .04em !important; white-space: nowrap !important;
+    overflow: visible !important; text-overflow: clip !important;
+  }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-play-card .classic-mode:after {
+    content: "CHANGER ›"; margin-left: auto; padding-left: 10px;
+    font: 800 12px/1 BarlowCondensed, sans-serif; letter-spacing: .08em; color: #9fd8ff;
+  }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-play-card .play-btn {
+    width: 100% !important; min-height: 60px !important; font-size: 32px !important; border-radius: 0 !important;
+  }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-play-card .classic-ready-note {
+    display: block !important; padding: 6px 10px !important; font-size: 11px !important; line-height: 1.3 !important; text-align: center !important;
+    white-space: normal !important;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   v48 · Téléphone en PAYSAGE : la hauteur est rare (≈ 390 px).
+   Une seule barre fine en haut, la progression à gauche, la carte JOUER à
+   droite : le centre reste libre pour le personnage, en entier.
+   Les encoches latérales (safe-area gauche/droite) sont respectées.
+   ------------------------------------------------------------------------- */
+@media (orientation: landscape) and (max-height: 560px) {
+  html body[data-screen="menu"][data-tab] header.topbar {
+    height: calc(50px + env(safe-area-inset-top)) !important;
+    min-height: calc(50px + env(safe-area-inset-top)) !important;
+    padding: env(safe-area-inset-top) calc(8px + env(safe-area-inset-right)) 0 calc(8px + env(safe-area-inset-left)) !important;
+    gap: 8px !important; align-items: center !important;
+  }
+  html body[data-screen="menu"][data-tab] #ui:before { inset: calc(50px + env(safe-area-inset-top)) 0 34px !important; }
+  html body[data-screen="menu"][data-tab] header.topbar > .wordmark { align-self: center !important; height: 40px !important; }
+  html body[data-screen="menu"][data-tab] header.topbar > .v18-section-title { display: none !important; }
+  html body[data-screen="menu"][data-tab] header.topbar > .account-bar { align-self: center !important; height: 40px !important; }
+  html body[data-screen="menu"][data-tab] header.topbar .currency { height: 28px !important; font-size: 12px !important; padding: 0 8px !important; }
+
+  /* Les huit onglets passent DANS la barre, sur la même ligne. */
+  html body[data-screen="menu"][data-tab] header.topbar nav.navlinks {
+    position: static !important; flex: 1 1 auto !important; min-width: 0 !important;
+    height: 42px !important; align-self: center !important; background: rgba(2, 14, 34, .5) !important;
+  }
+  html body[data-screen="menu"][data-tab] header.topbar nav.navlinks .btn { height: 42px !important; padding: 3px 0 2px !important; gap: 2px !important; }
+  html body[data-screen="menu"][data-tab] header.topbar nav.navlinks .btn svg { width: 17px !important; height: 17px !important; }
+  html body[data-screen="menu"][data-tab] header.topbar nav.navlinks .btn span { font-size: 10px !important; }
+
+  html body[data-screen="menu"][data-tab] .v6-panel {
+    top: calc(56px + env(safe-area-inset-top)) !important;
+    left: calc(8px + env(safe-area-inset-left)) !important; right: calc(8px + env(safe-area-inset-right)) !important;
+    max-height: calc(100dvh - 56px - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+  }
+  html body[data-screen="menu"][data-tab] footer.bottom-bar {
+    height: calc(34px + env(safe-area-inset-bottom)) !important;
+    padding: 0 calc(10px + env(safe-area-inset-right)) env(safe-area-inset-bottom) calc(10px + env(safe-area-inset-left)) !important;
+  }
+  html body[data-screen="menu"][data-tab] footer.bottom-bar .footer-links .btn { min-height: 28px !important; }
+
+  /* Salon : colonne gauche (progression), centre libre, colonne droite (jouer). */
+  html body[data-screen="menu"][data-tab="play"] .azevent-lobby-banner {
+    top: calc(60px + env(safe-area-inset-top)) !important; font-size: 14px !important;
+  }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress {
+    top: calc(58px + env(safe-area-inset-top)) !important; left: calc(8px + env(safe-area-inset-left)) !important;
+    width: 178px !important;
+  }
+    top: calc(58px + env(safe-area-inset-top)) !important; right: calc(8px + env(safe-area-inset-right)) !important;
+    max-width: 236px; padding: 8px 12px !important; font-size: 12px !important;
+  }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-play-card {
+    left: auto !important; right: calc(8px + env(safe-area-inset-right)) !important; width: 268px !important;
+    bottom: calc(42px + env(safe-area-inset-bottom)) !important;
+  }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-play-card .classic-mode { min-height: 38px !important; font-size: 14px !important; padding: 0 12px !important; }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-play-card .classic-mode:after { font-size: 11px; }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-play-card .play-btn { min-height: 50px !important; font-size: 28px !important; }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-play-card .classic-ready-note { padding: 5px 8px !important; font-size: 10px !important; }
+
+  /* Pseudo sous les pieds, plateforme réduite : rien ne couvre le visage. */
+  html body[data-screen="menu"][data-tab="play"] .classic-player-label {
+    left: 47% !important; bottom: calc(40px + env(safe-area-inset-bottom)) !important; padding: 4px 12px !important;
+  }
+  html body[data-screen="menu"][data-tab="play"] .classic-player-label strong { font-size: 13px !important; }
+  html body[data-screen="menu"][data-tab="play"] .classic-platform {
+    left: 47% !important; bottom: calc(30px + env(safe-area-inset-bottom)) !important; width: 220px !important; height: 80px !important;
+  }
+}
+
+/* Très petits écrans : on garde tout visible en resserrant les libellés. */
+@media (max-width: 360px) {
+  html body[data-screen="menu"][data-tab] header.topbar nav.navlinks .btn span { font-size: 10px !important; }
+  html body[data-screen="menu"][data-tab] header.topbar nav.navlinks .btn svg { width: 19px !important; height: 19px !important; }
+  html body[data-screen="menu"][data-tab="play"] aside.classic-progress { width: 46vw !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v7-mode-option[data-id="event"] { animation: none !important; }
+}

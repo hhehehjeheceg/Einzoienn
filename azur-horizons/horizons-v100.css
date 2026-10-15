@@ -1,0 +1,29 @@
+/* Horizons 1.0 — departure deck, structural building feedback and water traversal. */
+:root{--v10-water:#6ce7e4;--v10-water-deep:#0b4965;--v10-coral:#ff9877;--v10-gold:#f4c878;color-scheme:dark}
+body[data-screen="menu"] #vignette{background:radial-gradient(circle at 50% 47%,transparent 24%,rgba(2,19,29,.20) 57%,rgba(1,10,18,.68) 100%)}
+.v7-lobby-copy{padding-left:20px;border-left:2px solid rgba(105,228,218,.48)}
+.v7-lobby-copy .season-badge{width:max-content;box-shadow:0 0 0 1px rgba(137,238,223,.16),0 8px 22px rgba(0,18,27,.22)}
+.v7-lobby-copy h1{filter:drop-shadow(0 14px 28px rgba(1,16,25,.42))}
+.v7-lobby-copy h1 span{text-shadow:0 0 38px rgba(255,144,112,.22)}
+.v7-lobby-card{border-top:2px solid rgba(255,175,124,.68)!important;box-shadow:0 26px 72px rgba(0,14,23,.58),inset 0 1px rgba(255,255,255,.05)!important}
+.v7-lobby-card:before{content:"DÉPART // QUAI H-09";display:block;margin:-4px 0 13px;color:rgba(179,230,225,.68);font-size:.52rem;font-weight:800;letter-spacing:.17em}
+.v7-mode-summary{position:relative}.v7-mode-symbol{box-shadow:0 0 24px rgba(103,232,220,.17)}
+.v7-lobby-card .play-btn{position:relative;overflow:hidden}.v7-lobby-card .play-btn:after{content:"";position:absolute;top:-60%;bottom:-60%;left:-35%;width:22%;transform:rotate(20deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.24),transparent);animation:v10-scan 4.8s ease-in-out infinite}
+.v7-character-label{padding:10px 14px!important;background:linear-gradient(90deg,rgba(4,29,41,.76),rgba(4,29,41,.08));border-left:2px solid var(--v10-coral)!important}
+.v7-roster{border-top:2px solid rgba(110,230,220,.38)!important;box-shadow:0 20px 50px rgba(0,14,22,.42)}
+.v7-roster article span{color:var(--v10-gold);text-shadow:0 0 12px rgba(244,200,120,.42)}
+.build-status{border-color:rgba(111,237,226,.42)!important;background:linear-gradient(90deg,rgba(5,42,55,.92),rgba(10,26,39,.90))!important;box-shadow:0 12px 34px rgba(0,12,20,.42)}
+.build-status:not(.invalid):before{content:"◇ ";color:var(--v10-water)}
+.edit-dialog{border-top:2px solid rgba(108,231,228,.62)!important}.v10-edit-orientation{width:min(300px,100%);margin:12px auto 5px;display:flex;justify-content:space-between;color:rgba(194,230,228,.76);font-size:.58rem;font-weight:800;letter-spacing:.12em}.v10-edit-orientation b{color:var(--v10-water)}
+body.swimming .phase-banner{border-color:rgba(108,231,228,.58);background:linear-gradient(90deg,rgba(5,61,78,.88),rgba(7,30,46,.86));box-shadow:0 12px 34px rgba(0,32,45,.44)}
+body.swimming .phase-banner b{color:#b7fff5}body.swimming #crosshair{filter:drop-shadow(0 0 7px rgba(108,231,228,.75))}
+body.swimming .touch-btn[data-act="sprint"],body.swimming .touch-btn[data-act="jump"]{border-color:rgba(108,231,228,.68)!important;background:rgba(8,75,89,.72)!important}
+@keyframes v10-scan{0%,62%{left:-35%}88%,100%{left:125%}}
+@media(prefers-reduced-motion:reduce){.v7-lobby-card .play-btn:after{animation:none;display:none}}
+@media(max-width:680px){.v7-lobby-copy{padding-left:12px}.v7-lobby-card:before{margin-bottom:8px}.v7-character-label{padding:7px 11px!important}.v10-edit-orientation{font-size:.52rem}.edit-dialog{width:min(94vw,520px)}}
+@media(max-height:560px){.v7-lobby-copy{padding-left:10px}.v7-lobby-card:before{display:none}.v7-character-label{padding:5px 9px!important}.v10-edit-orientation{margin:4px auto 2px}.v10-edit-orientation span{display:none}}
+
+/* ===== AZUR v21 — menu vignette richness ===== */
+body[data-screen="menu"] #vignette{transition:opacity .4s ease}
+.v7-lobby-copy .season-badge{transition:transform .2s ease,box-shadow .2s ease}
+.v7-lobby-copy .season-badge:hover{transform:translateY(-2px)}

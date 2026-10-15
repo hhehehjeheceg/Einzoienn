@@ -1,0 +1,32 @@
+:root{--construction-blue:#278ee8;--construction-ice:#b9e7ff;--construction-panel:#081b32;--construction-gold:#f6ce70}
+.world-edit{width:min(340px,84vw);padding:16px;background:rgba(6,20,40,.95);border:1px solid rgba(146,211,255,.4);border-radius:8px;box-shadow:0 24px 70px #0007;backdrop-filter:blur(12px);gap:12px}
+.world-edit-head{padding:10px 8px!important;background:#112b46!important;gap:10px!important;justify-content:space-between!important}.world-edit-head b{font-size:.72rem;color:#e5f5ff}.world-edit-head span{font-size:.55rem}
+.construction-edit-instruction{color:#b8cde0;font-size:.67rem;text-align:center;line-height:1.5}
+.world-edit-grid{width:min(250px,65vw);gap:5px}.world-edit-grid button{aspect-ratio:1;min-height:52px;border:1px solid #90cdfc;background:#10283e;border-radius:2px;box-shadow:none}.world-edit-grid button.solid{background:linear-gradient(145deg,#289df4,#135ca8);box-shadow:inset 0 0 0 2px #ffffff18;border-color:#d9f1ff!important}.world-edit-grid button:not(.solid){background:repeating-linear-gradient(135deg,#122b44,#122b44 7px,#183751 7px,#183751 8px)}.world-edit-grid button:not(.solid) span{font:600 .48rem/1.3 sans-serif;letter-spacing:.02em;position:static;color:#c3d5e3;display:block}.world-edit-grid button:focus-visible{outline:3px solid var(--construction-gold);outline-offset:1px}.world-edit-grid button:hover{transform:none}
+.world-edit[data-type="roof"] .world-edit-grid,.world-edit[data-type="floor"] .world-edit-grid{width:min(236px,60vw)}
+.construction-presets{display:flex;justify-content:center;flex-wrap:wrap;gap:5px}.construction-presets button{font-size:.6rem;color:#c9d9e8;background:#122b44;border:1px solid #a3d9ff33;padding:7px 10px;border-radius:3px;cursor:pointer;min-height:30px}.construction-presets button[aria-pressed="true"]{color:#061829;background:#b5e4ff;border-color:#d7f3ff}.construction-presets button:focus-visible,.resonance-controls button:focus-visible{outline:2px solid var(--construction-gold);outline-offset:3px}
+.world-edit[data-valid="false"] #edit-cell-count{color:#ffc27b}.world-edit .world-edit-actions{gap:6px}.world-edit .world-edit-actions .btn{font-size:.62rem;min-height:34px;padding:8px 11px}.world-edit .world-edit-tip{font-size:.52rem;line-height:1.65;color:#88a6c1;background:transparent;letter-spacing:.035em}
+.construction-turbo[aria-pressed="true"]{color:#b9e7ff!important;border:1px solid #278ee860!important}.construction-help{margin-top:24px;padding:20px;border:1px solid #99dfff30;border-radius:8px;background:#081b32}.construction-help h3{font-size:.9rem;letter-spacing:.08em;color:#b9e7ff}.construction-help p{font-size:.8rem;line-height:1.8;color:#b3c8db}
+.resonance-flash{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 30%,#c7eaffaa,transparent 80%);z-index:80;opacity:0}
+.resonance-controls{position:fixed;right:18px;top:68px;display:flex;gap:6px;z-index:88}.resonance-controls[hidden]{display:none}.resonance-controls button{border:1px solid #c5eaff35;border-radius:4px;background:#061426a8;color:#d4eaff;font:600 9px/1.2 sans-serif;letter-spacing:.08em;padding:10px 11px;cursor:pointer;backdrop-filter:blur(8px)}.resonance-controls button[aria-pressed="true"]{border-color:#86c8ff80}
+body.event-guidance .event-v27-identity,body.event-guidance .event-v27-footer{display:block!important}body.event-guidance .event-v27-header,body.event-guidance .event-v27-footer{opacity:1!important}body.event-guidance .event-v27-identity{position:fixed;left:24px;top:104px;display:flex!important;flex-direction:column;padding:12px 16px;background:#061426bb;border-left:2px solid #a5daff;border-radius:3px;max-width:min(360px,75vw)}body.event-guidance .event-v27-footer{padding-bottom:100px}.event-v27-caption{max-width:65ch;margin-inline:auto;text-shadow:0 2px 12px #000}
+@media(min-width:1000px){.world-edit{left:25%!important;top:48%!important}.world-editing .world-edit{animation:none}}
+@media(max-width:700px){.world-edit{top:44%;padding:12px;gap:9px}.world-edit-grid{width:min(210px,60vw)}.world-edit[data-type="roof"] .world-edit-grid,.world-edit[data-type="floor"] .world-edit-grid{width:min(196px,56vw)}.resonance-controls{top:58px;right:12px}.resonance-controls button{padding:8px;font-size:8px}.construction-presets button{padding:6px 8px}.construction-edit-instruction{font-size:.58rem}}
+@media(max-width:700px) and (orientation:portrait){
+body:not(.touch-ui) .build-bar{width:calc(100vw - 24px)!important;max-width:none!important;bottom:160px!important;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:8px}
+body:not(.touch-ui) .build-bar>.btn{min-width:0;min-height:40px;padding:5px;font-size:9px;white-space:nowrap}
+body:not(.touch-ui) .build-bar .build-label{display:none}
+body:not(.touch-ui) .build-bar [data-act="material"]{grid-column:span 2;order:1}
+body:not(.touch-ui) .build-bar [data-act="rotate"]{order:2}
+body:not(.touch-ui) .build-bar .construction-turbo{order:3}
+body:not(.touch-ui) .build-bar .build-level-controls{grid-column:span 2;order:4;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));min-width:0;padding:0}
+body:not(.touch-ui) .build-bar .build-level-controls .btn{min-width:0;min-height:40px;padding:4px;font-size:9px}
+body:not(.touch-ui) .build-bar [data-act="edit"]{display:flex!important;order:5}
+body:not(.touch-ui) .build-bar [data-act="build-mode"]{order:6}
+body:not(.touch-ui) .build-bar [data-act="demolish"]{display:none}
+body:not(.touch-ui) .build-status{bottom:122px!important;max-width:calc(100vw - 24px)!important;padding:7px!important;font-size:8px!important;line-height:1.4}
+body.touch-ui .build-bar>.btn,body.touch-ui .build-level-controls .btn{min-height:44px!important}
+body.touch-ui .build-status{top:310px!important}
+}
+@media(max-height:540px) and (orientation:landscape){.world-edit{width:300px;top:49%;gap:6px;padding:8px}.world-edit-grid,.world-edit[data-type="floor"] .world-edit-grid,.world-edit[data-type="roof"] .world-edit-grid{width:140px}.world-edit-grid button{min-height:0}.world-edit-head{display:none}.construction-edit-instruction{font-size:.55rem}.construction-presets button{font-size:.5rem;padding:3px 6px;min-height:24px}.world-edit .world-edit-tip{display:none}.world-edit .world-edit-actions .btn{min-height:27px!important;padding:5px 8px}.resonance-controls{top:12px;right:130px}}
+@media(prefers-reduced-motion:reduce){.resonance-flash{display:none}.world-edit{animation:none}.world-edit-grid button{transition:none}}

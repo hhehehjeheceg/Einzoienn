@@ -1,0 +1,27 @@
+/* AZUR 0.4 — final presentation and readable combat feedback, no external assets. */
+:root{--az-cyan:#72ebf8;--az-gold:#ffe16b}
+body[data-screen="menu"][data-tab="play"] #backdrop{background:radial-gradient(ellipse at 50% 75%,#0085c075,transparent 40%),radial-gradient(ellipse at 50% 15%,#164d7dc9,transparent 65%),linear-gradient(135deg,#061529,#0a3161 60%,#051a33)}
+body[data-screen="menu"][data-tab="play"] #backdrop:after{content:"";position:absolute;inset:0;background-image:linear-gradient(30deg,#75d6ff0a 1px,transparent 1px),linear-gradient(-30deg,#75d6ff09 1px,transparent 1px);background-size:72px 124px;pointer-events:none}
+.menu-left h1{font-size:clamp(42px,5.2vw,84px);line-height:.88;letter-spacing:-.02em;text-shadow:0 4px 28px #0003}
+.menu-left h1 span{color:var(--az-gold)}
+.season-badge{letter-spacing:.13em}.lobby-facts{gap:20px}.lobby-facts b{color:#fff}.play-btn{box-shadow:0 7px 0 #a78b23,0 16px 40px #ffdc4725;transition:transform .15s,box-shadow .15s}.play-btn:hover{transform:translateY(-2px);box-shadow:0 9px 0 #a78b23,0 18px 42px #ffdc4738}.play-btn:active{transform:translateY(3px);box-shadow:0 3px 0 #a78b23}
+.lobby-card{border:1px solid #b4e7ff26;box-shadow:0 25px 70px #0005}.ready-tag{border:1px solid #5ff5d650;background:#023a457f}.news-card{transition:transform .15s,border-color .15s}.news-card:hover{transform:translateY(-3px);border-color:#90e8ff80}
+[hidden]{display:none!important}.crosshair.aiming{transform:translate(-50%,-50%) scale(.78)}.crosshair.scoped{opacity:0}
+.scope-overlay{position:fixed;inset:0;pointer-events:none;z-index:3;background:radial-gradient(circle at center,transparent 0,transparent min(34vw,41vh),#03101bfa calc(min(34vw,41vh) + 2px))}
+.scope-circle{position:absolute;left:50%;top:50%;width:min(68vw,82vh);height:min(68vw,82vh);transform:translate(-50%,-50%);border:3px solid #10222e;border-radius:50%;overflow:hidden;box-shadow:inset 0 0 25px #0007,0 0 0 3px #7095ab80}
+.scope-circle:before,.scope-circle:after{content:"";position:absolute;z-index:2;background:#121c24;opacity:.9}.scope-circle:before{left:0;right:0;top:50%;height:1px}.scope-circle:after{top:0;bottom:0;left:50%;width:1px}.scope-circle i{position:absolute;left:50%;top:50%;width:5px;height:5px;transform:translate(-50%,-50%);background:#ff7069;border-radius:50%;z-index:4}.scope-circle b{position:absolute;top:50%;left:50%;width:30%;height:20%;transform:translateX(-50%);background:repeating-linear-gradient(to bottom,transparent 0,transparent 14px,#1c293570 15px,#1c293570 16px);clip-path:polygon(45% 0,55% 0,100% 100%,0 100%)}.scope-circle span{position:absolute;bottom:12%;left:0;width:100%;text-align:center;font:600 11px Barlow,sans-serif;letter-spacing:4px;color:#d8eaf7b3;text-shadow:0 1px 3px #000}
+.damage-confirm{position:fixed;top:calc(50% - 66px);left:50%;transform:translate(-50%,8px);opacity:0;color:#ffed9c;font:800 28px 'Barlow Condensed',sans-serif;text-shadow:0 2px 3px #05111e,1px 0 #05111e;pointer-events:none;transition:opacity .15s,transform .15s;z-index:9}.damage-confirm.show{opacity:1;transform:translate(-50%,0)}.damage-confirm.shield{color:#78dcff}
+.touch-btn[aria-pressed="true"]{color:#06182a;background:var(--az-gold);border-color:white}.fps-label{font-variant-numeric:tabular-nums;background:#031428b8;border-radius:4px;padding:4px 7px;font-size:11px;color:#b8ffd9}
+.edit-grid button{touch-action:manipulation}.edit-grid button.solid{background:linear-gradient(135deg,#338db6,#164c7d);border:1px solid #a4edff}.edit-presets{flex-wrap:wrap;gap:5px}.build-bar{backdrop-filter:none}.scope-overlay~.crosshair{pointer-events:none}
+@media(max-width:1050px){.menu-left h1{font-size:55px}.lobby-facts{gap:12px}.lobby-facts b{font-size:25px}}
+@media(max-height:600px) and (min-width:650px){.menu-left h1{font-size:45px}.menu-left{max-width:27%}.lobby-facts{gap:9px}.lobby-facts b{font-size:23px}.lobby-facts span{font-size:9px}.phase-banner{max-width:42%;top:14%}.phase-banner small{font-size:9px}.scope-circle span{font-size:9px}}
+@media(max-width:650px){.menu-left h1{font-size:42px}.menu-left p{font-size:12px}.lobby-facts{gap:15px}.damage-confirm{font-size:24px}.scope-circle{width:82vw;height:82vw}.scope-overlay{background:radial-gradient(circle at center,transparent 0,transparent 41vw,#03101bfa calc(41vw + 2px))}}
+@media(prefers-reduced-motion:reduce){.play-btn,.news-card,.damage-confirm{transition:none}}
+
+/* ===== AZUR v21 — experience v040 polish ===== */
+.exp-card{transition:transform .18s ease,box-shadow .22s ease,border-color .18s ease}
+.exp-card:hover{transform:translateY(-3px);box-shadow:0 14px 32px rgba(0,10,20,.4);border-color:rgba(160,220,255,.4)}
+.exp-card-art img{transition:transform .3s ease}
+.exp-card:hover .exp-card-art img{transform:scale(1.04)}
+.exp-btn{transition:background .15s,transform .12s,box-shadow .15s}
+.exp-btn:active{transform:scale(.95)}

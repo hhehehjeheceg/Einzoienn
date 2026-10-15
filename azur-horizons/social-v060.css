@@ -1,0 +1,33 @@
+/* Optional private LAN group panel. Sized for its actual side panel, not the viewport. */
+.social-panel{max-width:1080px;margin:0 auto;padding:0;color:#e9f7fa;min-width:0}
+.social-head{display:flex;flex-wrap:wrap;gap:12px;align-items:start;justify-content:space-between}
+.social-head>div{flex:1;min-width:190px}.social-head>.btn{flex-shrink:0}
+.social-panel h2{margin:.2rem 0 .5rem;font-size:clamp(1.7rem,4vw,2.5rem)}
+.social-panel h3{letter-spacing:.08em;font-size:.9rem;color:#9fdbe2}
+.social-panel h4{margin:1rem 0 .4rem;font-size:.78rem;text-transform:uppercase;color:#acc8cc}
+.social-panel p{line-height:1.5;overflow-wrap:anywhere}
+.social-code{display:inline-block;letter-spacing:.12em;padding:.15em .45em;border:1px solid #4daab4;border-radius:5px;color:#e2fbff}
+.social-warning{padding:10px 13px;background:#392f1d;border-left:3px solid #e8bd5b;border-radius:4px;font-size:.9rem}
+.social-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;margin-top:18px}
+.social-grid>section{min-width:0;padding:16px;background:rgba(9,36,48,.76);border:1px solid rgba(103,196,204,.28);border-radius:10px}
+.social-add{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.social-add input{min-width:130px;flex:1;width:100%;padding:.7rem;border-radius:5px;border:1px solid #4b7780;background:#0c212c;color:#fff}
+.social-list{display:grid;gap:7px;min-width:0}
+.social-person{display:grid;grid-template-columns:10px minmax(0,1fr) auto;align-items:center;gap:8px;padding:9px;background:rgba(2,16,25,.44);border-radius:6px;font-size:.9rem;min-width:0}
+.social-person i{width:8px;height:8px;border-radius:50%;background:#66777b}
+.social-person i.online{background:#59dca0;box-shadow:0 0 8px #59dca0}
+.social-person b{min-width:0;overflow-wrap:anywhere}.social-person>b:first-child{grid-column:1/3}
+.social-person span{font-size:.78rem;color:#a8bec2;overflow-wrap:anywhere}
+.social-person div{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:5px;justify-content:start;min-width:0}
+.social-modes{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}.social-modes .btn{flex:1;min-width:70px;font-size:.7rem;padding:9px 7px}
+.social-panel .dialog-actions{flex-wrap:wrap}.social-panel code{padding:.15em .3em;background:#102e39;border-radius:3px}
+@media(max-width:400px){.social-grid>section{padding:11px}.social-person{grid-template-columns:10px minmax(0,1fr)}.social-person>span{grid-column:2}.social-person div{grid-column:2}.social-person>b:first-child{grid-column:1/-1}}
+
+/* ===== AZUR v21 — social polish ===== */
+.social-person{transition:background .15s,transform .15s}
+.social-person:hover{transform:translateX(3px);background:rgba(150,200,230,.08)}
+.social-panel{animation:v21-pop-social .2s cubic-bezier(.2,1.4,.4,1)}
+@keyframes v21-pop-social{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.social-add .btn{transition:transform .12s}
+.social-add .btn:active{transform:scale(.94)}
+@media (prefers-reduced-motion:reduce){.social-panel,.social-person{transition:none!important;animation:none!important}}

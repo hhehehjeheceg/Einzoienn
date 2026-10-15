@@ -1,0 +1,30 @@
+/* Horizons 1.7 — grille de modification lisible, réglages manette et finition d'action. */
+:root{--v17-cyan:#63f0ef;--v17-blue:#169bd5;--v17-gold:#ffd27a;--v17-panel:rgba(3,22,34,.91);--v17-line:rgba(162,249,240,.42)}
+.world-edit{width:min(292px,58vw);gap:9px;padding:12px;border:1px solid rgba(126,242,233,.28);border-radius:9px;background:linear-gradient(180deg,rgba(4,33,49,.68),rgba(3,19,31,.38));box-shadow:0 18px 50px rgba(0,8,18,.42),inset 0 0 32px rgba(49,205,221,.06);backdrop-filter:blur(4px);isolation:isolate}
+.world-edit::before,.world-edit::after{content:"";position:absolute;width:28px;height:28px;border-color:var(--v17-cyan);opacity:.78;pointer-events:none}
+.world-edit::before{left:-5px;top:-5px;border-left:2px solid;border-top:2px solid}.world-edit::after{right:-5px;bottom:-5px;border-right:2px solid;border-bottom:2px solid}
+.world-edit-head{width:100%;justify-content:center;flex-wrap:wrap;border:0!important;border-radius:5px;background:var(--v17-panel);box-shadow:inset 0 -1px rgba(138,245,238,.18)}
+.world-edit-head b{color:#dffffa;font-size:.68rem}.world-edit-head span{color:#a8d8da}.world-edit-head span:nth-child(2){color:var(--v17-gold)}
+.world-edit-grid{grid-template-columns:repeat(var(--edit-cols,3),1fr);width:min(236px,48vw);gap:4px;filter:drop-shadow(0 0 16px rgba(57,221,234,.24));touch-action:none}
+.world-edit-grid button{position:relative;min-width:0;min-height:0;border:1px solid rgba(170,251,249,.82);border-radius:3px;background:rgba(9,45,67,.72);box-shadow:inset 0 0 0 1px rgba(0,5,14,.38);cursor:crosshair;touch-action:none;overflow:hidden}
+.world-edit-grid button::before{content:"";position:absolute;inset:4px;border:1px dashed rgba(140,235,235,.28)}
+.world-edit-grid button.solid{background:linear-gradient(145deg,rgba(55,209,226,.84),rgba(17,112,166,.72));border-color:#e2ffff!important;box-shadow:inset 0 0 17px rgba(212,255,249,.23),0 0 10px rgba(44,225,230,.25)}
+.world-edit-grid button:not(.solid) span{display:grid;place-items:center;position:absolute;inset:0;color:rgba(255,255,255,.48);font-size:1.45rem;font-weight:300}.world-edit-grid button.solid span{display:none}
+.world-edit-grid button:focus-visible{outline:3px solid var(--v17-gold);outline-offset:2px;z-index:2}
+.world-edit[data-type="roof"] .world-edit-grid{width:min(218px,44vw)}
+.world-edit[data-type="ramp"] .world-edit-grid button.solid::after{content:"↗";position:absolute;right:7px;bottom:3px;color:rgba(236,255,251,.72);font-size:.75rem}
+.world-edit-actions{flex-wrap:wrap;justify-content:center}.world-edit-actions .btn kbd{margin-left:5px}.world-edit-tip{background:rgba(2,18,30,.9);color:#c8efed;white-space:normal;text-align:center}
+.world-editing #vignette{box-shadow:inset 0 0 100px rgba(15,159,198,.2)}
+.world-editing #crosshair{opacity:.55!important}.world-editing #crosshair::before,.world-editing #crosshair::after{background:var(--v17-cyan)!important}
+.v17-controller-settings{grid-column:1/-1;border-top:1px solid rgba(130,236,224,.2);padding-top:15px}.v17-controller-settings .setting-note{max-width:70ch}
+.gamepad-ui button:focus-visible,.gamepad-ui select:focus-visible,.gamepad-ui input:focus-visible{outline:3px solid var(--v17-gold)!important;outline-offset:3px!important}
+@media(prefers-reduced-motion:no-preference){.world-edit-grid button{transition:background-color .08s ease,border-color .08s ease,filter .08s ease}.world-edit-grid button:active{filter:brightness(1.16)}.world-edit{animation:v17-edit-in .15s ease-out}@keyframes v17-edit-in{from{opacity:.3;transform:translate(-50%,-50%) scale(.93)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}}
+@media(max-width:700px){.world-edit{top:40%;width:min(270px,72vw);padding:9px}.world-edit-grid{width:min(214px,56vw)}.world-edit[data-type="roof"] .world-edit-grid{width:min(196px,52vw)}.world-edit-actions .btn{min-height:34px!important}.v17-controller-settings{grid-column:auto}.keybind-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:440px){.world-edit{width:min(250px,76vw);top:38%}.world-edit-grid{width:min(196px,60vw)}.world-edit-tip{font-size:.43rem}.keybind-grid{grid-template-columns:1fr}.keybind{min-height:32px}.world-edit-actions .btn kbd{display:none}}
+@media(max-height:540px) and (orientation:landscape){.world-edit{left:50%;top:48%;width:250px}.world-edit-grid{width:156px}.world-edit[data-type="roof"] .world-edit-grid{width:148px}.world-edit-head,.world-edit-tip{display:none}.world-edit-actions .btn{min-height:28px!important;padding:4px 8px!important}}
+@media(prefers-reduced-motion:reduce){.world-edit{animation:none}.world-edit-grid button{transition:none}}
+
+/* ===== AZUR v21 — edit dialog corner light ===== */
+.world-edit::before,.world-edit::after{filter:drop-shadow(0 0 6px rgba(99,240,239,.5))}
+.world-edit-grid button:hover{transform:translateY(-1px)}
+.world-edit-head b{letter-spacing:.06em}
