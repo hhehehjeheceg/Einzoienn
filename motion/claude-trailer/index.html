@@ -1,55 +1,162 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1920, height=1080" />
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <title>Claude · trailer 30 s</title>
+    <script src="vendor/gsap.min.js"></script>
+    <script type="importmap">
+      { "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
+    </script>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        margin: 0;
-        width: 1920px;
-        height: 1080px;
-        overflow: hidden;
-        background: #0a0a0a;
-      }
-      #root {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-      }
-      #title {
-        color: #f4f4f5;
-        font-size: 72px;
-        font-weight: 600;
-        letter-spacing: -0.03em;
-      }
+      @font-face { font-family: "InterTight"; src: url("fonts/inter-tight-var.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: block; }
+      @font-face { font-family: "JBM"; src: url("fonts/jbm-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: block; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #05070f; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; font-family: "InterTight", sans-serif; color: #f6f1ec; }
+      #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      .layer { position: absolute; inset: 0; pointer-events: none; }
+      .center { display: flex; align-items: center; justify-content: center; }
+      .ch { display: inline-block; will-change: transform; }
+      .mask { display: inline-block; overflow: hidden; vertical-align: top; padding: 0 0.04em; }
+      .dot { color: #ff8f66; }
+      .halo { text-shadow: 0 0 60px rgba(5, 7, 15, 0.85), 0 0 18px rgba(5, 7, 15, 0.6); }
+
+      /* scene 2: secondary title */
+      #sub { top: 888px; height: 60px; gap: 34px; font-weight: 600; font-size: 30px; letter-spacing: 0.42em; color: #f3e6dc; }
+      #sub .rule { width: 160px; height: 2px; background: linear-gradient(90deg, rgba(255, 143, 102, 0), #ff8f66); }
+      #sub .rule.r { background: linear-gradient(270deg, rgba(255, 143, 102, 0), #ff8f66); }
+
+      /* scene 3 words */
+      .big { font-weight: 800; font-size: 156px; letter-spacing: -0.02em; line-height: 1; }
+      #w3 .half { position: absolute; left: 0; right: 0; text-align: center; }
+      #w3 .wrap { position: relative; width: 1400px; height: 160px; }
+      #note { left: 72px; bottom: 56px; top: auto; right: auto; inset: auto auto 56px 72px; font-family: "JBM"; font-size: 18px; letter-spacing: 0.06em; color: rgba(243, 239, 233, 0.62); }
+
+      /* scene 4 words */
+      .kw { top: 760px; height: 160px; font-weight: 800; font-size: 112px; letter-spacing: -0.01em; }
+      #k1 .track { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+      #k1 .bar { position: absolute; left: 0; top: 18px; height: 124px; width: 22px; background: #ff8f66; border-radius: 4px; }
+      #k1 .inner { position: relative; }
+
+      /* scene 5 */
+      #idea { left: 132px; top: 360px; width: 1000px; height: 360px; inset: 360px auto auto 132px; }
+      #idea .line { position: relative; height: 128px; font-weight: 800; font-size: 118px; letter-spacing: -0.02em; line-height: 1; }
+      #idea .cut { position: absolute; left: 0; top: 0; white-space: nowrap; }
+
+      /* scene 7 */
+      #brand { top: 690px; height: 140px; font-weight: 600; font-size: 128px; letter-spacing: 0.2em; padding-left: 0.2em; }
+      #brand .split { letter-spacing: 0.2em; }
+      #brand .sheen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding-left: 0.2em;
+        background: linear-gradient(100deg, rgba(255, 220, 200, 0) 42%, rgba(255, 226, 206, 1) 50%, rgba(255, 220, 200, 0) 58%);
+        background-size: 300% 100%; background-position: 100% 0; letter-spacing: 0.28em; -webkit-background-clip: text; background-clip: text; color: transparent; }
+      #tag { top: 828px; height: 50px; font-weight: 500; font-size: 30px; letter-spacing: 0.34em; padding-left: 0.34em; color: #efe5dc; }
     </style>
   </head>
   <body>
-    <div
-      id="root"
-      data-composition-id="main"
-      data-start="0"
-      data-duration="10"
-      data-width="1920"
-      data-height="1080"
-    >
-      <h1 id="title" class="clip" data-start="0" data-duration="10" data-track-index="0">Title</h1>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="30" data-width="1920" data-height="1080">
+      <canvas id="gl" class="clip" width="1920" height="1080" data-start="0" data-duration="30" data-track-index="0"></canvas>
+
+      <div id="sub" class="layer center clip" data-start="5.8" data-duration="1.25" data-track-index="1">
+        <div class="rule"></div><div id="sub-t">CLAUDE&nbsp;AI</div><div class="rule r"></div>
+      </div>
+
+      <div id="w1" class="layer center clip big halo" data-start="8.95" data-duration="1.0" data-track-index="2" data-split="COMPRENDRE."></div>
+      <div id="w2" class="layer center clip big halo" data-start="9.95" data-duration="1.0" data-track-index="2"><div id="w2-in">CRÉER<span class="dot">.</span></div></div>
+      <div id="w3" class="layer center clip big halo" data-start="10.95" data-duration="0.85" data-track-index="2">
+        <div class="wrap"><div class="half" id="w3a">CONSTRUIRE<span class="dot">.</span></div><div class="half" id="w3b">CONSTRUIRE<span class="dot">.</span></div></div>
+      </div>
+      <div id="note" class="layer clip" data-start="7.9" data-duration="3.85" data-track-index="3">Interfaces illustratives · contenu d’exemple</div>
+
+      <div id="k1" class="layer center clip kw halo" data-start="13.95" data-duration="1.0" data-track-index="2"><div class="inner"><span id="k1t">DES SKILLS<span class="dot">.</span></span><div class="track"><div class="bar"></div></div></div></div>
+      <div id="k2" class="layer center clip kw halo" data-start="14.95" data-duration="1.0" data-track-index="2" data-split="DES OUTILS."></div>
+      <div id="k3" class="layer center clip kw halo" data-start="15.95" data-duration="0.85" data-track-index="2" data-split="DES POSSIBILITÉS."></div>
+
+      <div id="idea" class="layer clip halo" data-start="20.9" data-duration="1.08" data-track-index="2">
+        <div class="line" id="l1"><div class="cut" id="l1a">DE L’IDÉE</div><div class="cut" id="l1b">DE L’IDÉE</div></div>
+        <div class="line" id="l2"><div class="cut" id="l2a">AU RÉSULTAT<span class="dot">.</span></div><div class="cut" id="l2b">AU RÉSULTAT<span class="dot">.</span></div></div>
+      </div>
+
+      <div id="brand" class="layer center clip" data-start="26.95" data-duration="3.05" data-track-index="2" data-split="CLAUDE"><div class="sheen" id="sheen">CLAUDE</div></div>
+      <div id="tag" class="layer center clip" data-start="27.75" data-duration="2.25" data-track-index="3">VOTRE PARTENAIRE POUR PENSER PLUS LOIN<span class="dot">.</span></div>
+
+      <audio id="score" src="assets/score.wav" data-start="0" data-duration="30" data-track-index="9"></audio>
     </div>
+
     <script>
+      // split words into letter spans (deterministic, before the timeline is built)
+      document.querySelectorAll("[data-split]").forEach((el) => {
+        const text = el.getAttribute("data-split");
+        const holder = document.createElement("div");
+        holder.className = "split";
+        holder.style.whiteSpace = "pre";
+        [...text].forEach((ch) => {
+          const m = document.createElement("span");
+          m.className = "mask";
+          const s = document.createElement("span");
+          s.className = "ch" + (ch === "." ? " dot" : "");
+          s.textContent = ch === " " ? " " : ch;
+          m.appendChild(s);
+          holder.appendChild(m);
+        });
+        el.insertBefore(holder, el.firstChild);
+      });
+      const q = (s) => document.querySelectorAll(s);
       const tl = gsap.timeline({ paused: true });
-      // Example: tl.fromTo("#title", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.6 }, 0);
+
+      // scene 2: CLAUDE AI, tracking settles, rules draw in
+      tl.fromTo("#sub-t", { opacity: 0, scaleX: 1.35, filter: "blur(10px)" }, { opacity: 1, scaleX: 1, filter: "blur(0px)", duration: 0.7, ease: "expo.out" }, 5.9);
+      tl.fromTo("#sub .rule", { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "expo.out", stagger: 0 }, 6.0);
+      tl.to("#sub", { opacity: 0, duration: 0.18, ease: "power2.in" }, 6.82);
+
+      // COMPRENDRE. letters rise out of their masks
+      tl.fromTo("#w1 .ch", { yPercent: 110, rotate: 6 }, { yPercent: 0, rotate: 0, duration: 0.55, ease: "expo.out", stagger: 0.032 }, 9.0);
+      tl.to("#w1 .ch", { yPercent: -110, duration: 0.25, ease: "power3.in", stagger: 0.012 }, 9.72);
+      // CRÉER. tracking and focus pull
+      tl.fromTo("#w2-in", { scale: 1.35, opacity: 0, filter: "blur(16px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.6, ease: "expo.out" }, 10.0);
+      tl.to("#w2-in", { scale: 0.94, opacity: 0, filter: "blur(10px)", duration: 0.2, ease: "power2.in" }, 10.76);
+      // CONSTRUIRE. two cut halves slide into alignment
+      tl.set("#w3a", { clipPath: "inset(0 0 50% 0)" }, 0);
+      tl.set("#w3b", { clipPath: "inset(50% 0 0 0)" }, 0);
+      tl.fromTo("#w3a", { x: -260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "expo.out" }, 11.0);
+      tl.fromTo("#w3b", { x: 260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "expo.out" }, 11.04);
+      tl.to("#w3 .wrap", { x: -500, opacity: 0, filter: "blur(14px)", duration: 0.16, ease: "power3.in" }, 11.62);
+      tl.fromTo("#note", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 7.9);
+      tl.to("#note", { opacity: 0, duration: 0.2 }, 11.5);
+
+      // DES SKILLS. wipe behind a coral bar
+      tl.fromTo("#k1t", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.42, ease: "power3.inOut" }, 14.0);
+      tl.fromTo("#k1 .track", { xPercent: -3 }, { xPercent: 100, duration: 0.42, ease: "power3.inOut" }, 14.0);
+      tl.to("#k1 .bar", { opacity: 0, duration: 0.12 }, 14.42);
+      tl.to("#k1t", { yPercent: -30, opacity: 0, duration: 0.2, ease: "power2.in" }, 14.76);
+      // DES OUTILS. letters drop in with a 3D flip
+      tl.fromTo("#k2 .ch", { yPercent: -120, rotateX: -90, opacity: 0 }, { yPercent: 0, rotateX: 0, opacity: 1, duration: 0.5, ease: "back.out(1.6)", stagger: 0.025 }, 15.0);
+      tl.to("#k2 .split", { scale: 1.06, opacity: 0, duration: 0.2, ease: "power2.in" }, 15.76);
+      // DES POSSIBILITÉS. tracking opens, letters light one by one
+      tl.fromTo("#k3 .mask", { x: (i, e, a) => (i - (a.length - 1) / 2) * 34 }, { x: 0, duration: 0.7, ease: "expo.out" }, 16.0);
+      tl.fromTo("#k3 .ch", { opacity: 0, filter: "blur(8px)", scale: 1.3 }, { opacity: 1, filter: "blur(0px)", scale: 1, duration: 0.35, ease: "power2.out", stagger: 0.02 }, 16.0);
+      tl.to("#k3 .split", { scale: 1.5, opacity: 0, filter: "blur(12px)", duration: 0.2, ease: "power2.in" }, 16.58);
+
+      // DE L'IDÉE AU RÉSULTAT. a 3D cut: the two halves of each line slide together
+      [["#l1a", "#l1b", 21.0], ["#l2a", "#l2b", 21.1]].forEach(([a, b, t0]) => {
+        tl.set(a, { clipPath: "polygon(0 0, 100% 0, 100% 46%, 0 60%)" }, 0);
+        tl.set(b, { clipPath: "polygon(0 60%, 100% 46%, 100% 100%, 0 100%)" }, 0);
+        tl.fromTo(a, { x: -140, y: -30, rotateY: -25, opacity: 0 }, { x: 0, y: 0, rotateY: 0, opacity: 1, duration: 0.55, ease: "expo.out" }, t0);
+        tl.fromTo(b, { x: 140, y: 30, rotateY: 25, opacity: 0 }, { x: 0, y: 0, rotateY: 0, opacity: 1, duration: 0.55, ease: "expo.out" }, t0 + 0.04);
+      });
+      tl.to("#idea .line", { opacity: 0, x: -40, filter: "blur(8px)", duration: 0.22, ease: "power2.in", stagger: 0.04 }, 21.72);
+
+      // signature: CLAUDE letter by letter, tagline wipe from the centre, sheen
+      tl.fromTo("#brand .mask", { x: (i, e, a) => (i - (a.length - 1) / 2) * 36 }, { x: 0, duration: 1.6, ease: "expo.out" }, 27.0);
+      tl.fromTo("#brand .ch", { yPercent: 70, opacity: 0, filter: "blur(10px)" }, { yPercent: 0, opacity: 1, filter: "blur(0px)", duration: 0.7, ease: "expo.out", stagger: 0.06 }, 27.0);
+      tl.fromTo("#sheen", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 28.8);
+      tl.fromTo("#sheen", { backgroundPosition: "100% 0" }, { backgroundPosition: "0% 0", duration: 0.75, ease: "power2.inOut" }, 28.8);
+      tl.fromTo("#tag", { clipPath: "inset(0 50% 0 50%)", opacity: 0.0 }, { clipPath: "inset(0 0% 0 0%)", opacity: 1, duration: 0.8, ease: "power3.out" }, 27.8);
+      tl.fromTo("#tag", { scaleX: 1.12 }, { scaleX: 1, duration: 1.4, ease: "expo.out" }, 27.8);
+      // keep the final card alive: a slow drift until the last frame
+      tl.fromTo("#brand, #tag", { y: 6 }, { y: 0, duration: 3.0, ease: "none" }, 27.0);
       window.__timelines["main"] = tl;
-      tl.seek(0);
     </script>
+    <script type="module" src="src/main.js"></script>
   </body>
 </html>

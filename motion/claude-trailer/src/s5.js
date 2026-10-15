@@ -138,7 +138,7 @@ export function buildTower(ctx) {
       s.mat.envMapIntensity = 0.2 + 1.1 * mp;
       const py = (t - C5.pulse) / 0.9 * (FLOORS + 6) - 3;
       const band = t > C5.pulse ? Math.exp(-Math.pow((i - py) / 2.2, 2)) : 0;
-      s.mat.emissiveIntensity = 2.5 * band + 0.06 * mp;
+      s.mat.emissiveIntensity = 1.0 * band + 0.04 * mp;
       if (!climax) {
         s.mesh.position.copy(s.home.pos);
         s.mesh.rotation.set(0, s.home.rotY + Math.sin(t * 0.5 + i * 0.2) * 0.01, 0);

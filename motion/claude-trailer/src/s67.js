@@ -32,19 +32,22 @@ export function buildClimax(ctx, ui, lab, tw, camAt) {
   const rnd = mulberry32(606);
   const randDir = () => { const u = rnd() * 2 - 1, a = rnd() * TAU, s = Math.sqrt(1 - u * u); return V(s * Math.cos(a), u, s * Math.sin(a)); };
   const camEnd = camAt(25.0).pos.clone().sub(C); // camera position (relative) while things fly past
+  // incoming objects never cross the lens: mirror any approach direction that faces the camera
+  const camDirs = [22.0, 22.5, 23.0].map((k) => camAt(k).pos.clone().sub(C).normalize());
+  const away = (d) => { d = d.clone().normalize(); camDirs.forEach((c) => { const k = d.dot(c); if (k > -0.2) d.addScaledVector(c, -(k + 0.45)).normalize(); }); return d; };
 
   // central symbol
   const spark = makeSpark(M);
-  spark.group.scale.setScalar(1.45);
+  spark.group.scale.setScalar(2.1);
   group.add(spark.group);
-  const sparkFl = spark.parts.map((m, i) => ({ from: SYMBOL.geos[i].home.clone().add(randDir().multiplyScalar(9 + rnd() * 6)), rot: randDir().multiplyScalar(6), t0: C6.conv0 + 0.15 + i * 0.06 }));
+  const sparkFl = spark.parts.map((m, i) => ({ from: SYMBOL.geos[i].home.clone().add(away(randDir()).multiplyScalar(9 + rnd() * 6)), rot: randDir().multiplyScalar(6), t0: C6.conv0 + 0.15 + i * 0.06 }));
 
   // movers: everything that converges then bursts
   const movers = [];
   const addMover = (obj, home, opts = {}) => {
     group.add(obj);
     const dir = opts.dir || home.clone().normalize().add(randDir().multiplyScalar(0.35)).normalize();
-    movers.push({ obj, home, from: opts.from || home.clone().normalize().multiplyScalar(26 + rnd() * 14).add(randDir().multiplyScalar(4)),
+    movers.push({ obj, home, from: opts.from || away(home.clone().normalize().add(randDir().multiplyScalar(0.3))).multiplyScalar(26 + rnd() * 14),
       dir, dist: opts.dist || 16 + rnd() * 22, spin: randDir().multiplyScalar(opts.spin ?? 3 + rnd() * 6), baseRot: opts.baseRot || new THREE.Euler(),
       t0: opts.t0 ?? C6.conv0 + rnd() * 0.5, dur: opts.dur ?? 0.9 + rnd() * 0.4, scale: opts.scale ?? 1 });
   };
@@ -70,7 +73,7 @@ export function buildClimax(ctx, ui, lab, tw, camAt) {
   // metal and coral shards
   const shardGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.025, 3);
   const shardMats = [M.chrome, M.coral];
-  const shards = shardMats.map((mat, j) => new THREE.InstancedMesh(shardGeo, mat, j ? 170 : 280));
+  const shards = shardMats.map((mat, j) => new THREE.InstancedMesh(shardGeo, mat, j ? 70 : 130));
   const shardData = [];
   shards.forEach((im, j) => {
     group.add(im);
@@ -79,7 +82,7 @@ export function buildClimax(ctx, ui, lab, tw, camAt) {
       const home = d.clone().multiplyScalar(2.0 + Math.pow(rnd(), 0.7) * 6.5);
       const close = i < 7 && j === 0;
       const target = camEnd.clone().add(V((rnd() - 0.5) * 1.6, (rnd() - 0.5) * 1.0 + 0.4, 0));
-      shardData.push({ im, i, home, from: d.clone().multiplyScalar(24 + rnd() * 20),
+      shardData.push({ im, i, home, from: away(d).multiplyScalar(24 + rnd() * 20),
         dir: close ? target.clone().sub(home).normalize() : home.clone().normalize().add(randDir().multiplyScalar(0.4)).normalize(),
         dist: close ? target.distanceTo(home) * (1.15 + rnd() * 0.2) : 14 + rnd() * 30,
         rot: V(rnd() * TAU, rnd() * TAU, rnd() * TAU), spin: randDir().multiplyScalar(4 + rnd() * 10),
@@ -87,7 +90,7 @@ export function buildClimax(ctx, ui, lab, tw, camAt) {
     }
   });
   // particle cloud
-  const NP = 9000;
+  const NP = 6000;
   const pg = new THREE.BufferGeometry();
   const aHome = new Float32Array(NP * 3), aFrom = new Float32Array(NP * 3), aDir = new Float32Array(NP * 4), col = new Float32Array(NP * 3);
   const pc = ["#ff8a5c", "#ffb547", "#ffe2cf", "#62c6ff", "#a492ff", "#41d3c4"].map((c) => new THREE.Color(c));
@@ -125,7 +128,7 @@ export function buildClimax(ctx, ui, lab, tw, camAt) {
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: `varying vec3 vCol; varying float vA, vCoc; uniform float uO; ${BOKEH_FS}
-      void main(){ float a = disc(gl_PointCoord, vCoc) * vA * uO; if (a < 0.004) discard; gl_FragColor = vec4(vCol * a * 1.6, a); }`,
+      void main(){ float a = disc(gl_PointCoord, vCoc) * vA * uO; if (a < 0.004) discard; gl_FragColor = vec4(vCol * a * 0.9, a); }`,
     vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   }));
   cloud.frustumCulled = false;
@@ -177,11 +180,11 @@ export function buildClimax(ctx, ui, lab, tw, camAt) {
     M.coral.emissiveIntensity = Math.max(M.coral.emissiveIntensity, pulse > 0 && t < 26 ? 1.6 * Math.exp(-pulse * 2.5) : 0);
 
     movers.forEach((m) => {
-      m.obj.visible = climaxOn;
+      m.obj.visible = climaxOn && t > m.t0 + 0.02;
       const e = io((t - m.t0) / m.dur);
       m.obj.position.lerpVectors(m.from, m.home, e).addScaledVector(m.dir, tau * m.dist);
       m.obj.rotation.set(m.baseRot.x + m.spin.x * (tau + (1 - e) * 0.6), m.baseRot.y + m.spin.y * (tau + (1 - e) * 0.6) + (t - C6.conv0) * 0.15, m.baseRot.z + m.spin.z * tau);
-      m.obj.scale.setScalar(m.scale * Math.max(0.001, smooth((t - m.t0) / 0.3)));
+      m.obj.scale.setScalar(m.scale * Math.max(0.01, smooth((t - m.t0) / 0.3)));
     });
     // tower slabs leave the tower and form a halo
     const L = W.climax.clone().sub(W.tower); // halo centre in tower space
@@ -203,7 +206,7 @@ export function buildClimax(ctx, ui, lab, tw, camAt) {
       const sp = (1 - e) * 2 + tau;
       eu.set(s.rot.x + s.spin.x * sp, s.rot.y + s.spin.y * sp + t * 0.3, s.rot.z + s.spin.z * sp);
       q.setFromEuler(eu);
-      sc.setScalar(s.s * smooth((t - s.t0) / 0.25) + 1e-4);
+      sc.setScalar(Math.max(0.01, s.s * smooth((t - s.t0) / 0.25)));
       s.im.setMatrixAt(s.i, m4.compose(p, q, sc));
     });
     shards.forEach((im) => { im.instanceMatrix.needsUpdate = true; im.visible = climaxOn; });
@@ -222,8 +225,8 @@ export function buildClimax(ctx, ui, lab, tw, camAt) {
     sig.visible = s7 > -0.2;
     if (!sig.visible) return;
     const up = io((t - C7.word + 0.1) / 0.8);
-    spark7.group.position.set(0, 0.28 + 0.34 * up, 0);
-    spark7.group.scale.setScalar(1.18 - 0.2 * up);
+    spark7.group.position.set(0, 0.28 + 0.55 * up, 0);
+    spark7.group.scale.setScalar(1.18 - 0.26 * up);
     spark7.group.rotation.set(Math.sin(t * 0.5) * 0.05, Math.sin(t * 0.6 + 0.5) * 0.16, 0);
     spark7.parts.forEach((m, i) => {
       const f = sig7[i], h = SYMBOL.geos[i].home;
@@ -237,9 +240,9 @@ export function buildClimax(ctx, ui, lab, tw, camAt) {
     rays7.quaternion.copy(cam.quaternion);
     rays7.position.y = spark7.group.position.y;
     rays7.material.uniforms.uT.value = t;
-    rays7.material.uniforms.uI.value = 0.35 * smooth(s7 / 1.0) + (fin > 0 ? 0.7 * Math.exp(-fin * 2.5) : 0);
+    rays7.material.uniforms.uI.value = 0.18 * smooth(s7 / 1.0) + (fin > 0 ? 0.7 * Math.exp(-fin * 2.5) : 0);
     glow7.position.y = spark7.group.position.y;
-    glow7.material.opacity = 0.35 * smooth(s7 / 0.8) + (fin > 0 ? 0.5 * Math.exp(-fin * 2) : 0);
+    glow7.material.opacity = 0.16 * smooth(s7 / 0.8) + (fin > 0 ? 0.5 * Math.exp(-fin * 2) : 0);
     ring7.visible = fin > 0 && fin < 1.3;
     ring7.position.y = spark7.group.position.y;
     ring7.quaternion.copy(cam.quaternion);

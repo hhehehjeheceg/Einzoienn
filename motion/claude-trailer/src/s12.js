@@ -42,7 +42,7 @@ function makeParticles() {
   const cols = ["#ff8a5c", "#ffb547", "#ffe2cf", "#f2c27b", "#ff7a4d"].map((c) => new THREE.Color(c));
   for (let i = 0; i < N; i++) {
     const [lx, ly] = logo[i];
-    A.aLogo.set([LC.x + lx * SA, LC.y + ly * SA, (rnd() - 0.5) * 0.16 * SA], i * 3);
+    A.aLogo.set([LC.x + lx * SA, LC.y + ly * SA, (rnd() - 0.5) * 0.08 * SA], i * 3);
     const u = rnd();
     const type = u < 0.48 ? 0 : u < 0.86 ? 1 : 2;
     const R = type === 0 ? 2.3 + rnd() * 0.9 : type === 1 ? 1.45 + rnd() * 0.3 : 0.25 + rnd() * 0.5;
@@ -67,7 +67,7 @@ function makeParticles() {
     return new THREE.Matrix3().set(u.x, v.x, nn.x, u.y, v.y, nn.y, u.z, v.z, nn.z);
   });
   const mat = new THREE.ShaderMaterial({
-    uniforms: { ...bokehUniforms(), uT: { value: 0 }, uRing: { value: ringBasis }, uP1: { value: -1 }, uP2: { value: -1 }, uSize: { value: 0.032 }, uGlobal: { value: 1 } },
+    uniforms: { ...bokehUniforms(), uT: { value: 0 }, uRing: { value: ringBasis }, uP1: { value: -1 }, uP2: { value: -1 }, uSize: { value: 0.027 }, uGlobal: { value: 1 } },
     vertexShader: /* glsl */ `
       attribute vec3 aLogo; attribute vec4 aOrb, aOrb2, aTime;
       uniform float uT, uSize, uP1, uP2; uniform mat3 uRing[3];
@@ -114,7 +114,7 @@ function makeParticles() {
     fragmentShader: /* glsl */ `
       varying vec3 vCol; varying float vA, vCoc; uniform float uGlobal;
       ${BOKEH_FS}
-      void main() { float a = disc(gl_PointCoord, vCoc) * vA * uGlobal; if (a < 0.004) discard; gl_FragColor = vec4(vCol * a * 1.5, a); }`,
+      void main() { float a = disc(gl_PointCoord, vCoc) * vA * uGlobal; if (a < 0.004) discard; gl_FragColor = vec4(vCol * a * 0.85, a); }`,
     vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   });
   const pts = new THREE.Points(g, mat);
@@ -203,13 +203,13 @@ export function buildTitle(ctx) {
     seed.material.opacity = sp * (1 - prog(t, 2.6, 3.1));
     halo.position.set(LC.x, LC.y, -0.3);
     halo.scale.setScalar(9);
-    halo.material.opacity = 0.18 * smooth((t - 0.6) / 1.2) + 0.3 * smooth((t - 2.3) / 0.6) * (1 - prog(t, 5.0, 6.5)) + 0.35 * Math.exp(-Math.max(0, sr) * 2.5) * (sr > 0);
+    halo.material.opacity = 0.07 * smooth((t - 0.6) / 1.2) + 0.12 * smooth((t - 2.3) / 0.6) * (1 - prog(t, 5.0, 6.5)) + 0.25 * Math.exp(-Math.max(0, sr) * 2.5) * (sr > 0);
 
     // volumetric rays
     rays.quaternion.copy(cam.quaternion);
     rays.material.uniforms.uT.value = t;
     const shockFlash = sr > 0 ? Math.exp(-sr * 3.0) : 0;
-    rays.material.uniforms.uI.value = 0.15 * smooth((t - 0.6) / 1.0) + 0.9 * smooth((t - 2.0) / 0.9) * (1 - 0.55 * prog(t, 3.0, 4.3)) + 0.9 * shockFlash;
+    rays.material.uniforms.uI.value = 0.12 * smooth((t - 0.6) / 1.0) + 0.75 * smooth((t - 2.0) / 0.9) * (1 - 0.55 * prog(t, 3.0, 4.3)) + 0.8 * shockFlash;
     rays.material.uniforms.uI.value *= 1 - prog(t, 6.3, 7.1);
     rays.position.set(0, keys(t, [[4.5, LC.y], [5.4, SPARK_FINAL.pos.y]]), -0.8);
 

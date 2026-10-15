@@ -48,7 +48,7 @@ export function makeCamera(title, ui) {
     if (t < 8.3) {
       const start = titleCam(C3.dive);
       const cross = V(D.x, D.y, D.z - 0.05);
-      const arrive = O3.clone().add(V(-3.4, 0.45, 9.6));
+      const arrive = O3.clone().add(V(-3.4, 0.45, 7.4));
       let pos, fov, look;
       if (t < C3.cross) {
         const e = in3(prog(t, C3.dive, C3.cross));
@@ -66,7 +66,7 @@ export function makeCamera(title, ui) {
     // ---- trucking along the windows
     if (t < C3.whip) {
       const x = spline(t, [[8.3, -3.4], [11.72, 6.2, 3.4]]);
-      const pos = O3.clone().add(V(x, 0.45 + 0.12 * Math.sin(t * 0.9), spline(t, [[8.3, 9.6], [11.72, 8.8]])));
+      const pos = O3.clone().add(V(x, 0.45 + 0.12 * Math.sin(t * 0.9), spline(t, [[8.3, 7.4], [11.72, 6.9]])));
       const look = O3.clone().add(V(x + spline(t, [[8.3, 1.2], [9.5, 0.6], [11.72, 1.4]]), 0.2, 0));
       return { pos, look, fov: 42, roll: 0 };
     }
@@ -88,10 +88,10 @@ export function makeCamera(title, ui) {
     const tw = W.tower;
     if (t < 18.0) {
       const p = prog(t, C5.code, 18.0);
-      return { pos: ed.clone().add(V(-0.7 + 1.1 * p, 0.2 - 0.25 * p, 4.4 - 0.7 * io(p))), look: ed.clone().add(V(-0.4 + 0.9 * p, 0.05, 0)), fov: 38 + 10 * Math.exp(-p * 6), roll: 0 };
+      return { pos: ed.clone().add(V(-0.7 + 1.1 * p, 0.2 - 0.25 * p, 6.9 - 0.9 * io(p))), look: ed.clone().add(V(-0.4 + 0.9 * p, 0.05, 0)), fov: 38 + 10 * Math.exp(-p * 6), roll: 0 };
     }
     if (t < 19.42) {
-      const pts = [[18.0, ed.clone().add(V(0.4, -0.05, 3.7))], [18.75, tw.clone().add(V(0, -1.3, 0.25))], [19.42, tw.clone().add(V(0, 6.9, 0))]];
+      const pts = [[18.0, ed.clone().add(V(0.4, -0.05, 6.0))], [18.75, tw.clone().add(V(0, -1.3, 0.25))], [19.42, tw.clone().add(V(0, 6.9, 0))]];
       const pos = V(spline(t, pts.map(([k, v]) => [k, v.x])), spline(t, pts.map(([k, v]) => [k, v.y])), spline(t, pts.map(([k, v]) => [k, v.z])));
       const lk = [[18.0, ed.clone().add(V(0.5, 0, 0))], [18.55, tw.clone().add(V(0, 1.5, 0))], [18.8, pos.clone().add(V(0, 5, 0.7))], [19.42, Ct.clone().add(V(0, 6, -3))]];
       const look = V(spline(t, lk.map(([k, v]) => [k, v.x])), spline(t, lk.map(([k, v]) => [k, v.y])), spline(t, lk.map(([k, v]) => [k, v.z])));

@@ -10,7 +10,7 @@ const C3 = CUES.s3;
 
 export function panelMaterial(tex, accent) {
   return new THREE.ShaderMaterial({
-    uniforms: { map: { value: tex }, uReveal: { value: 1 }, uMode: { value: 0 }, uOpacity: { value: 1 }, uBright: { value: 1.15 }, uEdge: { value: new THREE.Color(accent) } },
+    uniforms: { map: { value: tex }, uReveal: { value: 1 }, uMode: { value: 0 }, uOpacity: { value: 1 }, uBright: { value: 0.78 }, uEdge: { value: new THREE.Color(accent) } },
     vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
     fragmentShader: /* glsl */ `
       uniform sampler2D map; uniform float uReveal, uMode, uOpacity, uBright; uniform vec3 uEdge; varying vec2 vUv;
@@ -105,7 +105,7 @@ export function buildUI(ctx, title) {
     dust.material.uniforms.uWarp.value = smooth((t - 11.6) / 0.25);
     grid.material.uniforms.uT.value = t;
     grid.material.uniforms.uI.value = 0.9 * smooth((t - 7.2) / 0.8);
-    glows.forEach((g) => (g.material.opacity = 0.16 * smooth((t - 7.0) / 0.6)));
+    glows.forEach((g) => (g.material.opacity = 0.09 * smooth((t - 7.0) / 0.6)));
 
     panels.forEach((P, i) => {
       const a = t - P.t0;

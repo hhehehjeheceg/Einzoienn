@@ -139,7 +139,7 @@ export function makeRays(color = "#ff9a6a") {
         s += 0.5 * pow(0.5 + 0.5 * sin(a * 7.0 + uT * 0.15 + 4.1), 6.0);
         float fall = exp(-r * 2.6) * smoothstep(0.02, 0.18, r);
         vec3 c = mix(uC2, uC, smoothstep(0.0, 0.6, r));
-        float v = (s * 0.55 + 0.25) * fall * uI;
+        float v = (s * 0.6 + 0.07) * fall * uI;
         gl_FragColor = vec4(c * v, v);
       }`,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
@@ -255,7 +255,8 @@ export class AccumPass extends Pass {
       uniforms: { tMap: { value: null }, uW: { value: 1 } },
       vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
       fragmentShader: `uniform sampler2D tMap; uniform float uW; varying vec2 vUv; void main(){ gl_FragColor = texture2D(tMap, vUv) * uW; }`,
-      blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, transparent: true,
+      blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneFactor,
+      depthTest: false, depthWrite: false, transparent: true,
     }));
     this.needsSwap = true;
   }
@@ -268,11 +269,12 @@ export class AccumPass extends Pass {
       return;
     }
     renderer.setRenderTarget(writeBuffer); renderer.setClearColor(0x000000, 0); renderer.clear();
+    const ac = renderer.autoClear;
     for (let k = 0; k < n; k++) {
       this.update(this.t + (k / (n - 1) - 0.5) * this.shutter);
       renderer.setRenderTarget(this.tmp); renderer.clear(); renderer.render(this.scene, this.camera);
       this.quad.material.uniforms.tMap.value = this.tmp.texture; this.quad.material.uniforms.uW.value = 1 / n;
-      renderer.setRenderTarget(writeBuffer); this.quad.render(renderer);
+      renderer.setRenderTarget(writeBuffer); renderer.autoClear = false; this.quad.render(renderer); renderer.autoClear = ac;
     }
     this.update(this.t); // leave scene state at the frame time
   }
