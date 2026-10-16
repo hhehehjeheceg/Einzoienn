@@ -13,9 +13,10 @@
   if (!T || !T.GLTFLoader || root.AZCh1Models) return;
   const BASE = "assets/ch1/chars/";
   const VER = "?v=93";
+  const EXT = root.AZ_CH1_EXT || ".glb"; // hébergeurs sans .glb : copie glTF JSON (tools/azur/glb2json.py)
   const loader = new T.GLTFLoader();
   const files = {};
-  const load = (n) => files[n] || (files[n] = new Promise((res, rej) => loader.load(BASE + n + ".glb" + VER, res, undefined, rej)));
+  const load = (n) => files[n] || (files[n] = new Promise((res, rej) => loader.load(BASE + n + EXT + VER, res, undefined, rej)));
 
   /* ============================================================ couleurs */
   const SKIN = { light: "#f2c6a0", fair: "#e9b48c", tan: "#d39a6c", olive: "#b97d50", brown: "#8d5a3b", dark: "#5e3a26" };

@@ -1488,7 +1488,7 @@ function update(dt, t) {
     applied.top.lerp(tmpB.set('#cfe0ff'), 0.30 * mfk);
     applied.exposure *= (1 + 0.9 * mfk);
   }
-  // v22 : le ciel RÉPOND �� chaque nombre — un pouls bleu lointain (le
+  // v22 : le ciel RÉPOND à chaque nombre — un pouls bleu lointain (le
   // cosmos accuse le coup, un par un, jamais expliqué).
   if (numSkyPulse > 0.01) {
     var nsk = numSkyPulse * numSkyPulse;

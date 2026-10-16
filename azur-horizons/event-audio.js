@@ -2983,7 +2983,7 @@ function init(api) {
     if (!AZE.active) return;
     duckAll(d && d.duration > 0 ? d.duration : 4);
   });
-  // v16 ��� télégraphes d'avertissement (event-player.js) : ~2 s AVANT chaque
+  // v16 — télégraphes d'avertissement (event-player.js) : ~2 s AVANT chaque
   // impulsion subie, une montée d'alerte AMÈNE le grand moment (attaque
   // progressive, pas d'apparition sèche). Le joueur est prévenu avant
   // d'être propulsé / projeté / aspiré.

@@ -184,7 +184,7 @@
         [`${keyLabel(this.keybinds.build)} / 1–4`, "Mode construction / mur, sol, rampe, toit"],
         [`${keyLabel(this.keybinds.material)} / C (en construction)`, "Changer de matériau / tourner la pièce"],
         ["Page ↑ / Page ↓ (construction)", "Étage au-dessus / en dessous ; AUTO suit la rampe"],
-        ["K / GARAGE", "Fabriquer une berline, un buggy ou un coupé : 80 métal, gratuit en cr��atif"],
+        ["K / GARAGE", "Fabriquer une berline, un buggy ou un coupé : 80 métal, gratuit en créatif"],
         ["ZQSD / WASD (véhicule)", "Accélérer, freiner / reculer et tourner ; E pour sortir"],
         [`${keyLabel(this.keybinds.edit)} / Suppr`, "Édition 3×3 directe dans le monde / démolir"],
         ["J", "Coup de crosse au corps à corps / coup de pioche"],
