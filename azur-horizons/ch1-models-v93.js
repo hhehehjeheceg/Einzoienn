@@ -830,7 +830,7 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
   const ONCE = /^(Jump_Start|Jump_Land|Roll|BackFlip|Celebration|Interact|PickUp_Kneeling|Pistol_Shoot|Pistol_Reload|Sword_Attack|Punch_Jab|Melee_Hook|Chest_Open|Consume|Drink|Surprise|Yes|KipUp|OverhandThrow|Hit_Chest|Death01)/;
   // vitesse naturelle des cycles (m/s pour le modèle à l'échelle 1)
   const SPEED = { Walk_Loop: 1.45, Jog_Fwd_Loop: 3.7, Jog_Bwd_Loop: 3.0, Jog_Left_Loop: 3.2, Jog_Right_Loop: 3.2, Jog_Fwd_L_Loop: 3.6, Jog_Fwd_R_Loop: 3.6, Jog_Bwd_L_Loop: 3.0, Jog_Bwd_R_Loop: 3.0, Sprint_Loop: 6.2, Crouch_Fwd_Loop: 1.35, Crouch_Bwd_Loop: 1.2, Crouch_Left_Loop: 1.2, Crouch_Right_Loop: 1.2, Crawl_Fwd_Loop: 0.9, Swim_Fwd_Loop: 1.6 };
-  const EMOTES = { salut: "Yes", danse: "Dance_Loop", victoire: "Celebration", robot: "Idle_FoldArms_Loop", etoile: "BackFlip", toupie: "KipUp" };
+  const EMOTES = { salut: "Idle_Loop", danse: "Dance_Loop", victoire: "Celebration", robot: "Idle_Loop", etoile: "BackFlip", toupie: "KipUp" };
 
   class Animator {
     constructor(inst) {
@@ -1065,6 +1065,19 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
       u.blueprint.updateMatrix();
       const t = _tw.set(-0.16, -0.05, 0).applyMatrix4(u.blueprint.matrix);
       solveArm(...left, group.localToWorld(t).clone(), poleFor(-1), 1);
+    } else if (emote && (p.emoteStyle === "salut" || p.emoteStyle === "robot")) {
+      // gestes absents de la bibliothèque : salut de la main et danse du robot
+      const et = Math.max(0, (+p.emoteDuration || 6) - (+p.emote || 0));
+      const w = Math.min(1, et * 6);
+      if (p.emoteStyle === "salut") {
+        solveArm(...right, group.localToWorld(_tw.set(0.3 + Math.sin(et * 9) * 0.13, 1.98, -0.1)).clone(), poleFor(1).add(_tw.set(0.3, -0.6, 0)), w);
+      } else {
+        const beat = Math.floor(et * 2.4) % 4, lift = (k) => (beat === k ? 0.22 : 0);
+        solveArm(...right, group.localToWorld(_tw.set(0.24, 1.12 + lift(0) + lift(2), -0.36)).clone(), poleFor(1), w);
+        solveArm(...left, group.localToWorld(_tw.set(-0.24, 1.12 + lift(1) + lift(3), -0.36)).clone(), poleFor(-1), w);
+        if (B.spine_03) { B.spine_03.rotateY((beat < 2 ? 1 : -1) * 0.22 * w); B.spine_03.updateMatrixWorld(true); }
+        if (B.Head) { B.Head.rotateY((beat % 2 ? -1 : 1) * 0.35 * w); }
+      }
     }
     // pioche : portée droite devant l'épaule comme dans la vidéo (main droite à hauteur de poitrine,
     // manche presque vertical, tête au-dessus de l'épaule) ; pendant la frappe, le geste de anim-v67.
