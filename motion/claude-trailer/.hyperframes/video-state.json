@@ -1378,5 +1378,16 @@
         "attribution": "unversioned"
       }
     ]
-  }
+  },
+  "renders": {
+    "latest": {
+      "id": "c526608e-2a40-4d9e-a64e-307adfa373c7",
+      "completedAt": 1792094192427,
+      "output": "/home/user/Einzoienn/motion/claude-trailer/renders/trailer-30fps-video.mp4",
+      "status": "completed",
+      "revision": null
+    },
+    "retainedRevisions": []
+  },
+  "pendingArtifactCleanup": []
 }
