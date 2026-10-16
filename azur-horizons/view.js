@@ -893,13 +893,14 @@
       for (const [id, m] of this.actors) m.visible = ids.has(id);
       for (const q of near) {
         let m = this.actors.get(q.id);
+        // v92 : les bots portent surtout la tenue de recrue (variantes choisies par ch1-chars-v92 via `bot`)
+        const botN = q.bot ? parseInt(q.id.replace(/\D/g, "")) || 0 : 0;
         const eq = q.bot
           ? {
-              character: ["char-ambre", "char-azur", "char-sauge", "char-nacre", "char-cuivre", "char-onyx"][
-                parseInt(q.id.replace(/\D/g, "")) % 6 || 0
-              ],
+              character: "char-ambre",
+              bot: botN,
               glider: "glider-alize",
-              back: "back-sac",
+              back: botN % 3 === 0 ? "back-sac" : "",
               tool: "tool-compas",
             }
           : q.equipment;
