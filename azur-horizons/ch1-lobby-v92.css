@@ -486,6 +486,54 @@ html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-play-card {
   html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-play-card ~ .ch1-lobby-actions {
     bottom: 8px;
   }
+  /* onglets sur la même ligne que l'icône de groupe et les écus, comme dans le salon de référence */
+  html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks {
+    position: absolute !important;
+    top: 0 !important;
+    left: 56px !important;
+    right: auto !important;
+    width: auto !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+  html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks .ch1-tab-aux {
+    height: 40px !important;
+  }
+  html body.ch1-ui[data-screen="menu"] #ui .topbar .account-bar {
+    height: 40px !important;
+  }
+  html body.ch1-ui #ui .ch1-countdown {
+    top: 46px;
+  }
+  .ch1-countdown small {
+    font-size: 9px;
+  }
+  .ch1-countdown b {
+    font-size: 17px;
+    padding: 2px 8px 1px;
+  }
+  /* liens « groupe / commandes » masqués : ils passaient sous EMOTE et FORMATION */
+  html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .footer-links {
+    display: none !important;
+  }
+  html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .ch1-lobby-actions,
+  html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-play-card ~ .ch1-lobby-actions {
+    left: max(16px, env(safe-area-inset-left, 0px));
+    right: auto;
+    bottom: 8px;
+  }
+  html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .ch1-lobby-actions {
+    z-index: 8 !important;
+  }
+  html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-progress {
+    left: max(22px, env(safe-area-inset-left, 0px)) !important;
+    padding-left: 4px !important;
+  }
+  /* nom du joueur sous le personnage, sur la plateforme */
+  html body.ch1-ui[data-screen="menu"][data-tab="play"] #ui .classic-player-label {
+    top: auto !important;
+    bottom: 22px !important;
+  }
 }
 @media (max-width: 760px) and (orientation: portrait) {
   html body.ch1-ui[data-screen="menu"] #ui .topbar .navlinks .ch1-tab {

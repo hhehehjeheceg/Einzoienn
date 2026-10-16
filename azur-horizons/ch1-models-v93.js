@@ -16,7 +16,27 @@
   const EXT = root.AZ_CH1_EXT || ".glb"; // hébergeurs sans .glb : copie glTF JSON (tools/azur/glb2json.py)
   const loader = new T.GLTFLoader();
   const files = {};
-  const load = (n) => files[n] || (files[n] = new Promise((res, rej) => loader.load(BASE + n + EXT + VER, res, undefined, rej)));
+  // ".glb.js" : chaque modèle arrive dans une balise <script> (hébergeurs qui refusent .glb et fetch data:)
+  function loadPacked(n, res, rej) {
+    const done = () => {
+      const pack = root.AZCh1Pack && root.AZCh1Pack[n];
+      if (!pack) return rej(new Error("pack manquant " + n));
+      try {
+        const bin = atob(pack), buf = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+        delete root.AZCh1Pack[n];
+        loader.parse(buf.buffer, BASE, res, rej);
+      } catch (e) { rej(e); }
+    };
+    if (root.AZCh1Pack && root.AZCh1Pack[n]) return done();
+    const sc = root.document.createElement("script");
+    sc.src = BASE + n + ".glb.js" + VER;
+    sc.async = true;
+    sc.onload = done;
+    sc.onerror = () => rej(new Error("chargement impossible " + sc.src));
+    root.document.head.appendChild(sc);
+  }
+  const load = (n) => files[n] || (files[n] = new Promise((res, rej) => (EXT === ".glb.js" ? loadPacked(n, res, rej) : loader.load(BASE + n + EXT + VER, res, undefined, rej))));
 
   /* ============================================================ couleurs */
   const SKIN = { light: "#f2c6a0", fair: "#e9b48c", tan: "#d39a6c", olive: "#b97d50", brown: "#8d5a3b", dark: "#5e3a26" };
@@ -963,7 +983,12 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
 
   function drive(view, group, p, dt, options) {
     const u = group.userData, inst = u.ch1;
-    if (!inst) { if (u.ch1Req) attach(group); return; }
+    if (!inst) {
+      // avatar créé avant le chargement de cette couche (salon au démarrage) : on le rattrape
+      if (!u.ch1Req && u.torso && typeof u.equipment === "string") { try { request(group, JSON.parse(u.equipment)); } catch (e) { u.ch1Req = resolveEq({}); } }
+      if (u.ch1Req) attach(group);
+      return;
+    }
     hideOld(u);
     const an = inst.anim, B = inst.bones, st = u.v67 || {};
     dt = Math.min(0.1, Math.max(0, +dt || 0));
