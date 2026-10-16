@@ -999,7 +999,8 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     const airborne = !!(p.jumping || p.falling || p.gliding || p.flying);
     // compense les inclinaisons/écrasements appliqués à l'ancien groupe (accroupi, nage, à terre)
     let pitch = 0;
-    if (p.falling && p.airborneFromBus && !p.gliding) pitch = -1.25;
+    if (p.falling && p.airborneFromBus && !p.gliding) pitch = -1.3;
+    else if (p.gliding) pitch = -0.18;
     _yaw.setFromAxisAngle(_tw.set(0, 1, 0), 0);
     _gi.compose(_zero, group.quaternion, group.scale).invert();
     const s = group.scale.x;
@@ -1018,7 +1019,7 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     else if (p.swimming) { const r = pickLocomotion(an, p, st, false, dt, menu); base = an.speed > 0.4 ? "Swim_Fwd_Loop" : "Swim_Idle_Loop"; scale = an.speed > 0.4 ? Math.min(1.6, Math.max(0.7, an.speed / 2)) : 1; void r; }
     else if (emote) { base = EMOTES[p.emoteStyle] || "Dance_Loop"; fade = 0.25; }
     else if (p.gliding) { base = "Jump_Loop"; scale = 0.5; }
-    else if (highAir) { base = "Swim_Idle_Loop"; scale = 0.8; }
+    else if (highAir) { base = "Jump_Loop"; scale = 0.55; fade = 0.3; } // chute libre : bras écartés, corps à plat (inclinaison plus haut)
     else if (airborne) {
       base = an.airT < 0.22 && an.playing("base") !== "Jump_Loop" ? "Jump_Start" : "Jump_Loop"; fade = 0.1;
       if (an.playing("base") === "Jump_Start" && !an.finished("base")) base = "Jump_Start";
