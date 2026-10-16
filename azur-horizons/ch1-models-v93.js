@@ -957,6 +957,8 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
 
   const _gm = new T.Matrix4(), _gi = new T.Matrix4(), _yaw = new T.Quaternion(), _pi = new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), Math.PI), _one = new T.Vector3(1, 1, 1), _zero = new T.Vector3();
   const _tw = new T.Vector3(), _pole = new T.Vector3(), _tm = new T.Matrix4(), _hq = new T.Quaternion();
+  const _hx = new T.Vector3(), _hy = new T.Vector3(), _hz = new T.Vector3(), _tmpv = new T.Vector3();
+  const CARRY_GRIP = 0.6; // la main tient le manche un peu au-dessus du milieu
 
   function drive(view, group, p, dt, options) {
     const u = group.userData, inst = u.ch1;
@@ -1003,17 +1005,11 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
       if (p.useTime > 0) { const it = (p.inventory || [])[p.selected] || {}; upper = /shield|potion|bouclier|soda|fizz|fiole/i.test(it.item || it.id || it.kind || "") ? "Drink" : "Bandage_Loop"; part = "lower"; }
     }
     if (armed && !emote && !p.downed && !p.swimming && !highAir) { upper = upper || (p.aim ? "Pistol_Aim_Neutral" : "Pistol_Idle_Loop"); if (!part) part = "lower"; }
-    // coup de pioche
-    const harvestNow = +u.harvest || 0;
-    if (harvesting && harvestNow > an.prevHarvest + 0.2) an.swingT = 0.55;
-    an.prevHarvest = harvestNow;
-    an.swingT = Math.max(0, an.swingT - dt);
-    if (harvesting && an.swingT > 0 && !emote) { upper = "Sword_Attack"; if (!part) part = "lower"; }
-    if (p.emote > 0 && emote) { upper = null; part = null; }
-    if (an.playing("upper") === "Sword_Attack" && upper !== "Sword_Attack" && !an.finished("upper") && harvesting) upper = "Sword_Attack";
+    // coup de pioche : le geste vient de anim-v67 (frappe à deux mains), le buste suit
+    const swinging = harvesting && st.swing >= 0;
+    if (emote) { upper = null; part = null; }
     an.set("base", base, part, fade, scale);
-    an.set("upper", upper, upper ? "upper" : null, 0.12, upper === "Sword_Attack" ? 1.6 : 1);
-    if (upper === "Sword_Attack" && an.swingT > 0.5) an.layers.upper.action.reset().play();
+    an.set("upper", upper, upper ? "upper" : null, 0.12, 1);
     // pose
     if (B.pelvis) B.pelvis.position.copy(B.pelvis.position);
     an.mixer.update(dt);
@@ -1043,17 +1039,29 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
       const t = _tw.set(-0.16, -0.05, 0).applyMatrix4(u.blueprint.matrix);
       solveArm(...left, group.localToWorld(t).clone(), poleFor(-1), 1);
     }
-    // pioche dans la main droite
-    if (harvesting && B.hand_r) {
-      B.hand_r.updateMatrixWorld(true);
-      _tm.copy(group.matrixWorld).invert().multiply(B.hand_r.matrixWorld);
-      _tm.multiply(TOOL_OFFSET);
-      _tm.decompose(u.tool.position, u.tool.quaternion, _tw);
-      if (u.tool.userData.grips) {
-        const g = u.tool.userData.grips.primary;
-        if (g) { _tw.fromArray(g).applyQuaternion(u.tool.quaternion).multiply(u.tool.scale); u.tool.position.sub(_tw); }
+    // pioche : portée droite devant l'épaule comme dans la vidéo (main droite à hauteur de poitrine,
+    // manche presque vertical, tête au-dessus de l'épaule) ; pendant la frappe, le geste de anim-v67.
+    if (harvesting && u.tool) {
+      const tool = u.tool;
+      if (!swinging) {
+        const run = Math.min(1, an.speed / 6.2), ph = st.phase || 0;
+        _tw.set(0.27, 1.13 + Math.abs(Math.sin(ph)) * 0.035 * run, -0.2 + Math.sin(ph) * 0.03 * run);
+        _hy.set(0.3 + Math.sin(ph) * 0.05 * run, 1, -0.34).normalize();
+        _hz.set(0, 0, -1);
+        _hz.sub(_tmpv.copy(_hy).multiplyScalar(_hz.dot(_hy))).normalize();
+        _hx.crossVectors(_hy, _hz);
+        _tm.makeBasis(_hx, _hy, _hz);
+        tool.quaternion.setFromRotationMatrix(_tm);
+        tool.position.copy(_tw).sub(_tmpv.set(0, CARRY_GRIP, 0).applyQuaternion(tool.quaternion).multiply(tool.scale));
+        tool.updateMatrix();
+        solveArm(...right, group.localToWorld(_tw.clone()), poleFor(1).add(_tmpv.set(0, -0.3, 0)), 1);
+      } else {
+        tool.updateMatrix();
+        const g = (tool.userData.grips && tool.userData.grips.primary) || [0, 0, 0], sp = (tool.userData.grips && tool.userData.grips.support) || [0, 0.4, 0];
+        solveArm(...right, group.localToWorld(_tw.fromArray(g).applyMatrix4(tool.matrix)).clone(), poleFor(1), 1);
+        solveArm(...left, group.localToWorld(_tw.fromArray(sp).applyMatrix4(tool.matrix)).clone(), poleFor(-1), 1);
+        if (B.spine_02) B.spine_02.rotateY(Math.sin(st.swing * Math.PI * 2) * 0.25);
       }
-      u.tool.updateMatrix();
     }
   }
   // repère « poing fermé » de la main droite : manche vers le haut du poing, tête vers l'avant
