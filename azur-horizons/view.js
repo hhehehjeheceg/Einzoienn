@@ -979,14 +979,14 @@
           pitch = opts.pitch ?? p.pitch;
         const sniperAim = !!opts.aim && p.inventory?.[p.selected]?.weapon === "sniper";
         const driven = p.vehicleId ? w.vehicles.find((v) => v.id === p.vehicleId) : null;
-        let dist = driven ? 9.4 : p.gliding || p.falling || p.flying ? 6.2 : opts.aim ? (sniperAim ? 1.65 : 2.2) : 3.7;
+        let dist = driven ? 9.4 : p.gliding || p.falling || p.flying ? 6.2 : opts.aim ? (sniperAim ? 1.65 : 2.2) : 3.95; // v93 : cadrage de la vidéo
         // Pendant l'événement, la caméra recule pour embrasser le spectacle.
         if (!driven && !opts.aim) dist *= window.AZEvent?.cameraZoom || 1;
         // Follow behind the actual vehicle yaw, lifted over its roof. The seated
         // avatar is hidden in the actor pass, so it can never appear on the roof.
         const cameraYaw = driven ? driven.yaw : yaw;
         // v21 wiring : vecteurs scratch — zéro allocation par frame ici.
-        const target = this._camT.set(p.x, p.y + (driven ? 1.15 : p.crouching ? 1.3 : 1.82), p.z),
+        const target = this._camT.set(p.x, p.y + (driven ? 1.15 : p.crouching ? 1.55 : 2.12), p.z),
           back = this._camB.set(
             Math.sin(cameraYaw) * Math.cos(pitch * (driven ? .45 : 1)),
             -Math.sin(pitch * (driven ? .45 : 1)),
@@ -1039,7 +1039,7 @@
         this.camera.fov = T.MathUtils.lerp(
           this.camera.fov,
           // v21 wiring : FOV dynamique — +5 au sprint au sol (jamais en visée).
-          opts.aim ? (sniperAim ? 24 : 47) : p.falling || p.gliding ? 78 : p.flying ? 72 : opts.sprint ? 70 : 65,
+          opts.aim ? (sniperAim ? 22 : 40) : p.falling || p.gliding ? 66 : p.flying ? 62 : opts.sprint ? 56 : 52, // v93 : ~50° vertical comme la vidéo
           1 - Math.exp(-dt * 9),
         );
       }
