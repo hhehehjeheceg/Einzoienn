@@ -421,7 +421,7 @@
       return { main: G.geometry() };
     }
     let colorAt = null;
-    const neck = () => G.cyl(sk, 0, 1.6, 0.004, 0.052, 0.058, 0.14);
+    const neck = () => G.cyl(sk, 0, 1.6, 0.004, 0.06, 0.066, 0.14);
     switch (L.kind) {
       case "recruit":
       case "soldier": {
@@ -801,6 +801,20 @@
         }),
         "lids",
       );
+    }
+    // carrure des personnages de la vidéo : volumes épaissis autour de chaque os (la longueur ne change pas)
+    const k = isF(L) ? 0.93 : 1;
+    const THICK = { torso: [1.2 * k, 1, 1.24 * k], pelvis: [1.17, 1, 1.22], arm: [1.32 * k, 1, 1.32 * k], fore: [1.28 * k, 1, 1.28 * k], thigh: [1.27 * k, 1, 1.27 * k], shin: [1.22 * k, 1, 1.22 * k] };
+    const thicken = (node, tag) => node.children.forEach((m) => {
+      if (m.userData.ch1 === tag && THICK[tag]) m.scale.set(THICK[tag][0], THICK[tag][1], THICK[tag][2]);
+    });
+    thicken(u.torso, "torso");
+    thicken(u.pelvis, "pelvis");
+    for (let i = 0; i < 2; i++) {
+      thicken(u.limbs[i * 2 + 1], "arm");
+      thicken(u.elbows[i], "fore");
+      thicken(u.limbs[i * 2], "thigh");
+      thicken(u.knees[i], "shin");
     }
     u.ch1Look = L.id;
     return avatar;
