@@ -250,24 +250,6 @@ body.ch1-hud #ui .hud #ammo.ammo-readout {
   text-shadow: var(--ch1h-shadow);
 }
 
-/* matériaux (droite) */
-body.ch1-hud #ui .hud #materials.materials {
-  position: absolute !important;
-  right: 2vw !important;
-  left: auto !important;
-  top: 48vh !important;
-  bottom: auto !important;
-}
-
-/* inventaire (bas, droite) */
-body.ch1-hud #ui .hud #slots.inventory-bar {
-  position: absolute !important;
-  right: 1.6vw !important;
-  left: auto !important;
-  bottom: 5.5vh !important;
-  top: auto !important;
-}
-
 /* ================================================================== téléphone */
 body.ch1-hud.touch-ui {
   --ch1h-map: min(15vw, 31vh);
@@ -328,13 +310,694 @@ body.ch1-hud.touch-ui #ui .hud .v67-vitals {
 body.ch1-hud.touch-ui #ui .hud #ammo.ammo-readout {
   bottom: 104px !important;
 }
-body.ch1-hud.touch-ui #ui .hud #materials.materials {
-  right: max(8px, env(safe-area-inset-right, 0px)) !important;
-  top: calc(8px + var(--ch1h-map) + 26px) !important;
+
+/* ================================================================== H3–H11 : éléments ch1 (ordinateur) */
+:root {
+  --ch1h-slot: min(4.5vw, 8vh);
+  --ch1h-piece: min(2.95vw, 5.25vh);
+  --ch1h-mat: min(2.3vw, 4.2vh);
+  --ch1h-body: "Barlow", system-ui, sans-serif;
 }
-body.ch1-hud.touch-ui #ui .hud #slots.inventory-bar {
+/* anciens éléments conservés dans le DOM pour les autres couches, remplacés à l'écran */
+body.ch1-hud #ui .hud #slots,
+body.ch1-hud #ui .hud #materials,
+body.ch1-hud #ui .hud #feed {
+  display: none !important;
+}
+body.ch1-hud:not(.touch-ui) #ui .hud #build-bar {
+  display: none !important;
+}
+body.ch1-hud #ui .hud #build-bar [data-act="build-type"],
+body.ch1-hud #ui .hud #build-bar .build-label {
+  display: none !important;
+}
+.ch1-hotbar button,
+.ch1-build button,
+.ch1-mats button {
+  font: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ---------------------------------------------------------------- H3 barre d'objets (bas, droite) */
+.ch1-hotbar {
+  position: absolute;
+  right: 1.6vw;
+  bottom: 1.6vh;
+  z-index: 6;
+  display: grid;
+  gap: 0.8vh;
+  pointer-events: none;
+}
+.ch1-slots,
+.ch1-hotkeys {
+  display: flex;
+  gap: 0.45vw;
+}
+.ch1-slot {
+  position: relative;
+  width: var(--ch1h-slot);
+  height: var(--ch1h-slot);
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  overflow: hidden;
+  cursor: pointer;
+  pointer-events: auto;
+  background: rgba(12, 18, 24, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.ch1-slot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 42%);
+  pointer-events: none;
+}
+.ch1-slot.empty::after {
+  display: none;
+}
+.ch1-slot.tool { background: linear-gradient(160deg, rgba(92, 102, 110, 0.78), rgba(38, 44, 50, 0.78)); }
+.ch1-slot.r0 { background: radial-gradient(130% 100% at 28% 12%, #c3ccd2 0%, #858f98 42%, #4d565e 100%); }
+.ch1-slot.r1 { background: radial-gradient(130% 100% at 28% 12%, #a9ec68 0%, #49a52b 42%, #1e5c17 100%); }
+.ch1-slot.r2 { background: radial-gradient(130% 100% at 28% 12%, #8fd3ff 0%, #2f8cf0 42%, #154592 100%); }
+.ch1-slot.r3 { background: radial-gradient(130% 100% at 28% 12%, #e1aaff 0%, #9a4ce6 42%, #4b1b8c 100%); }
+.ch1-slot.r4 { background: radial-gradient(130% 100% at 28% 12%, #ffdc8a 0%, #f39128 42%, #9a4710 100%); }
+.ch1-slot.gold {
+  background: linear-gradient(115deg, #a8780f 0%, #f2c53d 30%, #fff3b8 46%, #f0bf33 62%, #9c6c0b 100%);
+  background-size: 220% 100%;
+  animation: ch1-gold 2.6s linear infinite;
+}
+@keyframes ch1-gold {
+  from { background-position: 100% 0; }
+  to { background-position: -120% 0; }
+}
+.ch1-slot.sel {
+  transform: translateY(-0.5vh) scale(1.06);
+  box-shadow: 0 0 0 2px #fff, 0 0 12px rgba(255, 255, 255, 0.55);
+}
+.ch1-hotbar.building .ch1-slot { opacity: 0.72; }
+.ch1-slot-ico {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.ch1-slot-ico svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45)); }
+.ch1-slot-ico .ch1-gun { width: 90%; height: auto; margin-top: -10%; }
+.ch1-slot-ico .ch1-pick { width: 76%; height: 76%; }
+.ch1-slot-ico .ch1-cons { width: 66%; height: 66%; margin-top: -8%; }
+.ch1-slot-n {
+  position: absolute;
+  right: 4%;
+  bottom: 1%;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-family: var(--ch1h-font);
+  font-weight: 800;
+  font-size: calc(var(--ch1h-slot) * 0.26);
+  line-height: 1;
+  color: #fff;
+  text-shadow: var(--ch1h-shadow);
+}
+.ch1-slot-n svg { width: 0.95em; height: 0.95em; }
+.ch1-hotkeys kbd {
+  width: var(--ch1h-slot);
+  display: grid;
+  place-items: center;
+  font: 800 clamp(9px, 1.5vh, 14px) var(--ch1h-font);
+  color: #fff;
+  text-shadow: var(--ch1h-shadow);
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.ch1-hotkeys kbd,
+.ch1-build-keys kbd {
+  position: relative;
+}
+.ch1-hotkeys kbd { height: 2.5vh; }
+/* petit carré blanc fin autour de la touche, comme les repères Z 1 2 3 4 de la vidéo */
+.ch1-hotkeys kbd::after,
+.ch1-build-keys kbd::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.3vh;
+  height: 2.3vh;
+  transform: translate(-50%, -50%);
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-radius: 3px;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+}
+
+/* ---------------------------------------------------------------- H4 barre de construction (au-dessus des objets) */
+.ch1-build {
+  position: absolute;
+  right: 1.6vw;
+  bottom: calc(1.6vh + 2.5vh + 0.8vh + var(--ch1h-slot) + 1.4vh);
+  z-index: 6;
+  display: grid;
+  gap: 0.7vh;
+  justify-items: end;
+  pointer-events: none;
+}
+.ch1-build-keys,
+.ch1-build-row {
+  display: flex;
+  gap: 0.4vw;
+  align-items: center;
+}
+.ch1-build-keys .ch1-bk-mode {
+  width: calc(var(--ch1h-piece) * 1.55);
+}
+.ch1-build-keys kbd {
+  width: var(--ch1h-piece);
+  height: 2.4vh;
+  display: grid;
+  place-items: center;
+  font: 800 clamp(8px, 1.3vh, 13px) var(--ch1h-font);
+  color: #fff;
+  text-shadow: var(--ch1h-shadow);
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.ch1-build-keys kbd.ch1-bk-trap::after { opacity: 0.35; }
+.ch1-build-mode {
+  width: calc(var(--ch1h-piece) * 1.55);
+  height: var(--ch1h-piece);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25vw;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+  pointer-events: auto;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7));
+}
+.ch1-build-mode kbd {
+  display: grid;
+  place-items: center;
+  min-width: 2.4vh;
+  height: 2.4vh;
+  padding: 0 0.3vh;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.18);
+  font: 800 clamp(8px, 1.35vh, 13px) var(--ch1h-font);
+  color: #fff;
+  box-shadow: none;
+}
+.ch1-build-mode svg { width: 2.7vh; height: 2.7vh; }
+.ch1-piece {
+  width: var(--ch1h-piece);
+  height: var(--ch1h-piece);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid rgba(186, 236, 255, 0.75);
+  border-radius: 3px;
+  background: linear-gradient(160deg, rgba(64, 170, 245, 0.62), rgba(18, 92, 178, 0.62));
+  color: #a9e6ff;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 0 6px rgba(80, 190, 255, 0.45), inset 0 0 6px rgba(160, 225, 255, 0.35);
+  transition: transform 0.12s, box-shadow 0.12s, opacity 0.12s;
+}
+.ch1-piece svg { width: 82%; height: 82%; filter: drop-shadow(0 0 2px rgba(150, 225, 255, 0.85)); }
+.ch1-piece.trap {
+  background: rgba(10, 30, 50, 0.35);
+  border-color: rgba(186, 236, 255, 0.35);
+  box-shadow: none;
+  cursor: default;
+  pointer-events: none;
+}
+.ch1-build:not(.active) .ch1-piece:not(.trap) { opacity: 0.9; }
+.ch1-build.active .ch1-piece:not(.trap) {
+  background: linear-gradient(160deg, rgba(90, 190, 255, 0.82), rgba(25, 110, 205, 0.82));
+}
+.ch1-piece.sel {
+  transform: translateY(-0.4vh) scale(1.1);
+  border-color: #fff;
+  box-shadow: 0 0 0 1.5px #fff, 0 0 14px rgba(120, 210, 255, 0.95);
+}
+
+/* ---------------------------------------------------------------- H5 munitions + matériaux (droite) */
+.ch1-ammo-res {
+  position: absolute;
+  right: 2.4vw;
+  top: 43.6vh;
+  display: flex;
+  gap: 0.7vw;
+  align-items: center;
+  pointer-events: none;
+  font-family: var(--ch1h-font);
+  font-weight: 800;
+  font-size: clamp(10px, 1.75vh, 17px);
+  color: #fff;
+  text-shadow: var(--ch1h-shadow);
+}
+.ch1-ar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.88;
+}
+.ch1-ar svg { width: 2.5vh; height: 2.5vh; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
+.ch1-ar.cur { opacity: 1; color: #fff7a8; }
+.ch1-mats {
+  position: absolute;
+  right: 2.4vw;
+  top: 47.6vh;
+  display: flex;
+  gap: 0.5vw;
+  z-index: 6;
+}
+.ch1-mat {
+  width: var(--ch1h-mat);
+  padding: 0;
+  border: 0;
+  background: none;
+  display: grid;
+  justify-items: center;
+  gap: 0.25vh;
+  cursor: pointer;
+  font-family: var(--ch1h-font);
+}
+.ch1-mat-ico {
+  width: var(--ch1h-mat);
+  height: var(--ch1h-mat);
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: rgba(18, 24, 32, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.ch1-mat-ico svg { width: 82%; height: 82%; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5)); }
+.ch1-mat b {
+  font-weight: 800;
+  font-size: clamp(10px, 1.75vh, 17px);
+  line-height: 1;
+  color: #fff;
+  text-shadow: var(--ch1h-shadow);
+  font-variant-numeric: tabular-nums;
+}
+.ch1-mat.sel .ch1-mat-ico {
+  background: rgba(220, 235, 255, 0.34);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.9);
+}
+
+/* ---------------------------------------------------------------- H7 objets ramassés (droite) */
+.ch1-pickups {
+  position: absolute;
+  right: 2.4vw;
+  top: 58.5vh;
+  display: grid;
+  justify-items: end;
+  gap: 0.5vh;
+  z-index: 5;
+  pointer-events: none;
+}
+.ch1-pk {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  font: 700 clamp(10px, 1.85vh, 18px) var(--ch1h-body);
+  color: #fff;
+  text-shadow: var(--ch1h-shadow);
+  white-space: nowrap;
+  animation: ch1-feed 4.5s linear forwards;
+}
+.ch1-pk b { font-family: var(--ch1h-font); font-weight: 800; }
+.ch1-pk-ico { display: inline-grid; place-items: center; font-style: normal; }
+.ch1-pk-ico svg { width: 2.5vh; height: 2.5vh; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
+.ch1-pk-ico .ch1-gun { width: 5.2vh; height: 2.6vh; filter: invert(1) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
+@keyframes ch1-feed {
+  0% { opacity: 0; transform: translateX(10px); }
+  5% { opacity: 1; transform: none; }
+  82% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ---------------------------------------------------------------- H6 éliminations (bas, gauche) */
+.ch1-killfeed {
+  position: absolute;
+  left: 3vw;
+  bottom: 22vh;
+  max-width: 36vw;
+  display: grid;
+  justify-items: start;
+  gap: 0.4vh;
+  z-index: 5;
+  pointer-events: none;
+}
+.ch1-kf {
+  padding: 0.25vh 0.55vw;
+  background: rgba(0, 0, 0, 0.34);
+  font: 600 clamp(10px, 1.65vh, 16px) var(--ch1h-body);
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  animation: ch1-feed 7s linear forwards;
+}
+.ch1-kf b { font-weight: 700; }
+.ch1-kf b.me { color: #ffe36b; }
+.ch1-kf em { font-style: normal; font-weight: 700; color: #ff4d4d; }
+
+/* ---------------------------------------------------------------- H8 fiche de l'objet au sol (à droite du viseur) */
+.ch1-loot {
+  --rc: 128, 138, 148;
+  position: absolute;
+  left: 52vw;
+  top: 44vh;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6vw;
+  z-index: 6;
+  pointer-events: none;
+  animation: ch1-loot-in 0.14s ease-out;
+}
+.ch1-loot[hidden] { display: none; }
+.ch1-loot.r1 { --rc: 64, 158, 40; }
+.ch1-loot.r2 { --rc: 36, 118, 222; }
+.ch1-loot.r3 { --rc: 132, 62, 206; }
+.ch1-loot.r4 { --rc: 214, 124, 26; }
+.ch1-loot.gold { --rc: 205, 160, 30; }
+@keyframes ch1-loot-in { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+.ch1-loot-prompt {
+  display: grid;
+  justify-items: center;
+  gap: 0.35vh;
+  max-width: 7.5vw;
+  margin-top: 0.4vh;
+  text-align: center;
+  font: 800 clamp(10px, 1.65vh, 16px) / 1.1 var(--ch1h-font);
+  color: #fff;
+  text-shadow: var(--ch1h-shadow);
+}
+kbd.ch1-lp-key,
+i.ch1-lp-key {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.9vh;
+  height: 2.9vh;
+  padding: 0 0.35vh;
+  border-radius: 3px;
+  border: 0;
+  background: #f4f6f8;
+  color: #15191d;
+  font: 800 clamp(9px, 1.6vh, 15px) var(--ch1h-font);
+  font-style: normal;
+  text-shadow: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+i.ch1-lp-key svg { width: 2.1vh; height: 2.1vh; }
+.ch1-loot-card {
+  position: relative;
+  width: clamp(190px, 17.5vw, 320px);
+  padding: 0.55vh 0.75vw 0.5vh;
+  border-radius: 2px;
+  background: linear-gradient(100deg, rgba(var(--rc), 0.93) 0%, rgba(var(--rc), 0.74) 70%, rgba(var(--rc), 0.55) 100%);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
+}
+.ch1-lc-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1em;
+  padding-right: 2.6em;
+  font: 600 clamp(9px, 1.4vh, 13px) var(--ch1h-body);
+  opacity: 0.95;
+}
+.ch1-lc-qty {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0.1vh 0.45em;
+  background: #ffd84a;
+  color: #26221a;
+  font: 800 clamp(9px, 1.4vh, 13px) var(--ch1h-font);
+  font-style: normal;
+  text-shadow: none;
+}
+.ch1-lc-name {
+  display: block;
+  margin: 0.1vh 0 0.35vh;
+  font: 800 clamp(15px, 2.75vh, 26px) / 1.02 var(--ch1h-font);
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+.ch1-lc-stats {
+  display: grid;
+  gap: 0.15vh;
+  font: 600 clamp(9px, 1.38vh, 13px) var(--ch1h-body);
+}
+.ch1-lc-stats i { font-style: normal; opacity: 0.85; margin: 0 0.3em 0 0.15em; }
+.ch1-lc-stats i:not(:first-child) { margin-left: 0.9em; }
+.ch1-lc-stats b { font-weight: 800; }
+.ch1-lc-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6em;
+  margin-top: 0.45vh;
+  padding-top: 0.35vh;
+  border-top: 1px solid rgba(255, 255, 255, 0.28);
+  font: 700 clamp(9px, 1.35vh, 13px) var(--ch1h-body);
+}
+.ch1-lc-ammo { display: inline-flex; align-items: center; gap: 0.3em; }
+.ch1-lc-ammo svg { width: 1.9vh; height: 1.9vh; }
+.ch1-lc-stars { margin-left: auto; color: #ffe66b; letter-spacing: 0.08em; }
+.ch1-lc-stars i { font-style: normal; color: rgba(255, 255, 255, 0.3); }
+
+/* ---------------------------------------------------------------- H9 récolte */
+.ch1-harvest {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ch1-wp,
+.ch1-thp {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}
+.ch1-wp[hidden],
+.ch1-thp[hidden] { display: none; }
+.ch1-wp > i {
+  position: absolute;
+  left: -3.6vh;
+  top: -3.6vh;
+  width: 7.2vh;
+  height: 7.2vh;
+  border-radius: 50%;
+  border: 0.55vh solid rgba(255, 255, 255, 0.96);
+  background: radial-gradient(circle, #2c8cff 0 24%, rgba(110, 200, 255, 0.95) 27%, rgba(60, 160, 255, 0.35) 34%, rgba(40, 140, 255, 0.12) 62%, transparent 70%);
+  box-shadow: 0 0 1.4vh rgba(80, 190, 255, 0.95), inset 0 0 1.2vh rgba(80, 190, 255, 0.85);
+  animation: ch1-wp 1.2s ease-in-out infinite;
+}
+.ch1-wp.hit > i { animation: ch1-wp-hit 0.3s ease-out, ch1-wp 1.2s 0.3s ease-in-out infinite; }
+@keyframes ch1-wp { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.9); } }
+@keyframes ch1-wp-hit { 0% { transform: scale(1.35); opacity: 0.4; } 100% { transform: scale(1); opacity: 1; } }
+.ch1-thp { width: 0; }
+.ch1-thp > i {
+  position: absolute;
+  left: max(-7vw, -12.5vh);
+  top: 0;
+  width: min(14vw, 25vh);
+  height: 2vh;
+  display: block;
+  background: rgba(16, 20, 24, 0.62);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+.ch1-thp > i > i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(#7be35a, #4fc12f);
+  transition: width 0.15s;
+}
+.ch1-thp b {
+  position: absolute;
+  left: calc(max(-7vw, -12.5vh) + 0.6vh);
+  top: 0;
+  font: 800 clamp(10px, 1.6vh, 15px) / 2vh var(--ch1h-font);
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
+}
+.ch1-pop {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.3vh;
+  font: 800 italic clamp(15px, 2.9vh, 28px) var(--ch1h-font);
+  color: #fff;
+  text-shadow: var(--ch1h-shadow);
+  animation: ch1-pop 1.3s ease-out forwards;
+}
+.ch1-pop i svg { width: 2.6vh; height: 2.6vh; display: block; }
+@keyframes ch1-pop {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+  12% { opacity: 1; transform: translate(-50%, -0.6vh) scale(1.15); }
+  30% { transform: translate(-50%, -1.6vh) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -6.5vh) scale(0.95); }
+}
+
+/* ---------------------------------------------------------------- H10 couleurs des annonces */
+.ch1-msg.storm .ch1-msg-ico svg,
+.ch1-st-storm svg { color: var(--ch1h-purple); }
+.ch1-msg.clock .ch1-msg-ico svg,
+.ch1-st-storm.clock svg { color: #4fd8e6; }
+.ch1-msg.storm .ch1-msg-ico,
+.ch1-msg.clock .ch1-msg-ico {
+  display: grid;
+  place-items: center;
+  width: clamp(24px, 2.4vw, 36px);
+  height: clamp(24px, 2.4vw, 36px);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.ch1-msg.storm .ch1-msg-ico svg,
+.ch1-msg.clock .ch1-msg-ico svg { width: 72%; height: 72%; }
+
+/* ---------------------------------------------------------------- H11 lunette de précision */
+body.ch1-hud #ui .hud #scope.ch1-scope {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  background: none !important;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ch1-scope-lens,
+.ch1-scope-reticle {
+  --d: min(112vh, 94vw);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--d);
+  height: var(--d);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+.ch1-scope-lens {
+  background: radial-gradient(circle, rgba(70, 150, 255, 0.2) 0 45%, rgba(45, 125, 245, 0.3) 76%, rgba(25, 80, 180, 0.58) 93%, rgba(6, 16, 34, 0.94) 99.5%);
+  box-shadow: 0 0 0 220vmax rgba(3, 7, 12, 0.95), 0 0 0 0.7vh #0a1017, 0 0 5vh 2.4vh rgba(0, 0, 0, 0.9), inset 0 0 7vh rgba(8, 36, 86, 0.65);
+}
+.ch1-scope-reticle { overflow: hidden; }
+body.ch1-scoped #ui .hud #crosshair { opacity: 0 !important; }
+body.ch1-scoped #ui .hud .ch1-harvest,
+body.ch1-scoped #ui .hud .ch1-loot { display: none; }
+
+/* ================================================================== H3–H11 : téléphone (.touch-ui) */
+body.ch1-hud.touch-ui {
+  --ch1h-slot: 37px;
+  --ch1h-piece: 26px;
+  --ch1h-mat: 23px;
+}
+body.ch1-hud.touch-ui .ch1-hotbar {
+  left: 50%;
+  right: auto;
+  bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+}
+body.ch1-hud.touch-ui .ch1-slots { gap: 5px; }
+body.ch1-hud.touch-ui .ch1-hotkeys,
+body.ch1-hud.touch-ui .ch1-build-keys,
+body.ch1-hud.touch-ui .ch1-build-mode,
+body.ch1-hud.touch-ui .ch1-piece.trap { display: none; }
+body.ch1-hud.touch-ui .ch1-slot.sel { transform: translateY(-3px) scale(1.05); }
+/* pièces : entre le joystick et le bouton SAC, toujours accessibles au pouce gauche */
+body.ch1-hud.touch-ui .ch1-build {
+  left: calc(50% - 170px);
+  right: auto;
+  bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  transform: translateX(-100%);
+}
+body.ch1-hud.touch-ui .ch1-build-row { gap: 4px; }
+body.ch1-hud.touch-ui .ch1-piece.sel { transform: translateY(-2px) scale(1.08); }
+body.ch1-hud.touch-ui .ch1-mats {
+  right: max(8px, env(safe-area-inset-right, 0px));
+  top: calc(8px + var(--ch1h-map) + 25px);
+  gap: 4px;
+}
+body.ch1-hud.touch-ui .ch1-mat b { font-size: 11px; }
+body.ch1-hud.touch-ui .ch1-ammo-res {
+  right: calc(max(8px, env(safe-area-inset-right, 0px)) + 3 * 23px + 8px + 12px);
+  top: calc(8px + var(--ch1h-map) + 29px);
+  gap: 7px;
+  font-size: 11px;
+}
+body.ch1-hud.touch-ui .ch1-ar svg { width: 15px; height: 15px; }
+body.ch1-hud.touch-ui .ch1-killfeed {
+  left: max(12px, env(safe-area-inset-left, 0px));
+  top: 72px;
+  bottom: auto;
+  max-width: 42vw;
+  gap: 3px;
+}
+body.ch1-hud.touch-ui .ch1-kf { font-size: 10px; padding: 1px 6px; }
+body.ch1-hud.touch-ui .ch1-pickups {
+  right: 24vw;
+  top: 53vh;
+  gap: 3px;
+}
+body.ch1-hud.touch-ui .ch1-pk { font-size: 11px; }
+body.ch1-hud.touch-ui .ch1-pk-ico svg { width: 15px; height: 15px; }
+body.ch1-hud.touch-ui .ch1-pk-ico .ch1-gun { width: 30px; height: 15px; }
+/* fiche : au-dessus et à gauche du bouton PRENDRE, sans recouvrir les boutons */
+body.ch1-hud.touch-ui .ch1-loot {
+  left: auto;
+  right: 19vw;
+  top: auto;
+  bottom: 50vh;
+  gap: 6px;
+}
+body.ch1-hud.touch-ui .ch1-loot-card { width: 188px; padding: 3px 7px 3px; }
+body.ch1-hud.touch-ui .ch1-loot-prompt { max-width: 70px; font-size: 11px; }
+body.ch1-hud.touch-ui .ch1-lc-head,
+body.ch1-hud.touch-ui .ch1-lc-qty,
+body.ch1-hud.touch-ui .ch1-lc-stats,
+body.ch1-hud.touch-ui .ch1-lc-foot { font-size: 9px; }
+body.ch1-hud.touch-ui .ch1-lc-name { font-size: 15px; }
+body.ch1-hud.touch-ui i.ch1-lp-key { min-width: 20px; height: 20px; }
+body.ch1-hud.touch-ui i.ch1-lp-key svg { width: 14px; height: 14px; }
+html body.ch1-hud.touch-ui[data-screen="game"] .touch-right > .touch-btn.ch1-ready {
+  box-shadow: 0 0 0 3px #ffe14d, 0 0 16px rgba(255, 225, 77, 0.75) !important;
+}
+@media (max-width: 760px) {
+  body.ch1-hud.touch-ui { --ch1h-slot: 33px; --ch1h-piece: 22px; }
+}
+
+/* état de construction : au-dessus du chargeur, sans le recouvrir */
+body.ch1-hud #ui .hud #build-status {
+  position: absolute !important;
   left: 50% !important;
   right: auto !important;
+  top: auto !important;
+  bottom: calc(6.5vh + 118px) !important;
   transform: translateX(-50%) !important;
-  bottom: 8px !important;
+}
+body.ch1-hud.touch-ui #ui .hud #build-status {
+  bottom: 146px !important;
 }

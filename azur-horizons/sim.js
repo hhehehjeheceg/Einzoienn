@@ -135,6 +135,18 @@ for(var _si=0;_si<regions.length;_si++){var _sr=regions[_si],_sg=districtGrid[_s
  roads.push([{x:ex,z:ez},{x:(ex+best.x)/2+(best.z-ez)*.12,z:(ez+best.z)/2-(best.x-ex)*.12},{x:best.x,z:best.z}]);}})();
 function routeDistance(x,z,a,b){var dx=b.x-a.x,dz=b.z-a.z,t=clamp(((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz),0,1);return Math.hypot(x-a.x-t*dx,z-a.z-t*dz);}
 function nearRoute(x,z,margin){var all=roads.concat(streets);for(var ri=0;ri<all.length;ri++)for(var rj=1;rj<all[ri].length;rj++)if(routeDistance(x,z,all[ri][rj-1],all[ri][rj])<margin)return true;return false;}
+/* v93 : distance aux routes précalculée sur une grille de 4 m (bornée à 24 m).
+ * Sert au placement de la flore et des maisons sans reparcourir chaque segment. */
+var ROUTE_CELL=4,ROUTE_N=Math.ceil(MAP.halfSize*2/ROUTE_CELL),routeGrid=null;
+function routeDist(x,z){
+ if(!routeGrid){routeGrid=new Uint8Array(ROUTE_N*ROUTE_N);routeGrid.fill(24);var all=roads.concat(streets);
+  for(var ri=0;ri<all.length;ri++)for(var rj=1;rj<all[ri].length;rj++){var a=all[ri][rj-1],b=all[ri][rj],x0=Math.floor((Math.min(a.x,b.x)-24+MAP.halfSize)/ROUTE_CELL),x1=Math.floor((Math.max(a.x,b.x)+24+MAP.halfSize)/ROUTE_CELL),z0=Math.floor((Math.min(a.z,b.z)-24+MAP.halfSize)/ROUTE_CELL),z1=Math.floor((Math.max(a.z,b.z)+24+MAP.halfSize)/ROUTE_CELL);
+   for(var gx=Math.max(0,x0);gx<=Math.min(ROUTE_N-1,x1);gx++)for(var gz=Math.max(0,z0);gz<=Math.min(ROUTE_N-1,z1);gz++){var d=routeDistance((gx+.5)*ROUTE_CELL-MAP.halfSize,(gz+.5)*ROUTE_CELL-MAP.halfSize,a,b);if(d<routeGrid[gz*ROUTE_N+gx])routeGrid[gz*ROUTE_N+gx]=Math.floor(d);}}}
+ var ix=Math.floor((x+MAP.halfSize)/ROUTE_CELL),iz=Math.floor((z+MAP.halfSize)/ROUTE_CELL);if(ix<0||iz<0||ix>=ROUTE_N||iz>=ROUTE_N)return 24;return routeGrid[iz*ROUTE_N+ix];
+}
+function townPad(x,z,margin){for(var i=0;i<regions.length;i++){var r=regions[i];if(Math.abs(x-r.x)<(r.padW||40)+margin&&Math.abs(z-r.z)<(r.padD||40)+margin)return r;}return null;}
+/* Champ de forêt (-2..2) : les massifs boisés de l'île, partagé avec le rendu. */
+function forestField(x,z){return Math.sin(x*.0113+1.7)*Math.cos(z*.0127-.4)+Math.sin((x*.6-z)*.0071+2.1)*.8+Math.sin((x+z*.7)*.0231)*.35;}
 function RNG(seed){ this.s=(seed>>>0)||123456789; }
 RNG.prototype.next=function(){ var t=this.s+=0x6D2B79F5; t=Math.imul(t^(t>>>15),t|1); t^=t+Math.imul(t^(t>>>7),t|61); return ((t^(t>>>14))>>>0)/4294967296; };
 RNG.prototype.range=function(a,b){ return a+(b-a)*this.next(); };
@@ -241,9 +253,9 @@ function World(opts){
  this.aircraft={x:MAP.transport.startX,y:MAP.transport.altitude,z:MAP.transport.startZ,yaw:-1.07};this.results={};this._ids=0;this._event=0;this._stormState='wait';this._stormDuration=50;this._stormFrom=this.storm.radius;this._matchId='match-'+this.seed;this.trainingItems=this.mode==='training'?this._trainingCatalog():[];this._finishedAt=null;
  /* v54 : Point Zéro en VRAIE PARTIE (pas en event) — détruit parfois des
   * bâtiments ou fissure le sol. */
- if(this.mode!=='event'&&this.mode!=='training'&&this.mode!=='creative'){
-   this.zeroPoint={x:0,z:0,nextEvent:100+this.rng.next()*80};
- }
+ /* v93 : retiré de la bataille royale « Chapitre 1 » (l'île n'a plus de Point
+  * Zéro) ; le mode événement garde son propre spectacle. */
+ this.zeroPoint=null;
  this._createMap();
  /* A BR always has exactly 100 total roster slots. addHuman replaces an IA slot,
   * so private/local participants never make the match exceed its ruleset. */
@@ -309,6 +321,7 @@ World.prototype._createMap=function(){
   }
  }
  this._object('dock',660,240,12,1.4,'wood');
+ this._createFlora();
  var wx=MAP.waiting.x,wz=MAP.waiting.z,wait=[[-28,-15],[0,-15],[28,-15],[-14,18],[14,18]];
  for(i=0;i<wait.length;i++){var q=wait[i],wh=this._object('house',wx+q[0],wz+q[1],8,4.5,'wood');this._object('chest',wh.x,wh.z+1,.8,1,'wood');}
  for(i=0;i<20;i++){var aa=this.rng.next()*TAU,dd=this.rng.range(10,73),xx=wx+Math.cos(aa)*dd,zz=wz+Math.sin(aa)*dd;this._object(i%3?'tree':'crate',xx,zz,i%3?1.8:1.2,i%3?4:1.2,'wood');if(i<9)this._dropLoot(xx,heightAt(xx,zz)+.2,zz);}
@@ -797,7 +810,9 @@ World.prototype._buildIndex=function(){
 World.prototype._buildsAt=function(x,z){this._buildIndex();var c=this._buildCells.get(Math.floor(x/16)+','+Math.floor(z/16));return c||[];};
 World.prototype._blocked=function(x,z,r,y,ignoreOwner,allowSea){
  
- var near=this._objectsAt(x,z);for(var i=0;i<near.length;i++){var o=near[i];if(o.dead||y!=null&&(y>=o.y+(o.h||2)+.2||y+1.8<o.y))continue;if(o.type==='house'){if(this._houseBlocked(o,x,z,r,y))return true;continue;}if(o.type==='chest'||o.type==='crate'||o.type==='lamp'||o.type==='fence'||o.type==='dock')continue;if(Math.hypot(x-o.x,z-o.z)<(o.w||1)+r)return true;}
+ var near=this._objectsAt(x,z);for(var i=0;i<near.length;i++){var o=near[i];if(o.dead||y!=null&&(y>=o.y+(o.h||2)+.2||y+1.8<o.y))continue;if(o.type==='house'){if(this._houseBlocked(o,x,z,r,y))return true;continue;}if(o.type==='chest'||o.type==='crate'||o.type==='lamp'||o.type==='fence'||o.type==='dock'||o.type==='prop')continue;if(Math.hypot(x-o.x,z-o.z)<(o.w||1)+r)return true;}
+ /* v93 : troncs et rochers de la flore (un rocher se franchit par-dessus). */
+ if(this.flora){var fl=this._floraAt(x,z);for(i=0;i<fl.length;i++){var f=fl[i];if(f.dead||y!=null&&(y>=f.y+(f.k===2?f.top-.35:f.top)||y+1.8<f.y))continue;var fr=f.k===2?f.r*.82:f.r;if((x-f.x)*(x-f.x)+(z-f.z)*(z-f.z)<(fr+r)*(fr+r))return true;}}
  var nearB=this._buildsAt(x,z);
  for(i=0;i<nearB.length;i++){var b=nearB[i];if(b.owner===ignoreOwner)continue;var q=local(b,x,z);if(b.type==='floor')continue;if(b.type==='ramp'){/* ramp is support, not a solid upright blocker */continue;}if(b.type==='wall'){if(y!=null&&(y>=b.y+4||y+1.8<=b.y))continue;if(inRect(q.x,q.z,0,0,2,.28,r)){var mask=b.editMask==null?511:b.editMask;for(var row=0;row<3;row++)for(var col=0;col<3;col++){var lo=b.y+(2-row)*4/3,hi=lo+4/3;if((y==null||y<hi-.03&&y+1.65>lo+.03)&&Math.abs(q.x-(-4/3+col*4/3))<2/3+r&&(mask&(1<<(row*3+col))))return true;}}}else if(b.type==='roof'&&y!=null&&inRect(q.x,q.z,0,0,2,2,r)){/* A roof is a walkable surface, not a wall: only block actors whose feet are below its local surface (walking under or into it). Someone standing on top must stay free to move. A roof far overhead must never block: it only collides when its surface is within body reach. */var surf=b.y+roofHeight(b,clamp(q.x,-2,2),clamp(q.z,-2,2));if(y<surf-.25&&y+1.8>surf-.25)return true;}}
  return false;
@@ -813,11 +828,57 @@ World.prototype.supportAt=function(x,z,currentY){
  }
  var nearB=this._buildsAt(x,z);
  for(i=0;i<nearB.length;i++){var h=buildSurface(nearB[i],x,z);if(h!=null&&h<=limit&&h>best)best=h;}
+ /* v93 : on peut se tenir sur le dôme d'un rocher. */
+ if(this.flora){var fl=this._floraAt(x,z);for(i=0;i<fl.length;i++){var f=fl[i];if(f.k!==2||f.dead)continue;var fq=Math.hypot(x-f.x,z-f.z)/(f.r*.85);if(fq<1){var fh=f.y+f.top*(1-.45*fq*fq);if(fh<=limit&&fh>best)best=fh;}}}
  return best;
 };
 function supportAt(x,z,builds,ground){
  var best=ground==null?heightAt(x,z):ground;for(var b of builds||[]){var h=buildSurface(b,x,z);if(h!=null&&h>best)best=h;}return best;
 }
+/* v93 : flore « Chapitre 1 ». Pins étagés (k=0), arbres ronds (k=1) et rochers
+ * (k=2) couvrent l'île hors des villes et des routes. Ce sont de vrais obstacles :
+ * collision des troncs, balles, récolte à la pioche (bois / pierre). Ils vivent
+ * hors de world.objects (le rendu les instancie par morceaux) et sont indexés sur
+ * une grille de 16 m. Tirage avec this.rng : identique pour une même graine. */
+var FLORA_CELL=16;
+function floraKey(ix,iz){return (ix+512)*1024+(iz+512);}
+World.prototype._floraSpot=function(x,z,pad){
+ if(coastDistance(x,z)>MAP.shoreStart-16||isWater(x,z)||heightAt(x,z)<SEA+.6)return false;
+ if(routeDist(x,z)<(pad||7))return false;if(townPad(x,z,10))return false;
+ if(LAKE&&Math.hypot(x-LAKE.x,z-LAKE.z)<LAKE.r*1.45)return false;
+ return true;
+};
+World.prototype._addFlora=function(k,x,z,s,yaw){
+ var y=heightAt(x,z),f;
+ if(k===2)f={k:2,type:'rock',x:x,y:y,z:z,s:s,yaw:yaw,r:s*.9,top:s*1.05,hp:220,maxHp:220,material:'stone',dead:false,_flora:true};
+ else if(k===0)f={k:0,type:'tree',x:x,y:y,z:z,s:s,yaw:yaw,r:.42*s,top:11*s,hp:150,maxHp:150,material:'wood',dead:false,_flora:true};
+ else f={k:1,type:'tree',x:x,y:y,z:z,s:s,yaw:yaw,r:.5*s,top:8*s,hp:120,maxHp:120,material:'wood',dead:false,_flora:true};
+ f.i=this.flora.length;this.flora.push(f);return f;
+};
+World.prototype._createFlora=function(){
+ this.flora=[];this.floraRev=0;var step=11,H=MAP.halfSize,rng=this.rng;
+ for(var gx=-H;gx<H;gx+=step)for(var gz=-H;gz<H;gz+=step){
+  var x=gx+rng.next()*step,z=gz+rng.next()*step,roll=rng.next(),kind=rng.next(),size=rng.next(),yaw=rng.next()*TAU;
+  var n=forestField(x,z),dens=.07+smoothRange(.1,1.1,n)*.62,rock=.016+smoothRange(14,40,heightAt(x,z))*.03;
+  if(roll<rock){if(this._floraSpot(x,z,6))this._addFlora(2,x,z,1.1+size*size*2.6,yaw);continue;}
+  if(roll>rock+dens||!this._floraSpot(x,z,7))continue;
+  var pine=n>.55?kind<.74:kind<.42;
+  this._addFlora(pine?0:1,x,z,pine?.85+size*.55:.8+size*.5,yaw);
+ }
+ this._floraIndex();
+};
+World.prototype._floraIndex=function(){
+ var cells=this._floraCells=new Map();
+ for(var i=0;i<this.flora.length;i++){var f=this.flora[i],ext=f.r+1.2;
+  for(var ix=Math.floor((f.x-ext)/FLORA_CELL);ix<=Math.floor((f.x+ext)/FLORA_CELL);ix++)for(var iz=Math.floor((f.z-ext)/FLORA_CELL);iz<=Math.floor((f.z+ext)/FLORA_CELL);iz++){var key=floraKey(ix,iz),a=cells.get(key);if(!a)cells.set(key,a=[]);a.push(f);}}
+};
+World.prototype._floraAt=function(x,z){if(!this._floraCells){if(!this.flora)return [];this._floraIndex();}return this._floraCells.get(floraKey(Math.floor(x/FLORA_CELL),Math.floor(z/FLORA_CELL)))||[];};
+World.prototype._floraRay=function(ox,oy,oz,d,max,take){
+ if(!this.flora||!this.flora.length)return;var stamp=this._floraStamp=(this._floraStamp|0)+1,len=Math.min(max,260);
+ for(var t=0;t<=len+8;t+=7){var px=ox+d.x*Math.min(t,len),pz=oz+d.z*Math.min(t,len),list=this._floraAt(px,pz);
+  for(var i=0;i<list.length;i++){var f=list[i];if(f.dead||f._rs===stamp)continue;f._rs=stamp;
+   var hw=f.k===2?f.r*.8:f.r,hh=f.k===2?f.top*.5:f.top*.5;take(rayBox(ox,oy,oz,d.x,d.y,d.z,f.x,f.y+hh,f.z,hw,hh,hw,max),{kind:'object',object:f});}}
+};
 World.prototype._rayObstacle=function(ox,oy,oz,d,max){
  var best=max,hit=null;
  function take(t,target){if(t!=null&&t>=0&&t<best){best=t;hit=target;}}
@@ -860,6 +921,7 @@ World.prototype._rayObstacle=function(ox,oy,oz,d,max){
   }
  }
  for(i=0;i<this.vehicles.length;i++){var v=this.vehicles[i];if(v.hp<=0)continue;take(rayBox(ox,oy,oz,d.x,d.y,d.z,v.x,v.y+1,v.z,1.35,1,2.2,best),{kind:'vehicle',vehicle:v});}
+ this._floraRay(ox,oy,oz,d,best,take);
  return hit?{t:best,hit:hit}:null;
 };
 World.prototype._lineClear=function(x,y,z,tx,ty,tz){var dx=tx-x,dy=ty-y,dz=tz-z,L=Math.hypot(dx,dy,dz);if(!L)return true;var d={x:dx/L,y:dy/L,z:dz/L};return !this._rayObstacle(x,y,z,d,L-.05);};
@@ -916,7 +978,7 @@ World.prototype._shootOnce=function(p,it,w,dir){
  for(var hk in shotHits){var sh=shotHits[hk];this._damage(sh.player,p,sh.amount,sh.headshot?'tir tête':'tir',{headshot:sh.headshot,shotgun:pellets>1,weapon:it.weapon});}
 };
 World.prototype._damageHit=function(hit,src,amount,x,y,z){
- var t=hit.object||hit.build||hit.vehicle;if(!t||(t.dead||t.hp<=0))return;t.hp-=amount;this._emit('hit',x,y,z,{playerId:src&&src.id,amount:amount,shieldDamage:0,hpDamage:amount,headshot:false});if(t.hp<=0){t.hp=0;if(hit.vehicle){if(t.driver){var rider=this._find(t.driver);if(rider)rider.vehicleId=null;}t.driver=null;}else {t.dead=true;if(hit.build)this._bumpBuilds();}this._emit('destroy',t.x,t.y,t.z,{playerId:src&&src.id});}
+ var t=hit.object||hit.build||hit.vehicle;if(!t||(t.dead||t.hp<=0))return;t.hp-=amount;this._emit('hit',x,y,z,{playerId:src&&src.id,amount:amount,shieldDamage:0,hpDamage:amount,headshot:false});if(t.hp<=0){t.hp=0;if(hit.vehicle){if(t.driver){var rider=this._find(t.driver);if(rider)rider.vehicleId=null;}t.driver=null;}else {t.dead=true;if(hit.build)this._bumpBuilds();if(t._flora)this.floraRev=(this.floraRev|0)+1;}this._emit('destroy',t.x,t.y,t.z,{playerId:src&&src.id,flora:t._flora?t.i:undefined,objectId:t.id});}
 };
 World.prototype._damage=function(v,src,amount,why,meta){
  meta=meta||{};this._cancelFishing(v,'Pêche interrompue');this._cancelEmote(v);v._combatAt=this._clock||0;/* Bot duels are paced, not protected: 34% damage keeps their 100 HP meaningful
@@ -1146,6 +1208,6 @@ World.prototype.teleport=function(id,x,z){
 };
 
 World.prototype.snapshot=function(){function clean(a){return a.map(function(o){var q={};for(var k in o)if(k.charAt(0)!=='_')q[k]=o[k];return q;});}return {mode:this.mode,seed:this.seed,phase:this.phase,phaseTime:this.phaseTime,elapsed:this.elapsed,tick:this.tick,players:clean(this.players),objects:clean(this.objects),loot:clean(this.loot),builds:clean(this.builds),vehicles:clean(this.vehicles),storm:Object.assign({},this.storm),aircraft:Object.assign({},this.aircraft),results:Object.assign({},this.results),events:this.events.slice()};};
-var api={World:World,MATCH_PARTICIPANTS:MATCH_PARTICIPANTS,FLIGHT:FLIGHT,EMOTE_STYLES:EMOTE_STYLES,MAP:MAP,heightAt:heightAt,biomeAt:biomeAt,zoneAt:zoneAt,zoneWeights:zoneWeights,VOLCANO:VOLCANO,LOBES:LOBES,LAKE:LAKE,isWater:isWater,coastDistance:coastDistance,regions:regions,roads:roads,streets:streets,districts:districtDensity,districtGrid:districtGrid,vehicleSpecs:vehicleSpecs,weapons:weapons,rarities:rarities,BUILD_DURABILITY:BUILD_DURABILITY,buildPlacement:buildPlacement,supportAt:supportAt,buildSurface:buildSurface,roofTriangles:roofTriangles};
+var api={World:World,MATCH_PARTICIPANTS:MATCH_PARTICIPANTS,FLIGHT:FLIGHT,EMOTE_STYLES:EMOTE_STYLES,MAP:MAP,heightAt:heightAt,biomeAt:biomeAt,zoneAt:zoneAt,zoneWeights:zoneWeights,VOLCANO:VOLCANO,LOBES:LOBES,LAKE:LAKE,isWater:isWater,coastDistance:coastDistance,regions:regions,roads:roads,streets:streets,districts:districtDensity,districtGrid:districtGrid,vehicleSpecs:vehicleSpecs,weapons:weapons,rarities:rarities,BUILD_DURABILITY:BUILD_DURABILITY,buildPlacement:buildPlacement,supportAt:supportAt,buildSurface:buildSurface,roofTriangles:roofTriangles,forestField:forestField,routeDist:routeDist,townPad:townPad};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;root.AZSim=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
