@@ -1247,10 +1247,10 @@
   function buildModel(b, ghost = false) {
     const m = new Model(), materialKind = b.material === "wood" ? "wood" : b.material === "stone" ? "stone" : "metal";
     const palette = materialKind === "wood"
-      ? { face: "#dca35c", shade: "#c28446", edge: "#7a4b26", accent: "#f2c47f" }
+      ? { face: "#bd7a3e", shade: "#9f612d", edge: "#5c381b", accent: "#d99a57" } // v93 : planches orangées de la vidéo
       : materialKind === "stone"
-        ? { face: "#cf6b48", shade: "#ad5238", edge: "#e8dcc8", accent: "#f3e6d0" }
-        : { face: "#9eabb5", shade: "#6f7d88", edge: "#3a444e", accent: "#ffd23f" };
+        ? { face: "#a59d91", shade: "#8a8277", edge: "#5d5850", accent: "#c3bbae" } // pierre grise
+        : { face: "#6e8661", shade: "#55684b", edge: "#2e392a", accent: "#b27b3f" }; // tôle verte rouillée
     const mask = b.editMask == null ? (b.edited ? 367 : 511) : b.editMask;
     const occupied = (row, col) => !!(mask & (1 << (row * 3 + col)));
     const cell = 4 / 3;
