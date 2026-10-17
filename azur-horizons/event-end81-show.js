@@ -22,10 +22,7 @@
   var P = new T.Vector3(), BASE = new T.Vector3(), F = new T.Vector3(), R = new T.Vector3();
   var ZP = new T.Vector3(), IMPACT = new T.Vector3(), STAR = new T.Vector3(), MOON = new T.Vector3();
   var MET_A = new T.Vector3(), MET_A2 = new T.Vector3(), MET_B = new T.Vector3(), MDIR = new T.Vector3();
-  var SPOT = { px: -63, pz: -597, bx: 54, bz: -561 };
-  /* v93 : colline et dépôt choisis (tools/azur, recherche sur le relief) pour que le Point Zéro tombe
-   * pile là où la vidéo montre l'impact (67° à droite) : la météorite finit DANS la bulle du Point Zéro.
-   * Montagne derrière le dépôt (coulées de lave), pente dégagée vers la base. */
+  var SPOT = { px: -515, pz: -135, bx: -540, bz: -255 };
   /* v85 — disposition mesurée image par image sur la vidéo (caméra Fortnite = 80° horizontal) :
    * depuis la colline, le dépôt est droit devant (lacet 0), la lune 35,8° à droite et 25° de haut,
    * la météorite 71° à droite et 6° de haut, l'impact au sol 62° à droite à ~300 m.
@@ -278,7 +275,7 @@
       var open = ramp(t, r.a, r.a + r.fi * 1.6), fl = 0;
       if (r.flash) for (var f = 0; f < r.flash.length; f++) fl = Math.max(fl, win(t, r.flash[f], r.flash[f] + 1.2, .12, .9));
       var gs = r.grow ? lerp(r.grow[2], 1, ramp(t, r.grow[0], r.grow[1])) : 1;
-      var dc = r.pos.distanceTo(cam.position); r.m.scale.setScalar(Math.min(r.size, dc * .5) * (.55 + .45 * open) * (1 + .15 * fl) * gs);
+      var dc = r.pos.distanceTo(cam.position); r.m.scale.setScalar(Math.min(r.size * .4, dc * .15) * (.55 + .45 * open) * (1 + .15 * fl) * gs); // v93 : petites étoiles à filaments comme la vidéo (≈ 8° de large)
       var u = r.m.material.uniforms; u.time.value = t; u.open.value = .25 + .75 * open; u.amt.value = op * (.85 + .15 * Math.sin(t * 7 + i)); u.flash.value = fl;
     }
   }
@@ -468,7 +465,7 @@
     // éclair à l'horizon quand la 2e fusée rentre dans sa faille (63 s)
     // v89 : la « frénésie » (vidéo 75,8 → 77,5) : une rafale d'éclats de foudre tout près du joueur, calée sur les coups de la musique
     O.frenzy = [[75.85, 40, 22, 150, 150], [76.1, -25, 17, 110, 120], [76.3, 28, 13, 95, 170], [76.6, -40, 10, 120, 150], [76.82, 6, 15, 100, 190], [77.1, -18, 11, 110, 160], [77.35, 24, 24, 140, 130]].map(function (f) {
-      var sp = L.sprite(grp, X.burstBig[0], 0xa8d4ff, f[4], true, 0), co = L.sprite(grp, X.star, 0xffffff, f[4] * .5, true, 0), pos = skyPos(f[1], f[2], f[3]);
+      var sp = L.sprite(grp, X.bursts[0], 0xa8d4ff, f[4], true, 0), co = L.sprite(grp, X.star, 0xffffff, f[4] * .5, true, 0), pos = skyPos(f[1], f[2], f[3]);
       sp.position.copy(pos); co.position.copy(pos); return { t: f[0], s: f[4], sp: sp, co: co };
     });
     O.b0p = skyPos(31.3, 1.8, 430); O.b0Bolts = L.sprite(grp, X.burstBig[1], 0xb8d8ff, 420, true, 0); O.b0Bolts.position.copy(O.b0p);
@@ -602,48 +599,26 @@
       pa.needsUpdate = true; m2.visible = false; grp.add(m2); O.scorch.push(m2);
     });
   }
-  var ORB_Y = 22, ORB_R = 42, DOME_Y = -22, DOME_R = 110; // orbe du Point Zéro (centre ZP + 22, rayon 42) et dôme (centre ZP − 22, rayon 110)
   var MOFF = new T.Vector3(), DOME_TOP = 92; // sommet du dôme du Point Zéro au-dessus de ZP (centre −22, rayon 110 × 1,05)
   function meteorOff(t, out) { return out.copy(IMPACT).sub(MET_B).multiplyScalar(.08 * ramp(t, 125, 150.8)); }
-  /* v93 — LA BULLE : la météorite tombe sur le dôme du Point Zéro (contact 151,8 s), l'enfonce comme une
-   * membrane en ralentissant (151,8 → 155,4), passe au travers jusqu'à l'orbe et y est absorbée
-   * (155,4 → 156,4, grand éclair de la vidéo à 155,4). */
-  var T_TOUCH = 151.8, T_SINK = 155.4, T_GONE = 156.4;
-  var M_P0 = new T.Vector3(), M_C = new T.Vector3(), M_O = new T.Vector3(), M_DC = new T.Vector3(), M_ok = false;
-  function meteorKeys() {
-    if (M_ok) return; M_ok = true;
-    meteorOff(150.6, M_P0).add(MET_B);
-    M_DC.set(ZP.x, ZP.y + DOME_Y, ZP.z); M_O.set(ZP.x, ZP.y + ORB_Y, ZP.z);
-    // point de contact : sur le dôme, du côté d'où arrive la météorite (rayon de la roche ≈ 26 × MS)
-    M_C.copy(M_P0).sub(M_DC).normalize().multiplyScalar(DOME_R * 1.04 + 26 * MS * .55).add(M_DC);
-  }
   function meteorPos(t, out) {
-    // immobile jusqu'à la capture, puis elle descend petit à petit (126 → 150,6)
+    // immobile jusqu'à la capture, puis elle descend petit à petit (126 → 151) avant la chute finale
+    // vidéo : elle s'enfonce dans la lumière du sol de 150,6 à ~153,3 (le panache reste en l'air et s'efface)
     if (t < 150.6) return meteorOff(t, out).add(MET_B);
-    meteorKeys();
-    if (t < T_TOUCH) { var k = cl((t - 150.6) / (T_TOUCH - 150.6)); return out.copy(M_P0).lerp(M_C, k * k * (1.6 - .6 * k)); }
-    // dans la membrane : elle ralentit, la bulle résiste, puis cède d'un coup vers l'orbe
-    var u = cl((t - T_TOUCH) / (T_SINK - T_TOUCH)), sink = 1 - Math.pow(1 - u, 2.2);
-    out.copy(M_C).lerp(M_O, sink * .82 + .18 * ramp(t, T_SINK - .5, T_SINK));
-    return out;
+    var k = cl((t - 150.6) / 2.7); meteorOff(150.6, out).add(MET_B); return out.lerp(IMPACT, k * k);
   }
-  // profondeur d'enfoncement dans le dôme (0..~.45) et direction du contact (repère du dôme)
-  function meteorDent(t) { return t < T_TOUCH || t > T_SINK + .25 ? 0 : Math.min(.42, Math.max(0, (DOME_R * 1.04 - O.met.g.position.distanceTo(M_DC)) / DOME_R)) * (1 - ramp(t, T_SINK - .1, T_SINK + .25)); }
   function updateMeteor(t, cam) {
-    var M = O.met, vis = t < T_GONE + .2;
+    var M = O.met, vis = t < 154.6;
     M.g.visible = vis; if (!vis) { M.ribbons.forEach(function (r) { r.set(0, 0, 0, t); }); return; }
     meteorPos(t, M.g.position);
     E.meteorPos = E.meteorPos || new T.Vector3(); E.meteorPos.copy(M.g.position); E.meteorVisible = true;
-    var appear = 1 - ramp(t, T_SINK - .3, T_GONE), energ = ramp(t, 121, 126), pale = ramp(t, 139, 148) * .5 * (1 - ramp(t, 150.6, 151.6)), heat = (1 - .75 * pale);
+    var appear = 1 - ramp(t, 153, 153.4), energ = ramp(t, 121, 126), pale = ramp(t, 139, 148) * .5 * (1 - ramp(t, 150.6, 151.6)), heat = (1 - .75 * pale);
     // orientation : la roche mène vers le bas-gauche, le panache file vers le haut-droite
     var dir = MDIR;
     var ru = M.rock.material.uniforms; ru.front.value.copy(dir); ru.heat.value = heat * appear; ru.time.value = t; ru.pale.value = pale;
     if (ru.camPos) { ru.camPos.value.copy(cam.position); ru.energy.value = energ * (.6 + .4 * Math.sin(t * 6)); }
     ru.lightDir.value.copy(MOON).sub(M.g.position).normalize();
-    // v93 : dans la bulle la roche rapetisse et chauffe, puis disparaît, absorbée par l'orbe
-    var absorb = (1 - .45 * ramp(t, T_TOUCH, T_SINK)) * (1 - ramp(t, T_SINK, T_GONE)); heat = Math.min(1.6, heat + .6 * ramp(t, T_TOUCH, T_SINK));
-    ru.heat.value = heat * Math.max(appear, absorb > .02 ? 1 : 0);
-    M.rock.rotation.set(.4, 1.1 + .25 * ramp(t, T_TOUCH, T_GONE), .2); M.rock.scale.setScalar(26 * Math.max(.001, absorb)); M.rock.visible = absorb > .01;
+    M.rock.rotation.set(.4, 1.1, .2); M.rock.scale.setScalar(26); M.rock.visible = t < 153.3;
     var back = tmp.copy(dir).negate();
     for (var i = 0; i < M.fire.length; i++) {
       var f = M.fire[i], fk = i / M.fire.length, fl = .82 + .18 * Math.sin(t * 23 + i * 2.1);
@@ -671,7 +646,7 @@
       var a = appear * (u < .08 ? u / .08 : 1) * .92 * (1 - .25 * u);
       var rr = lerp(c1r, .95, pale), gg = lerp(c1g, .86, pale), bb = lerp(c1b, .98, pale);
       var warm = Math.max(0, 1 - u * 2.2) * heat * .9;
-      if (t > T_TOUCH) a *= 1 - ramp(t, T_TOUCH + 1.4, T_GONE + .6) * (u < .3 ? 1 : .8); // le panache reste un peu en l'air puis s'efface
+      if (t > 153.2) a *= 1 - ramp(t, 153.2, 154.6);
       sys.add(x, y, z, q.s * MS * .82 * (1 + u * .2) * (1 + .03 * Math.sin(t + p)), rr, gg, bb, a, q.rot + t * q.sp, q.v, .15, warm);
     }
     // arcs électriques bleus (scintillement)
@@ -949,7 +924,7 @@
     var b1 = win(t, 38.6, 42.6, .25, 2.2), g1 = U.easeOut((t - 38.6) / 1.8);
     L.setOp(O.b1Shell, b1 * .62 * ramp(t, 39.4, 40.3)); O.b1Shell.scale.setScalar((55 + 125 * g1) * 3.3); O.b1Shell.material.map = X.shell[flick % 2]; O.b1Shell.material.rotation = t * .1;
     L.setOp(O.b1Bolts, b1 * .85); O.b1Bolts.scale.setScalar((80 + 160 * g1) * 3.3); O.b1Bolts.material.map = X.burstBig[flick % 2]; O.b1Bolts.material.rotation = (flick % 5) * .4;
-    var fl1 = win(t, 38.75, 39.6, .06, .55); L.setOp(O.b1Core, Math.max(win(t, 38.5, 41.8, .1, 1.6) * .75, fl1)); O.b1Core.scale.setScalar((36 + 40 * g1 + 70 * fl1) * 3.3);
+    var fl1 = win(t, 38.75, 39.6, .06, .55); L.setOp(O.b1Core, Math.max(win(t, 38.5, 41.8, .1, 1.6) * .75, fl1)); O.b1Core.scale.setScalar((16 + 14 * g1 + 50 * fl1) * 3.3);
     O.darkCloud.material.opacity = win(t, 34.5, 47, 2, 3) * .55; O.darkCloud.visible = O.darkCloud.material.opacity > .01;
     // anneaux
     L.setOp(O.ringA, win(t, 42.1, 46.4, .6, 1)); O.ringA.scale.setScalar(260 + 30 * Math.sin(t * 3)); L.setOp(O.ringAs, win(t, 42.3, 46, .4, 1) * (.7 + .3 * Math.sin(t * 9)));
@@ -958,19 +933,19 @@
     var bk = win(t, 46.3, 51.6, 1, 1.4);
     O.beam.visible = bk > .01; O.beam.material.opacity = bk * (.62 + .08 * Math.sin(t * 6)); O.beam.rotation.y = t * .05;
     if (O.beam.visible) { var top = O.r2p, bot = tmp.copy(top); bot.y = P.y - 40; O.beam.position.copy(top).lerp(bot, .5); O.beam.scale.set(1, top.y - bot.y, 1); }
-    L.setOp(O.r2Glow, win(t, 47.6, 52, .8, 2)); O.r2Glow.scale.setScalar(260 + 380 * win(t, 47.6, 51, 1, 1));
+    L.setOp(O.r2Glow, win(t, 47.6, 52, .8, 2)); O.r2Glow.scale.setScalar(120 + 160 * win(t, 47.6, 51, 1, 1));
     // sphère rouge + gerbe près de la montagne (75,5-80)
     L.setOp(O.redSphere, win(t, 75.2, 76.3, .3, .2)); O.redSphere.scale.setScalar(34 + 14 * Math.sin(t * 20));
     L.setOp(O.redArcs, win(t, 75.2, 76.3, .2, .2)); O.redArcs.material.map = X.arcs[flick % 3];
-    L.setOp(O.b2Bolts, win(t, 76, 79.4, .1, 2) * .8); O.b2Bolts.scale.setScalar(120 + 260 * U.easeOut((t - 76) / 1.2)); O.b2Bolts.position.copy(O.b2p).lerp(O.b2hi, ramp(t, 76.6, 77.8)); O.b2Bolts.material.map = X.burstBig[(flick + 1) % 2]; O.b2Bolts.material.rotation = flick * .5;
-    L.setOp(O.b2Core, win(t, 76, 78.6, .08, 1.8) * .8); O.b2Core.scale.setScalar(60 + 90 * ramp(t, 76, 77)); O.b2Core.position.copy(O.b2p).lerp(O.b2hi, ramp(t, 76.6, 77.8));
+    L.setOp(O.b2Bolts, win(t, 76, 79.4, .1, 2) * .8); O.b2Bolts.scale.setScalar(120 + 260 * U.easeOut((t - 76) / 1.2)); O.b2Bolts.position.copy(O.b2p).lerp(O.b2hi, ramp(t, 76.6, 77.8)); O.b2Bolts.material.map = X.bursts[(flick + 1) % 3]; O.b2Bolts.material.rotation = flick * .5;
+    L.setOp(O.b2Core, win(t, 76, 78.6, .08, 1.8) * .8); O.b2Core.scale.setScalar(30 + 40 * ramp(t, 76, 77)); O.b2Core.position.copy(O.b2p).lerp(O.b2hi, ramp(t, 76.6, 77.8));
     L.setOp(O.b2Crack, win(t, 77.4, 81.0, .3, 1.8)); O.b2Crack.scale.setScalar(210); O.b2Crack.position.copy(O.b2hi);
     // portail arc-en-ciel
     var po = win(t, 81.6, 87.7, 1, .5), opn = U.easeOut((t - 81.6) / 1.6) * (1 - ramp(t, 87.1, 87.7));
-    L.setOp(O.portal, po); O.portal.scale.setScalar(40 + 300 * opn); O.portal.material.rotation = t * .05;
-    L.setOp(O.portalCrack, po * (.7 + .3 * hsh(flick))); O.portalCrack.scale.setScalar(70 + 120 * opn); O.portalCrack.material.map = X.crack[flick % 2]; O.portalCrack.material.rotation = flick * .3;
-    L.setOp(O.portalFlash, win(t, 85.5, 87.3, .4, .6)); O.portalFlash.scale.setScalar(140 + 260 * ramp(t, 85.5, 86.6));
-    L.setOp(O.portalBeam, win(t, 86.6, 87.9, .1, .6)); O.portalBeam.material.map = X.bursts[flick % 3]; O.portalBeam.scale.setScalar(300);
+    L.setOp(O.portal, po); O.portal.scale.setScalar(30 + 170 * opn); O.portal.material.rotation = t * .05;
+    L.setOp(O.portalCrack, po * (.7 + .3 * hsh(flick))); O.portalCrack.scale.setScalar(45 + 75 * opn); O.portalCrack.material.map = X.crack[flick % 2]; O.portalCrack.material.rotation = flick * .3;
+    L.setOp(O.portalFlash, win(t, 85.5, 87.3, .4, .6)); O.portalFlash.scale.setScalar(70 + 120 * ramp(t, 85.5, 86.6));
+    L.setOp(O.portalBeam, win(t, 86.6, 87.9, .1, .6)); O.portalBeam.material.map = X.bursts[flick % 3]; O.portalBeam.scale.setScalar(170);
     var po2 = win(t, 83, 87.4, .8, .5); L.setOp(O.portal2, po2); O.portal2.scale.setScalar(110 * U.easeOut((t - 83) / 1.2)); L.setOp(O.portal2Crack, po2 * (.6 + .4 * hsh(flick + 3))); O.portal2Crack.material.map = X.crack[(flick + 1) % 2];
     // éclats de verre quand la fusée traverse
     var sk2 = cl((t - 87.2) / 2.4);
@@ -987,11 +962,11 @@
     });
     L.setOp(O.b0Bolts, win(t, 62.3, 64.6, .1, 1.3) * .8); O.b0Bolts.scale.setScalar(160 + 300 * U.easeOut((t - 62.3) / 1)); O.b0Bolts.material.map = X.burstBig[flick % 2]; O.b0Bolts.material.rotation = flick * .45;
     // gerbe finale (110,5)
-    var b4 = win(t, 89.3, 92.6, .12, .8); L.setOp(O.b4Bolts, b4 * .8 * (.75 + .25 * hsh(flick))); O.b4Bolts.scale.setScalar(70 + 50 * ramp(t, 89.3, 90.4)); O.b4Bolts.material.map = X.burstBig[flick % 2]; O.b4Bolts.material.rotation = flick * .4;
+    var b4 = win(t, 89.3, 92.6, .12, .8); L.setOp(O.b4Bolts, b4 * .8 * (.75 + .25 * hsh(flick))); O.b4Bolts.scale.setScalar(70 + 50 * ramp(t, 89.3, 90.4)); O.b4Bolts.material.map = X.bursts[flick % 3]; O.b4Bolts.material.rotation = flick * .4;
     L.setOp(O.b4Core, b4 * .9); O.b4Core.scale.setScalar(26 + 14 * win(t, 90.2, 90.8, .1, .3));
-    L.setOp(O.b3Bolts, win(t, 110.85, 115, .08, 2.6) * .8); O.b3Bolts.scale.setScalar(220 + 480 * U.easeOut((t - 110.85) / 1.4)); O.b3Bolts.material.map = X.burstBig[flick % 2]; O.b3Bolts.material.rotation = flick * .37;
-    L.setOp(O.b3Core, win(t, 110.85, 114.2, .08, 2.2) * .85); O.b3Core.scale.setScalar(170 + 150 * ramp(t, 110.85, 111.8));
-    L.setOp(O.b3Crack, win(t, 113.8, 117.6, .8, 2)); O.b3Crack.scale.setScalar(440);
+    L.setOp(O.b3Bolts, win(t, 110.85, 115, .08, 2.6) * .8); O.b3Bolts.scale.setScalar(140 + 230 * U.easeOut((t - 110.85) / 1.4)); O.b3Bolts.material.map = X.bursts[flick % 3]; // v93 : étoile à rayons fins (vidéo 113 s), pas la sphère de 42 s O.b3Bolts.material.rotation = flick * .37;
+    L.setOp(O.b3Core, win(t, 110.85, 114.2, .08, 2.2) * .85); O.b3Core.scale.setScalar(60 + 50 * ramp(t, 110.85, 111.8));
+    L.setOp(O.b3Crack, win(t, 113.8, 117.6, .8, 2)); O.b3Crack.scale.setScalar(240);
   }
 
   /* ===================================== zénith, lasers, dôme, bulle (158-224) */
@@ -1067,29 +1042,21 @@
     // dôme
     var du = O.dome.material.uniforms, amt = Math.max(ramp(t, 177.3, 179), .11 * (1 - ramp(t, 176.8, 177.6))) * (1 - ramp(t, 223.2, 223.7));
     O.dome.visible = amt > .004; du.time.value = t; du.amt.value = amt;
-    du.flash.value = win(t, 182.95, 184.6, .1, 1.4) * .8 + win(t, 215.8, 218, .2, 1.5) * .7 + win(t, 222.6, 223.5, .5, .2) * .55;
+    du.flash.value = win(t, 182.95, 184.6, .1, 1.4) * .8 + win(t, 215.8, 218, .2, 1.5) * .22 + win(t, 222.6, 223.5, .5, .2) * .55;
     du.cyan.value = .55 * (1 - ramp(t, 176.6, 178)) + .25 * ramp(t, 210.5, 214); du.hot.value = win(t, 216, 223.4, .5, .3) * .38;
-    var rp = t > 216.2 && t < 223.2 ? ((t - 216.2) % 1.4) / 1.4 : 0; du.ripple.value = rp > 0 ? (1 - rp) * .9 : 0; du.ripT.value = rp * 1.6;
+    var rp = t > 216.2 && t < 223.2 ? ((t - 216.2) % 1.4) / 1.4 : 0; du.ripple.value = rp > 0 ? (1 - rp) * .45 : 0; du.ripT.value = rp * 1.6;
     var RD = 110 * (1 + .03 * Math.sin(t * 2.2)) * (1 + .12 * win(t, 216, 223.4, 1, .3));
     O.dome.scale.set(RD, RD * 1.05, RD);
+    // v93 — la météorite de la fin appuie sur le haut de la bulle (creux), la traverse (la membrane tremble) et brûle dedans
+    var mk = ramp(t, 216.2, 217.6), rel = ramp(t, 217.6, 218.6);
+    du.dentDir.value.set(0, 1, 0); du.ripDir.value.set(0, 1, 0);
+    du.dent.value = t > 216.2 && t < 218.6 ? .38 * U.easeOut(mk) * (1 - rel) : 0; du.dentW.value = .36 + .22 * mk;
+    du.wob.value = t > 217.6 && t < 223.2 ? 1.3 * (1 - ramp(t, 217.6, 222.2)) : 0;
+    du.touch.value = win(t, 215.9, 222.8, .3, .6) * (.22 + .05 * Math.sin(t * 19));
+    du.flash.value = Math.max(du.flash.value, ramp(t, 219, 223) * (1 - ramp(t, 223, 223.4)) * .55); // elle s'illumine blanc-rose avant d'exploser
     L.setOp(O.domeCore, amt * (.12 + .05 * Math.sin(t * 6)) + win(t, 182.8, 184.6, .2, 1) * .6); O.domeCore.scale.setScalar(30 + 8 * Math.sin(t * 4) + 40 * win(t, 182.8, 184.6, .2, 1));
     L.setOp(O.domeGlow, amt * .1); O.domeGlow.material.color.setHex(du.cyan.value > .5 ? 0x7fe4ff : 0xb070ff);
     O.zpLight.intensity = amt * (2 + 3 * du.flash.value);
-    // v93 — la météorite dans la bulle : creux sous la roche, lueur au contact, ondes, puis la membrane cède et tremble
-    if (O.met && t > 150 && t < 159.5) {
-      meteorKeys();
-      var dk = meteorDent(t), tch = win(t, T_TOUCH - .25, T_GONE, .25, .9), brk = cl((t - T_SINK) / 2.6);
-      O.dome.updateMatrixWorld(); var ld = O.dome.worldToLocal(tmp3.copy(M_C)).normalize();
-      du.dentDir.value.copy(ld); du.ripDir.value.copy(ld); du.dent.value = dk; du.dentW.value = .32 + .25 * dk;
-      du.touch.value = tch * (.75 + .25 * Math.sin(t * 17));
-      du.wob.value = brk > 0 && brk < 1 ? (1 - brk) * 1.4 : tch * .25;
-      if (brk > 0 && brk < 1) { du.ripple.value = Math.max(du.ripple.value, (1 - brk) * 1.1); du.ripT.value = brk * 2.4; }
-      else if (t > T_TOUCH && t < T_SINK) { var rc = ((t - T_TOUCH) % .9) / .9; du.ripple.value = Math.max(du.ripple.value, (1 - rc) * .5); du.ripT.value = rc * 1.1; }
-      du.flash.value = Math.max(du.flash.value, win(t, T_TOUCH, T_TOUCH + .9, .08, .7) * .7 + win(t, T_SINK, T_SINK + 1.6, .05, 1.3) * 1.1);
-      amt = Math.max(amt, .11 + .55 * tch + .4 * win(t, T_SINK, T_SINK + 2.5, .05, 2));
-      du.amt.value = amt; O.dome.visible = true;
-      O.zpLight.intensity = Math.max(O.zpLight.intensity, 4 + 30 * tch);
-    } else { du.dent.value = 0; du.touch.value = 0; du.wob.value = 0; du.ripDir.value.set(0, 1, 0); }
     // bulle de l'onde de choc (183 → 185,6)
     var bk = cl((t - 183.05) / 2.6), bu = O.bubble.material.uniforms; O.bubble.visible = bk > 0 && bk < 1;
     if (O.bubble.visible) { var rr = 110 + 1450 * U.easeOut(bk); O.bubble.scale.setScalar(rr); bu.amt.value = (1 - bk) * .9; bu.time.value = t; bu.flash.value = (1 - bk) * .25; }
@@ -1104,18 +1071,6 @@
     L.setOp(O.orbCore, ov * (.28 + .05 * Math.sin(t * 9))); O.orbCore.scale.setScalar(130 * pul);
     L.setOp(O.orbHalo, ov * .12); O.orbHalo.scale.setScalar(480 * pul);
     O.orbArcs.forEach(function (a3, i) { a3.material.map = X.arcs[(ofl + i) % 3]; a3.material.rotation = hsh(ofl + i * 7) * 6.28; a3.scale.setScalar(70 + 24 * hsh(ofl + i)); L.setOp(a3, ov * (hsh(ofl * 3 + i) > .45 ? .4 : 0)); });
-    // v93 — l'orbe sent la météorite arriver, se creuse sous elle, l'avale puis enfle d'un coup (éclair de 155,4 s)
-    var ou2 = O.orb.material.uniforms;
-    if (O.orb.visible && O.met && t > T_TOUCH - 1 && t < T_GONE + 3) {
-      var sk2 = ramp(t, T_TOUCH, T_SINK), gone = win(t, T_SINK, T_SINK + 3, .05, 2.4);
-      O.orb.updateMatrixWorld(); var lo = O.orb.worldToLocal(tmp3.copy(O.met.g.position)).normalize();
-      ou2.dentDir.value.copy(lo); ou2.ripDir.value.copy(lo); ou2.dent.value = .3 * sk2 * (1 - ramp(t, T_SINK - .2, T_SINK + .3));
-      ou2.touch.value = sk2 * (1 - ramp(t, T_SINK, T_GONE + 1)); ou2.wob.value = gone * 1.5;
-      ou2.flash.value += gone * .9 + sk2 * .4; ou2.amt.value = ov * (.35 + .4 * sk2 + .5 * gone);
-      O.orb.scale.multiplyScalar(1 + .08 * sk2 + .25 * gone * (1 + .3 * Math.sin(t * 14))); O.orbIn.scale.multiplyScalar(1 + .4 * gone);
-      L.setOp(O.orbCore, ov * (.28 + .5 * sk2 + .7 * gone)); O.orbCore.scale.setScalar(130 * pul * (1 + .6 * sk2 + 1.4 * gone));
-      L.setOp(O.orbHalo, ov * (.12 + .25 * sk2 + .4 * gone)); O.orbHalo.scale.setScalar(480 * pul * (1 + .8 * gone));
-    } else { ou2.dent.value = 0; ou2.touch.value = 0; ou2.wob.value = 0; }
     var obk = win(t, 73.4, 78.4, .8, 1.6) * .22;
     O.orbBeam.visible = obk > .01; if (O.orbBeam.visible) { O.orbBeam.position.copy(O.orb.position).add(tmp.set(0, 400, 0)); O.orbBeam.scale.set(.9, 800, .9); O.orbBeam.material.opacity = obk * (.7 + .3 * Math.sin(t * 1.3)); }
     if (amt < .2 && t < 177.3) O.zpLight.intensity = ov * 1.2;
@@ -1153,19 +1108,27 @@
     O.mHitGlow = L.sprite(grp, X.soft, 0xff9a50, 600, true, 0); O.mHitGlow.position.copy(O.zHit.position);
     O.fireCore = new T.Mesh(new T.CylinderGeometry(4, 7, 1, 12, 1, true), new T.MeshBasicMaterial({ color: 0xffd080, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, fog: false, side: T.DoubleSide }));
     O.fireCore.frustumCulled = false; O.fireCore.visible = false; grp.add(O.fireCore);
+    // v93 (vidéo 217,5 s) : éclair plat blanc-cyan posé sur le haut de la bulle au contact
+    O.mFlat = L.sprite(grp, X.flare, 0xc8f6ff, 600, true, 0); O.mFlat.position.set(ZP.x, ZP.y + DOME_TOP + 4, ZP.z);
+    O.mFlatCore = L.sprite(grp, X.soft, 0xeafcff, 260, true, 0); O.mFlatCore.position.copy(O.mFlat.position);
+    // v93 (vidéo 218-224 s) : le sol rougeoie tout autour du pied de la bulle pendant que la météorite s'y enfonce
+    var rg = new T.RingGeometry(.72, 1.25, 72, 1); O.mGround = new T.Mesh(rg, new T.MeshBasicMaterial({ map: X.soft, color: 0xff7a2a, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, fog: false, side: T.DoubleSide }));
+    O.mGround.rotation.x = -Math.PI / 2; O.mGround.position.set(ZP.x, H(ZP.x, ZP.z) + 2, ZP.z); O.mGround.scale.setScalar(DOME_TOP + 22); O.mGround.frustumCulled = false; O.mGround.visible = false; grp.add(O.mGround);
   }
   // v85 : elle heurte le SOMMET du dôme à 216,2 s (vidéo), s'y enfonce en brûlant pendant que la colonne de feu jaillit
+  // v93 : la membrane résiste (216,2 → 217,6 : creux sous la roche), puis l'avale ; la roche continue de
+  // s'enfoncer lentement dans la bulle en brûlant jusqu'au grand éclair (222,8)
   function met2Pos(t, out) {
-    if (t > 216.2) return out.set(ZP.x, ZP.y + DOME_TOP - 34 * U.easeOut(ramp(t, 216.2, 217.8)), ZP.z);
+    if (t > 216.2) return out.set(ZP.x, ZP.y + DOME_TOP - 40 * U.easeOut(ramp(t, 216.2, 217.6)) - 62 * U.easeOut(ramp(t, 217.6, 222.6)), ZP.z);
     var k = cl((t - 192.6) / (216.2 - 192.6)), e = Math.pow(k, 1.7);
     return out.copy(STAR).lerp(tmp2.set(ZP.x, ZP.y + DOME_TOP, ZP.z), e);
   }
   function updateMeteor2(t) {
-    var M = O.met2, vis = t > 192.6 && t < 217.8;
+    var M = O.met2, vis = t > 192.6 && t < 222.8;
     M.g.visible = vis;
     if (vis) {
-      met2Pos(t, M.g.position); var ap = ramp(t, 192.6, 194.5) * (1 - ramp(t, 216.6, 217.8));
-      M.rock.scale.setScalar(22 * ap); M.rock.rotation.set(t * .3, t * .2, 0);
+      met2Pos(t, M.g.position); var ap = ramp(t, 192.6, 194.5) * (1 - ramp(t, 221.8, 222.8));
+      M.rock.scale.setScalar(22 * ap * (1 - .4 * ramp(t, 217.6, 222.4))); M.rock.rotation.set(t * .3, t * .2, 0);
       var u = M.rock.material.uniforms; u.front.value.set(0, -1, 0); u.heat.value = 1.4; u.time.value = t; u.lightDir.value.set(0, 1, 0);
       if (u.camPos) { var cm = api.camera(); if (cm) u.camPos.value.copy(cm.position); u.energy.value = .6; }
       if (M.flame) { M.flame.position.set(0, 8, 0); var fu = M.flame.material.uniforms; fu.time.value = t; fu.amt.value = ap; }
@@ -1179,12 +1142,18 @@
       var kk = keyK(tr, t), ln = Math.max(.015, kk - keyK(tr, t - tr.spec.tail)); tr.set(kk, ln, (t > tr.a ? 1 : 0) * (1 - ramp(t, tr.b, tr.b + 1.4)), t);
     });
     var zh = win(t, 182.95, 184.6, .06, 1.3); L.setOp(O.zHit, zh * .75); O.zHit.scale.setScalar(130 + 330 * U.easeOut(ramp(t, 182.95, 183.8))); L.setOp(O.zHitGlow, zh * .28); O.zHitGlow.scale.setScalar(220 + 260 * ramp(t, 182.95, 184));
-    var mh = win(t, 216.15, 218.2, .06, 1.4); L.setOp(O.mHit, mh * .7); O.mHit.scale.setScalar(120 + 300 * U.easeOut(ramp(t, 216.15, 217))); L.setOp(O.mHitGlow, mh * .35); O.mHitGlow.scale.setScalar(200 + 260 * ramp(t, 216.15, 217.4));
+    var mh = win(t, 216.15, 218.2, .06, 1.4); L.setOp(O.mHit, mh * .22); O.mHit.scale.setScalar(120 + 300 * U.easeOut(ramp(t, 216.15, 217))); L.setOp(O.mHitGlow, mh * .07); O.mHitGlow.scale.setScalar(200 + 260 * ramp(t, 216.15, 217.4));
+    // v93 : éclair plat au contact, sol qui rougeoie, la bulle s'illumine jusqu'à l'explosion
+    var mf = win(t, 216.15, 217.9, .05, 1.3), mfk = U.easeOut(ramp(t, 216.15, 216.9));
+    L.setOp(O.mFlat, mf * .9); O.mFlat.scale.set(380 + 900 * mfk, 60 + 40 * mfk, 1); O.mFlat.material.rotation = 0;
+    L.setOp(O.mFlatCore, mf * .55); O.mFlatCore.scale.setScalar(160 + 220 * mfk);
+    var mgk = win(t, 216.6, 223.6, 1.2, .5); O.mGround.visible = mgk > .004;
+    if (O.mGround.visible) { O.mGround.material.opacity = mgk * (.55 + .15 * Math.sin(t * 6)); O.mGround.scale.setScalar((DOME_TOP + 22) * (1 + .1 * ramp(t, 217, 223))); }
     // colonne de feu puis de fumée sombre au sommet du dôme
     var fc = win(t, 215.9, 221, .3, 2.5);
     O.fireCol.visible = O.fireCore.visible = fc > .004;
     if (fc > .004) {
-      var base = ZP.y + DOME_TOP - 6, top = base + 520, hgt = top - base;
+      var base = Math.min(ZP.y + DOME_TOP - 6, O.met2.g.position.y), top = ZP.y + DOME_TOP + 514, hgt = top - base; // v93 : la colonne suit la météorite dans la bulle
       O.fireCol.position.set(ZP.x, base + hgt / 2, ZP.z); O.fireCol.scale.set(1, hgt, 1); O.fireCol.material.opacity = fc * .55 * (.85 + .15 * Math.sin(t * 25));
       O.fireCore.position.copy(O.fireCol.position); O.fireCore.scale.set(1, hgt, 1); O.fireCore.material.opacity = fc * .6;
     }
@@ -1349,11 +1318,7 @@
     P.set(SPOT.px, H(SPOT.px, SPOT.pz), SPOT.pz); BASE.set(SPOT.bx, H(SPOT.bx, SPOT.bz) + .4, SPOT.bz);
     F.set(BASE.x - P.x, 0, BASE.z - P.z).normalize(); R.crossVectors(F, UP).normalize();
     ZP.set(0, H(0, 0) + 20, 0);
-    // v93 : l'impact EST le Point Zéro ; la météorite plane au-dessus de sa bulle, un peu derrière
-    var zx = ZP.x - P.x, zz = ZP.z - P.z, zd = Math.hypot(zx, zz), zyaw = Math.atan2(zx * R.x + zz * R.z, zx * F.x + zz * F.z) / D2R;
-    LAY.imp = [zyaw, zd]; IMPACT.set(ZP.x, H(ZP.x, ZP.z), ZP.z);
-    var mD = zd + 30, mH = ZP.y + ORB_Y + ORB_R + 70 - (P.y + 1.7);
-    LAY.met = [zyaw + 4, Math.atan2(mH, mD) / D2R, Math.hypot(mH, mD)];
+    skyPos(LAY.imp[0], 0, LAY.imp[1], IMPACT); IMPACT.y = H(IMPACT.x, IMPACT.z);
     STAR.copy(ZP).add(new T.Vector3(0, 1350, 0));
     skyPos(LAY.met[0], LAY.met[1], LAY.met[2], MET_B); MET_A.copy(MET_B); MET_A2.copy(MET_B);
     // la météorite file vers le bas-gauche de l'écran (panache vers le haut-droite, ~47°) quand on la regarde
