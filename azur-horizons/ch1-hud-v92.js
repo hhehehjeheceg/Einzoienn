@@ -202,7 +202,7 @@
   function message(game, w, p) {
     if (!w || !p) return null;
     const ev = root.AZEvent, onHill = !!(ev && ev.active && ev.v93 && ev.v93.placed);
-    if (w.phase === "waiting" && !onHill) {
+    if (w.phase === "waiting" && !onHill && w.mode !== "event") { // pas de compte à rebours du bus pendant l'événement
       const n = Math.max(1, Math.ceil(10 - (w.phaseTime || 0)));
       return { ico: ICON.bus, text: `LE BUS DE COMBAT DÉCOLLE DANS <em>${n}</em> ${n > 1 ? "secondes" : "seconde"}` };
     }

@@ -17,7 +17,7 @@
   var api = null, G = null, view = null, on = false, hudShown = false, styleEl = null, hintEl = null, endEl = null;
   var dmg = null, bot = null, animPrev = null, animWrap = null, hiddenBots = {}, busOwn = false, BUS_Y = 0, autoDropped = false;
   var st = { mode: 'none', float: 0, liftY: 0, hoverBase: 0, hidden: false, suckFrom: null, landedSeen: false, kick: -99 };
-  var HIDE_Y = -10000;
+  var HIDE_Y = -10000, FAR = 1100; // v93 : au-delà, le trou noir n'aspire pas le joueur
   function VT() { return E.filmVideoTime ? E.filmVideoTime() : E.tTotal; }
   function H(x, z) { try { return root.AZSim.heightAt(x, z); } catch (e) { return 0; } }
   function S() { return L.S; }
@@ -57,26 +57,49 @@
     ROUTE = { D: D, A: A0, B: B0, len: len, y: Math.max(Math.max(top, 0) + 175, deck + 70), t0: -54, t1: -4 };
     return ROUTE;
   }
-  /* v93 — ÉVÉNEMENT 2 « Vol sans fin » (w.eventVariant === 'flight') : le bus ne s'arrête jamais.
-   * Il tourne au-dessus de l'île (cercle centré sur le Point Zéro, qui passe au-dessus de la colline)
-   * pendant tout l'événement, à la vitesse réglée par le joueur (E.v93.busSpeed, ×1 à ×12 ; 30 m/s × réglage),
-   * et n'éjecte personne : le joueur saute quand il veut, ou regarde tout l'événement depuis le bus. */
+  /* v93 — ÉVÉNEMENT 2 « Vol sans fin » (w.eventVariant === 'flight') : le bus ne s'arrête jamais et
+   * n'éjecte personne ; le joueur le CONDUIT comme une voiture volante tant qu'il est à bord :
+   *   avancer (Z / joystick haut) = accélérer jusqu'à la vitesse max (30 m/s × réglage E.v93.busSpeed, ×1 à ×30),
+   *   reculer (S) = freiner (il ne descend jamais sous sa vitesse de croisière), gauche/droite (Q/D) = tourner,
+   *   E.v93.busClimb (+1 / −1 : touches R/F, flèches, boutons ▲▼) = monter / descendre (35 m au-dessus du sol → 1 800 m).
+   * Sans commande il garde son cap et sa vitesse ; s'il s'éloigne trop de l'île il revient doucement.
+   * La caméra suit le cap du bus (comme une caméra de poursuite) tant que le joueur ne la tourne pas. */
   var FB = null;
+  function angDiff(a, b) { var d = a - b; return Math.atan2(Math.sin(d), Math.cos(d)); }
   function flightBus(t, w, p, dt) {
     var s = S(); if (!s || !s.P || !s.ZP) return;
+    dt = Math.min(.1, Math.max(0, +dt || 0));
     if (!FB) {
       var C = { x: s.ZP.x, z: s.ZP.z }, Rr = Math.max(380, Math.hypot(s.P.x - C.x, s.P.z - C.z)), a0 = Math.atan2(s.P.z - C.z, s.P.x - C.x) - 2.2, top = 0;
       for (var i = 0; i < 48; i++) { var a = i / 48 * Math.PI * 2; top = Math.max(top, H(C.x + Math.cos(a) * Rr, C.z + Math.sin(a) * Rr)); }
       var isl = E.end81 && E.end81.O && E.end81.O.isl, deck = isl ? isl.position.y + .08 * isl.scale.x + 70 : 0;
-      FB = { C: C, R: Rr, a: a0, y: Math.max(Math.max(top, 0) + 175, deck) };
+      var tx0 = -Math.sin(a0), tz0 = Math.cos(a0);
+      FB = { C: C, x: C.x + Math.cos(a0) * Rr, z: C.z + Math.sin(a0) * Rr, y: Math.max(Math.max(top, 0) + 175, deck), yaw: Math.atan2(-tx0, -tz0), speed: 0, roll: 0 };
     }
-    var mult = Math.max(1, Math.min(12, +(E.v93 && E.v93.busSpeed) || 4)), v = 30 * mult;
-    FB.a += v * Math.min(.1, Math.max(0, +dt || 0)) / FB.R;
-    var x = FB.C.x + Math.cos(FB.a) * FB.R, z = FB.C.z + Math.sin(FB.a) * FB.R, tx = -Math.sin(FB.a), tz = Math.cos(FB.a), yaw = Math.atan2(-tx, -tz);
-    w._azBusOverride = { x: x, y: FB.y, z: z, yaw: yaw, lockId: null, release: false }; busOwn = true; // release:false → pas d'éjection forcée
-    if (w.aircraft) { w.aircraft.x = x; w.aircraft.y = FB.y; w.aircraft.z = z; w.aircraft.yaw = yaw; }
-    if (p && !p.deployed) { p.x = x; p.y = FB.y; p.z = z; }
-    E.v93flight = { speed: v, mult: mult, aboard: !!(p && !p.deployed) };
+    var aboard = !!(p && !p.deployed), inp = (aboard && p._input) || {}, mx = +inp.moveX || 0, mz = +inp.moveZ || 0;
+    var mult = Math.max(1, Math.min(30, +(E.v93 && E.v93.busSpeed) || 4)), vmax = 30 * mult, vmin = Math.min(25, vmax * .5);
+    if (!FB.speed) FB.speed = vmax * .7;
+    // gaz / frein, puis direction
+    var target = mz > .15 ? vmax : mz < -.15 ? vmin : Math.min(FB.speed, vmax), acc = Math.max(30, vmax * .7) * (mz < -.15 ? 1.6 : 1);
+    FB.speed += Math.max(-acc * dt, Math.min(acc * dt, target - FB.speed)); FB.speed = Math.max(vmin, FB.speed);
+    var turn = (aboard ? mx : 0) * 1.25 / (1 + FB.speed / 600);
+    var dC = Math.hypot(FB.x - FB.C.x, FB.z - FB.C.z);
+    if (dC > 2200) { var home = Math.atan2(-(FB.C.x - FB.x), -(FB.C.z - FB.z)); FB.yaw += angDiff(home, FB.yaw) * Math.min(1, dt * .8); } // revient vers l'île
+    FB.yaw -= turn * dt; FB.roll += ((-turn * .45) - FB.roll) * Math.min(1, dt * 4);
+    FB.x += -Math.sin(FB.yaw) * FB.speed * dt; FB.z += -Math.cos(FB.yaw) * FB.speed * dt;
+    // altitude
+    var climb = aboard ? (+(E.v93 && E.v93.busClimb) || 0) : 0;
+    FB.y += climb * (25 + FB.speed * .3) * dt;
+    var ahead = Math.max(H(FB.x, FB.z), H(FB.x - Math.sin(FB.yaw) * 60, FB.z - Math.cos(FB.yaw) * 60), 0) + 35;
+    FB.y = Math.min(1800, Math.max(ahead, FB.y));
+    w._azBusOverride = { x: FB.x, y: FB.y, z: FB.z, yaw: FB.yaw, lockId: null, release: false }; busOwn = true; // release:false → pas d'éjection forcée
+    if (w.aircraft) { w.aircraft.x = FB.x; w.aircraft.y = FB.y; w.aircraft.z = FB.z; w.aircraft.yaw = FB.yaw; w.aircraft.roll = FB.roll; }
+    if (aboard) {
+      p.x = FB.x; p.y = FB.y; p.z = FB.z;
+      // caméra de poursuite : elle se recale derrière le bus si le joueur ne la tourne pas depuis 1,5 s
+      if (G && VT() - steerUser > 1.5) G.yaw += angDiff(FB.yaw, G.yaw) * Math.min(1, dt * 2.2);
+    }
+    E.v93flight = { speed: Math.round(FB.speed), mult: mult, aboard: aboard, alt: Math.round(FB.y - Math.max(0, H(FB.x, FB.z))), x: Math.round(FB.x), z: Math.round(FB.z), yaw: +FB.yaw.toFixed(2) };
   }
   function busRoute(t, w, p, dt) {
     var s = S(); if (!s || !s.P) return;
@@ -141,6 +164,9 @@
     }
     if (t >= 224 && t < 253.6) {
       var c = s.ZP, dx2 = c.x - p.x, dz2 = c.z - p.z, d2 = Math.hypot(dx2, dz2) || 1;
+      // v93 : trop loin du Point Zéro (> FAR m, mesuré au début du souffle) → ni soufflé ni aspiré, on reste libre
+      if (st.far == null) st.far = d2 > FAR;
+      if (st.far) { if (st.mode !== 'none' && st.mode !== 'gone') { release(p); setMode('none', t); } return; }
       if (t < 246.2) {
         // souffle de l'explosion puis lente dérive vers la lumière
         var base = Math.max(H(p.x, p.z), c.y) + 230 + 260 * (1 - ramp(t, 225, 240)) - 70 * ramp(t, 232, 246) + 22 * win(t, 224, 230, .4, 4);
@@ -354,7 +380,9 @@
     if (!p) return;
     if (p.alive) { p.hp = Math.max(p.hp, 100); if (typeof p.shield === 'number') p.shield = Math.max(p.shield, 100); p.downed = false; }
     busRoute(t, w, p, dt);
-    if (t >= 253.6) { hideAll(p, w); publish(p, t); return; }
+    // v93 : à bord du bus (Vol sans fin) ou resté loin, le trou noir ne l'avale pas
+    if (t >= 253.6) { st.spared = !!(p.deployed ? st.far : w.eventVariant === 'flight'); if (!st.spared) hideAll(p, w); publish(p, t); return; }
+    if (t < 224) { st.far = null; st.spared = false; }
     if (st.hidden && t < 253.6) { st.hidden = false; var vv = api.view(); if (vv && vv.actorRoot) vv.actorRoot.visible = true; if (st.saved) { p.x = st.saved.x; p.z = st.saved.z; p.y = H(p.x, p.z) + 1; } }
     if (p.deployed && p.alive) {
       if (p.grounded && t > -25) st.landedSeen = true;
@@ -374,7 +402,7 @@
   function update(dt) {
     if (!on || !E.active) return;
     var p = api.player(), t = VT();
-    if (p && t >= 253.6) { if (t >= 254.5 || !st.saved) p.y = HIDE_Y; else { p.x = st.saved.x; p.y = st.saved.y; p.z = st.saved.z; } }
+    if (p && t >= 253.6 && !st.spared) { if (t >= 254.5 || !st.saved) p.y = HIDE_Y; else { p.x = st.saved.x; p.y = st.saved.y; p.z = st.saved.z; } }
     if (p && st.mode !== 'none' && st.mode !== 'gone' && p._eventFloat && t < 253.6) {
       // garde-fou : jamais sous le relief pendant les phases aériennes
       var g = H(p.x, p.z); if (p.y < g + .5) { p.y = g + .5; }

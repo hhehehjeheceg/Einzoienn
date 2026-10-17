@@ -19,30 +19,56 @@
   var FWD = 30; // mètres en avant du sommet : la pente laisse voir le dépôt en contrebas (vidéo, 0 s)
   var V = (E.v93 = { floating: 0, placed: false, started: false, FWD: FWD, busSpeed: loadSpeed() });
 
-  /* Événement 2 « Vol sans fin » : réglage de la vitesse du bus (×1 à ×12), boutons − / + et touches − / + */
-  function loadSpeed() { try { var v = +root.localStorage.getItem("azur.v93.busSpeed"); if (v >= 1 && v <= 12) return v; } catch (e) {} return 4; }
+  /* Événement 2 « Vol sans fin » : on conduit le bus (event-end81-play.js, flightBus). Ce panneau règle la vitesse
+   * max (×1 à ×30 : boutons − / +, touches − / +) et l'altitude (boutons ▲ ▼ maintenus, touches R / F ou flèches). */
+  var SPEED_MAX = 30;
+  function loadSpeed() { try { var v = +root.localStorage.getItem("azur.v93.busSpeed"); if (v >= 1 && v <= SPEED_MAX) return v; } catch (e) {} return 4; }
   function saveSpeed(v) { try { root.localStorage.setItem("azur.v93.busSpeed", String(v)); } catch (e) {} }
-  function setSpeed(v) { V.busSpeed = Math.max(1, Math.min(12, Math.round(v))); saveSpeed(V.busSpeed); paintSpeed(); }
+  function setSpeed(v) { V.busSpeed = Math.max(1, Math.min(SPEED_MAX, Math.round(v))); saveSpeed(V.busSpeed); paintSpeed(); }
+  var climbKeys = { up: false, down: false, bUp: false, bDown: false };
+  function paintClimb() { V.busClimb = (climbKeys.up || climbKeys.bUp ? 1 : 0) - (climbKeys.down || climbKeys.bDown ? 1 : 0); }
   var speedEl = null;
   function speedUi() {
     if (speedEl || !root.document) return speedEl;
     var d = root.document, st = d.createElement("style");
     st.textContent = "#azv93-speed{position:fixed;left:50%;top:96px;transform:translateX(-50%);z-index:45;display:none;align-items:center;gap:10px;padding:8px 12px;border-radius:999px;background:rgba(6,14,32,.62);border:1px solid rgba(140,180,255,.4);font:700 12px/1 Barlow,system-ui,sans-serif;letter-spacing:.12em;color:#e6efff;text-transform:uppercase;pointer-events:auto;touch-action:manipulation}" +
-      "#azv93-speed.on{display:flex}#azv93-speed button{width:34px;height:34px;border-radius:50%;border:0;background:#ffd23a;color:#14223a;font:800 20px/1 Barlow,system-ui,sans-serif;cursor:pointer}#azv93-speed b{min-width:44px;text-align:center;font-size:16px;color:#ffd23a}";
+      "#azv93-speed.on{display:flex}#azv93-speed button{width:34px;height:34px;border-radius:50%;border:0;background:#ffd23a;color:#14223a;font:800 20px/1 Barlow,system-ui,sans-serif;cursor:pointer}#azv93-speed b{min-width:44px;text-align:center;font-size:16px;color:#ffd23a}" +
+      "#azv93-speed .alt{background:#7fd3ff}#azv93-speed i{font-style:normal;opacity:.8;font-size:11px;letter-spacing:.06em;margin-left:4px}#azv93-speed small{display:block;position:absolute;left:0;right:0;top:100%;margin-top:6px;text-align:center;font:600 11px/1.3 Barlow,system-ui,sans-serif;letter-spacing:.06em;color:#dce7ff;text-shadow:0 1px 3px #000;text-transform:none}" +
+      "@media (max-width:700px){#azv93-speed{top:auto;bottom:150px;gap:6px;padding:6px 9px}#azv93-speed span,#azv93-speed small{display:none}#azv93-speed button{width:42px;height:42px}}";
     d.head.appendChild(st);
     speedEl = d.createElement("div"); speedEl.id = "azv93-speed";
-    speedEl.innerHTML = '<span>Vitesse du bus</span><button type="button" data-d="-1" aria-label="Moins vite">−</button><b>×4</b><button type="button" data-d="1" aria-label="Plus vite">+</button>';
-    speedEl.addEventListener("pointerdown", function (ev) { var b = ev.target.closest && ev.target.closest("button"); if (!b) return; ev.preventDefault(); ev.stopPropagation(); setSpeed(V.busSpeed + (+b.getAttribute("data-d"))); });
+    speedEl.innerHTML = '<span>Vitesse max</span><button type="button" data-d="-1" aria-label="Moins vite">−</button><b>×4</b><button type="button" data-d="1" aria-label="Plus vite">+</button>' +
+      '<span>Altitude</span><button type="button" class="alt" data-c="1" aria-label="Monter">▲</button><button type="button" class="alt" data-c="-1" aria-label="Descendre">▼</button><i></i>' +
+      '<small>Z accélérer · S freiner · Q / D tourner · R / F monter / descendre · Espace sauter</small>';
+    speedEl.style.position = "fixed";
+    speedEl.addEventListener("pointerdown", function (ev) {
+      var b = ev.target.closest && ev.target.closest("button"); if (!b) return; ev.preventDefault(); ev.stopPropagation();
+      if (b.hasAttribute("data-d")) setSpeed(V.busSpeed + (+b.getAttribute("data-d")));
+      else { var c = +b.getAttribute("data-c"); climbKeys.bUp = c > 0; climbKeys.bDown = c < 0; paintClimb(); }
+    });
+    var stopBtn = function () { climbKeys.bUp = climbKeys.bDown = false; paintClimb(); };
+    speedEl.addEventListener("pointerup", stopBtn); speedEl.addEventListener("pointercancel", stopBtn); speedEl.addEventListener("pointerleave", stopBtn);
     d.body.appendChild(speedEl); paintSpeed();
+    var climbKey = function (ev, down) {
+      if (ev.code === "KeyR" || ev.code === "ArrowUp" || ev.code === "PageUp") { climbKeys.up = down; paintClimb(); return true; }
+      if (ev.code === "KeyF" || ev.code === "ArrowDown" || ev.code === "PageDown") { climbKeys.down = down; paintClimb(); return true; }
+      return false;
+    };
+    root.addEventListener("keyup", function (ev) { climbKey(ev, false); });
     root.addEventListener("keydown", function (ev) {
       if (!speedEl || !speedEl.classList.contains("on")) return;
+      if (climbKey(ev, true)) return;
       if (ev.code === "Equal" || ev.code === "NumpadAdd" || ev.key === "+") setSpeed(V.busSpeed + 1);
       else if (ev.code === "Minus" || ev.code === "Digit6" && ev.key === "-" || ev.code === "NumpadSubtract" || ev.key === "-") setSpeed(V.busSpeed - 1);
     });
     return speedEl;
   }
   function paintSpeed() { if (speedEl) { var b = speedEl.querySelector("b"); if (b) b.textContent = "×" + V.busSpeed; } }
-  function showSpeed(on) { var el = speedUi(); if (el) el.classList.toggle("on", !!on); }
+  function showSpeed(on) {
+    var el = speedUi(); if (!el) return; el.classList.toggle("on", !!on);
+    if (!on) { climbKeys.up = climbKeys.down = climbKeys.bUp = climbKeys.bDown = false; paintClimb(); return; }
+    var f = E.v93flight, i = el.querySelector("i"); if (f && i) i.textContent = Math.round(f.speed * 3.6) + " km/h · " + f.alt + " m";
+  }
   function H(x, z) { try { return root.AZSim.heightAt(x, z); } catch (e) { return 0; } }
   function VT() { return E.filmVideoTime ? E.filmVideoTime() : E.tTotal; }
   function game() { return root.AZUR; }
