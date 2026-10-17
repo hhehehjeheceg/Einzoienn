@@ -1310,7 +1310,12 @@
     try {
       if (L.models && L.models.battleBus) { O.fBus = new T.Group(); O.fBus.add(L.models.battleBus(X)); }
       else if (root.AZArt && root.AZArt.aircraft) O.fBus = root.AZArt.aircraft();
-      if (O.fBus) { O.fBus.visible = false; O.fBus.traverse(function (o) { o.frustumCulled = false; }); grp.add(O.fBus); }
+      if (O.fBus) {
+        O.fBus.visible = false; O.fBus.traverse(function (o) { o.frustumCulled = false; }); grp.add(O.fBus);
+        // v93 : sa propre lumière — à contre-jour du tourbillon il paraissait tout noir
+        var bl = new T.PointLight(0xbcd8ff, 4, 70, 1.2); bl.position.set(0, 6, 0); O.fBus.add(bl);
+        var bl2 = new T.PointLight(0x8fb4ff, 2.5, 50, 1.2); bl2.position.set(0, 2, -8); O.fBus.add(bl2);
+      }
     } catch (e) { O.fBus = null; }
     O.mstreaks = [];
     for (var k = 0; k < 4; k++) {
@@ -1347,8 +1352,9 @@
       var bk = (t - 240.5) / 10.5; O.fBus.visible = bk > 0 && bk < 1;
       if (O.fBus.visible) {
         // v85 : il passe devant le joueur, un peu à gauche, vers 246 s (vidéo), puis spirale jusqu'au centre
-        var aCam = Math.atan2(cam.position.z - ZP.z, cam.position.x - ZP.x), sp2 = (t - 246) * .32;
-        var rr = 300 * (1 - U.easeIn(bk)) + 6, aa = aCam + .45 + sp2 + bk * bk * 2.5;
+        // v93 : l'angle de départ est pris UNE fois (à son apparition) — avant il suivait la caméra et restait collé au joueur
+        if (O.fBusA0 == null || t < 240.6) O.fBusA0 = Math.atan2(cam.position.z - ZP.z, cam.position.x - ZP.x) + .9;
+        var sp2 = (t - 246) * .32, rr = 300 * (1 - U.easeIn(bk)) + 6, aa = O.fBusA0 + sp2 + bk * bk * 2.5;
         O.fBus.position.set(ZP.x + Math.cos(aa) * rr, ZP.y + 34 + 120 * (1 - bk) * (1 - bk), ZP.z + Math.sin(aa) * rr);
         O.fBus.rotation.set(Math.sin(t * .9) * .5 * bk + .2, aa + 1.2 + t * .4 * bk, Math.cos(t * .7) * .6 * bk);
         O.fBus.scale.setScalar(1.35 * (1 - ramp(t, 249.4, 251)) + .01);
