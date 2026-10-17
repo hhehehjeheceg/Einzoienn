@@ -59,10 +59,10 @@
   }
   /* v93 — ÉVÉNEMENT 2 « Vol sans fin » (w.eventVariant === 'flight') : le bus ne s'arrête jamais et
    * n'éjecte personne ; le joueur le CONDUIT comme une voiture volante tant qu'il est à bord :
-   *   avancer (Z / joystick haut) = accélérer jusqu'à la vitesse max (30 m/s × réglage E.v93.busSpeed, ×1 à ×30),
+   *   avancer (Z / joystick haut) = accélérer jusqu'à la vitesse max (30 m/s × réglage E.v93.busSpeed, ×1 à ×100),
    *   reculer (S) = freiner (il ne descend jamais sous sa vitesse de croisière), gauche/droite (Q/D) = tourner,
    *   E.v93.busClimb (+1 / −1 : touches R/F, flèches, boutons ▲▼) = monter / descendre (35 m au-dessus du sol → 1 800 m).
-   * Sans commande il garde son cap et sa vitesse ; s'il s'éloigne trop de l'île il revient doucement.
+   * Sans commande il garde son cap et sa vitesse, aussi loin qu'on veut (pas de limite de carte).
    * La caméra suit le cap du bus (comme une caméra de poursuite) tant que le joueur ne la tourne pas. */
   var FB = null;
   function angDiff(a, b) { var d = a - b; return Math.atan2(Math.sin(d), Math.cos(d)); }
@@ -77,14 +77,12 @@
       FB = { C: C, x: C.x + Math.cos(a0) * Rr, z: C.z + Math.sin(a0) * Rr, y: Math.max(Math.max(top, 0) + 175, deck), yaw: Math.atan2(-tx0, -tz0), speed: 0, roll: 0 };
     }
     var aboard = !!(p && !p.deployed), inp = (aboard && p._input) || {}, mx = +inp.moveX || 0, mz = +inp.moveZ || 0;
-    var mult = Math.max(1, Math.min(30, +(E.v93 && E.v93.busSpeed) || 4)), vmax = 30 * mult, vmin = Math.min(25, vmax * .5);
+    var mult = Math.max(1, Math.min(100, +(E.v93 && E.v93.busSpeed) || 4)), vmax = 30 * mult, vmin = Math.min(25, vmax * .5);
     if (!FB.speed) FB.speed = vmax * .7;
     // gaz / frein, puis direction
     var target = mz > .15 ? vmax : mz < -.15 ? vmin : Math.min(FB.speed, vmax), acc = Math.max(30, vmax * .7) * (mz < -.15 ? 1.6 : 1);
     FB.speed += Math.max(-acc * dt, Math.min(acc * dt, target - FB.speed)); FB.speed = Math.max(vmin, FB.speed);
     var turn = (aboard ? mx : 0) * 1.25 / (1 + FB.speed / 600);
-    var dC = Math.hypot(FB.x - FB.C.x, FB.z - FB.C.z);
-    if (dC > 2200) { var home = Math.atan2(-(FB.C.x - FB.x), -(FB.C.z - FB.z)); FB.yaw += angDiff(home, FB.yaw) * Math.min(1, dt * .8); } // revient vers l'île
     FB.yaw -= turn * dt; FB.roll += ((-turn * .45) - FB.roll) * Math.min(1, dt * 4);
     FB.x += -Math.sin(FB.yaw) * FB.speed * dt; FB.z += -Math.cos(FB.yaw) * FB.speed * dt;
     // altitude
@@ -148,6 +146,8 @@
   }
   function choreo(p, dt, t) {
     var s = S(); if (!s || !s.ZP) return;
+    // v93 : vol libre (resté dans le bus ou loin au moment de l'explosion) → plus aucune chorégraphie de fin
+    if (E.v93 && E.v93.freeRoam) { if (st.mode !== 'none' && st.mode !== 'gone') { release(p); setMode('none', t); } return; }
     var ground = H(p.x, p.z);
     if (p.vehicleId) { try { var w = api.world(); if (w._exitVehicle) w._exitVehicle(p); } catch (e) {} }
     st.float = 0;
@@ -360,10 +360,10 @@
     if ((e.key === 'h' || e.key === 'H') && !/input|textarea/i.test((e.target && e.target.tagName) || '')) { hudShown = !hudShown; }
   }
   function updateUi(t) {
-    var b = document.body, cine = t > -2 && t < 254.5 && !hudShown, blk = t >= 254.5;
+    var free = !!(E.v93 && E.v93.freeRoam), b = document.body, cine = !free && t > -2 && t < 254.5 && !hudShown, blk = !free && t >= 254.5;
     b.classList.toggle('azend-cine', cine); b.classList.toggle('azend-black', blk);
     if (hintEl) hintEl.classList.toggle('on', (t > -1 && t < 7) || (hudShown && t > -2 && t < 254.5 && Math.floor(t) % 30 < 3));
-    if (endEl) endEl.classList.toggle('on', t > 284);
+    if (endEl) endEl.classList.toggle('on', !free && t > 284);
   }
 
   /* ------------------------------------------------------------ cycle */
@@ -381,7 +381,7 @@
     if (p.alive) { p.hp = Math.max(p.hp, 100); if (typeof p.shield === 'number') p.shield = Math.max(p.shield, 100); p.downed = false; }
     busRoute(t, w, p, dt);
     // v93 : à bord du bus (Vol sans fin) ou resté loin, le trou noir ne l'avale pas
-    if (t >= 253.6) { st.spared = !!(p.deployed ? st.far : w.eventVariant === 'flight'); if (!st.spared) hideAll(p, w); publish(p, t); return; }
+    if (t >= 253.6) { st.spared = !!((E.v93 && E.v93.freeRoam) || (p.deployed ? st.far : w.eventVariant === 'flight')); if (!st.spared) hideAll(p, w); publish(p, t); return; }
     if (t < 224) { st.far = null; st.spared = false; }
     if (st.hidden && t < 253.6) { st.hidden = false; var vv = api.view(); if (vv && vv.actorRoot) vv.actorRoot.visible = true; if (st.saved) { p.x = st.saved.x; p.z = st.saved.z; p.y = H(p.x, p.z) + 1; } }
     if (p.deployed && p.alive) {

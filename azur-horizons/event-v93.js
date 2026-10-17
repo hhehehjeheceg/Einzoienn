@@ -21,17 +21,18 @@
 
   /* Événement 2 « Vol sans fin » : on conduit le bus (event-end81-play.js, flightBus). Ce panneau règle la vitesse
    * max (×1 à ×30 : boutons − / +, touches − / +) et l'altitude (boutons ▲ ▼ maintenus, touches R / F ou flèches). */
-  var SPEED_MAX = 30;
+  var SPEED_MAX = 100;
   function loadSpeed() { try { var v = +root.localStorage.getItem("azur.v93.busSpeed"); if (v >= 1 && v <= SPEED_MAX) return v; } catch (e) {} return 4; }
   function saveSpeed(v) { try { root.localStorage.setItem("azur.v93.busSpeed", String(v)); } catch (e) {} }
   function setSpeed(v) { V.busSpeed = Math.max(1, Math.min(SPEED_MAX, Math.round(v))); saveSpeed(V.busSpeed); paintSpeed(); }
+  function stepSpeed(dir) { var v = V.busSpeed, st = v < 10 || (v === 10 && dir < 0) ? 1 : v < 30 || (v === 30 && dir < 0) ? 5 : 10; setSpeed(v + dir * st); } // pas de 1, puis 5, puis 10
   var climbKeys = { up: false, down: false, bUp: false, bDown: false };
   function paintClimb() { V.busClimb = (climbKeys.up || climbKeys.bUp ? 1 : 0) - (climbKeys.down || climbKeys.bDown ? 1 : 0); }
   var speedEl = null;
   function speedUi() {
     if (speedEl || !root.document) return speedEl;
     var d = root.document, st = d.createElement("style");
-    st.textContent = "#azv93-speed{position:fixed;left:50%;top:96px;transform:translateX(-50%);z-index:45;display:none;align-items:center;gap:10px;padding:8px 12px;border-radius:999px;background:rgba(6,14,32,.62);border:1px solid rgba(140,180,255,.4);font:700 12px/1 Barlow,system-ui,sans-serif;letter-spacing:.12em;color:#e6efff;text-transform:uppercase;pointer-events:auto;touch-action:manipulation}" +
+    st.textContent = "#azv93-speed{position:fixed;left:50%;top:205px;transform:translateX(-50%);z-index:45;display:none;align-items:center;gap:10px;padding:8px 12px;border-radius:999px;background:rgba(6,14,32,.62);border:1px solid rgba(140,180,255,.4);font:700 12px/1 Barlow,system-ui,sans-serif;letter-spacing:.12em;color:#e6efff;text-transform:uppercase;pointer-events:auto;touch-action:manipulation}" +
       "#azv93-speed.on{display:flex}#azv93-speed button{width:34px;height:34px;border-radius:50%;border:0;background:#ffd23a;color:#14223a;font:800 20px/1 Barlow,system-ui,sans-serif;cursor:pointer}#azv93-speed b{min-width:44px;text-align:center;font-size:16px;color:#ffd23a}" +
       "#azv93-speed .alt{background:#7fd3ff}#azv93-speed i{font-style:normal;opacity:.8;font-size:11px;letter-spacing:.06em;margin-left:4px}#azv93-speed small{display:block;position:absolute;left:0;right:0;top:100%;margin-top:6px;text-align:center;font:600 11px/1.3 Barlow,system-ui,sans-serif;letter-spacing:.06em;color:#dce7ff;text-shadow:0 1px 3px #000;text-transform:none}" +
       "@media (max-width:700px){#azv93-speed{top:auto;bottom:150px;gap:6px;padding:6px 9px}#azv93-speed span,#azv93-speed small{display:none}#azv93-speed button{width:42px;height:42px}}";
@@ -43,7 +44,7 @@
     speedEl.style.position = "fixed";
     speedEl.addEventListener("pointerdown", function (ev) {
       var b = ev.target.closest && ev.target.closest("button"); if (!b) return; ev.preventDefault(); ev.stopPropagation();
-      if (b.hasAttribute("data-d")) setSpeed(V.busSpeed + (+b.getAttribute("data-d")));
+      if (b.hasAttribute("data-d")) stepSpeed(+b.getAttribute("data-d"));
       else { var c = +b.getAttribute("data-c"); climbKeys.bUp = c > 0; climbKeys.bDown = c < 0; paintClimb(); }
     });
     var stopBtn = function () { climbKeys.bUp = climbKeys.bDown = false; paintClimb(); };
@@ -58,8 +59,8 @@
     root.addEventListener("keydown", function (ev) {
       if (!speedEl || !speedEl.classList.contains("on")) return;
       if (climbKey(ev, true)) return;
-      if (ev.code === "Equal" || ev.code === "NumpadAdd" || ev.key === "+") setSpeed(V.busSpeed + 1);
-      else if (ev.code === "Minus" || ev.code === "Digit6" && ev.key === "-" || ev.code === "NumpadSubtract" || ev.key === "-") setSpeed(V.busSpeed - 1);
+      if (ev.code === "Equal" || ev.code === "NumpadAdd" || ev.key === "+") stepSpeed(1);
+      else if (ev.code === "Minus" || ev.code === "Digit6" && ev.key === "-" || ev.code === "NumpadSubtract" || ev.key === "-") stepSpeed(-1);
     });
     return speedEl;
   }
@@ -73,6 +74,21 @@
   function VT() { return E.filmVideoTime ? E.filmVideoTime() : E.tTotal; }
   function game() { return root.AZUR; }
   function me() { var g = game(), w = g && g.world; return w ? w.players.find(function (q) { return q.id === g.myId; }) : null; }
+
+  /* Épargné par la fin (resté dans le bus en « Vol sans fin », ou à plus de FAR_FREE m du Point Zéro juste avant
+   * l'explosion de l'île) : pas de cinématique de fin du tout — ni île qui s'écrase en ligne, ni trou noir, ni écran
+   * noir. Le film s'efface, le monde redevient normal (de nuit) et on continue de jouer / de piloter le bus. */
+  var FAR_FREE = 1100;
+  function spared(w, p) {
+    if (w.eventVariant === "flight" && !p.deployed) return true;
+    var s = L && L.S; return !!(s && s.ZP && Math.hypot(p.x - s.ZP.x, p.z - s.ZP.z) > FAR_FREE);
+  }
+  function goFree() {
+    V.freeRoam = true;
+    ["end81", "music86", "music75"].forEach(function (k) { var m = E.mods[k]; if (m && m.dispose) { try { m.dispose(); } catch (e) {} } });
+    var g = game(); if (g) { try { g.timeOfDay = "night"; } catch (e) {} }
+    if (root.document) { root.document.body.classList.remove("azend-cine"); root.document.body.classList.remove("azend-black"); }
+  }
 
   function placeOnHill(w, p) {
     var s = L && L.S; if (!s || !s.P) return false;
@@ -94,7 +110,7 @@
 
   var prevInit = M.init;
   M.init = function () {
-    V.placed = false; V.started = false; V.floating = 0; V.suckOff = null; showSpeed(false);
+    V.placed = false; V.started = false; V.floating = 0; V.suckOff = null; V.freeRoam = false; showSpeed(false);
     return prevInit.apply(this, arguments);
   };
 
@@ -113,6 +129,7 @@
     var beforeX = p ? p.x : 0, beforeZ = p ? p.z : 0;
     var r = prevPre.apply(this, arguments);
     if (!p || !E.active) return r;
+    if (!V.freeRoam && w && VT() >= 222.8 && VT() < 400 && spared(w, p)) goFree();
     var mode = E.playerInfo && E.playerInfo.mode, t = VT(), d = Math.min(0.1, +dt || 0);
     var floating = mode === "zeroshock" || mode === "float" || mode === "blast" || mode === "drift" || mode === "suck";
     V.floating += ((floating ? 1 : 0) - V.floating) * Math.min(1, d * 3);
