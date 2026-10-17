@@ -213,7 +213,7 @@
       side: T.DoubleSide, fog: true, lights: false,
       uniforms: T.UniformsUtils.merge([T.UniformsLib.fog, { time: { value: 0 }, tint: { value: new T.Color(1, 1, 1) }, center: { value: new T.Vector3() } }]),
       vertexShader: '#include <fog_pars_vertex>\nuniform float time;uniform vec3 center;varying float vH;varying float vF;varying vec3 vW;void main(){vec4 w=instanceMatrix*vec4(position,1.);vec3 a=instanceMatrix[3].xyz;float sw=sin(time*1.6+a.x*.21+a.z*.17)*.35+sin(time*2.7+a.x*.5)*.12;w.x+=sw*position.y*.5;w.z+=sw*position.y*.3;vH=position.y;vW=a;vF=1.-smoothstep(52.,68.,length(a.xz-center.xz));vec4 mvPosition=viewMatrix*w;gl_Position=projectionMatrix*mvPosition;\n#include <fog_vertex>\n}',
-      fragmentShader: '#include <fog_pars_fragment>\nuniform vec3 tint;varying float vH;varying float vF;varying vec3 vW;void main(){if(vF<.02)discard;float n=fract(sin(dot(floor(vW.xz*.7),vec2(12.9,78.2)))*43758.5);vec3 base=mix(vec3(.015,.07,.03),vec3(.03,.13,.05),n);vec3 tip=mix(vec3(.10,.42,.13),vec3(.16,.56,.19),n);vec3 c=mix(base,tip,smoothstep(.0,1.,vH))*tint;gl_FragColor=vec4(c,1.);\n#include <fog_fragment>\n}'
+      fragmentShader: '#include <fog_pars_fragment>\nuniform vec3 tint;varying float vH;varying float vF;varying vec3 vW;void main(){if(vF<.02)discard;float n=fract(sin(dot(floor(vW.xz*.7),vec2(12.9,78.2)))*43758.5);vec3 base=mix(vec3(.03,.14,.05),vec3(.05,.22,.08),n);vec3 tip=mix(vec3(.16,.62,.18),vec3(.24,.78,.26),n);vec3 c=mix(base,tip,smoothstep(.0,1.,vH))*tint;gl_FragColor=vec4(c,1.);\n#include <fog_fragment>\n}'
     }), gn);
     var gi = 0;
     for (var a2 = 0; a2 < gn * 2 && gi < gn; a2++) {
@@ -1317,22 +1317,22 @@
     var dark = ramp(t, 157.6, 160) * (1 - ramp(t, 176.4, 177.8)), space = ramp(t, 223.3, 224.6);
     var red = win(t, 188.7, 190.9, .55, .75), bright = win(t, 140.5, 153.4, 6, 1.2);
     var glowGround = O.gLight ? O.gLight.intensity : 0;
-    if (v.hemi) { v.hemi.color.set(0x8ab8ff); v.hemi.groundColor.set(0x2a6a3c); v.hemi.intensity = (lerp(1.05, .45, dark) + .7 * bright) * (1 - .42 * space); v.hemi.color.lerp(HEMI_BR, Math.max(bright * .5, space * .6)); }
+    if (v.hemi) { v.hemi.color.set(0x8ab8ff); v.hemi.groundColor.set(0x2a6a3c); v.hemi.intensity = (lerp(1.42, .45, dark) + .7 * bright) * (1 - .42 * space); v.hemi.color.lerp(HEMI_BR, Math.max(bright * .5, space * .6)); }
     if (v.sun) {
-      v.sun.color.set(space > .5 ? 0x6f8cff : 0xc4dcff); v.sun.intensity = lerp(1.0, .3, dark) * (1 - .7 * space);
+      v.sun.color.set(space > .5 ? 0x6f8cff : 0xc4dcff); v.sun.intensity = lerp(1.25, .3, dark) * (1 - .7 * space);
       var p = api.player(); if (p) { v.sun.position.set(p.x, p.y, p.z).addScaledVector(dirYP(LAY.moon[0], LAY.moon[1], tmp), 160); v.sun.target.position.set(p.x, p.y, p.z); v.sun.target.updateMatrixWorld(); }
     }
     if (v.skyFill) { v.skyFill.color.set(0x5f9cff); v.skyFill.intensity = .25 * (1 - space); }
     O.hemi.intensity = 0;
-    var sc = v.scene; if (sc.fog) { sc.fog.color.setRGB(lerp(lerp(.10, .02, dark), .01, space), lerp(lerp(.24, .06, dark), .015, space), lerp(lerp(.42, .12, dark), .04, space)); sc.fog.density = lerp(.00042, .00028, space); }
-    v.renderer.toneMappingExposure = lerp(lerp(1.12, .95, dark), .92, space) + .18 * bright;
+    var sc = v.scene; if (sc.fog) { sc.fog.color.setRGB(lerp(lerp(.12, .02, dark), .01, space), lerp(lerp(.33, .06, dark), .015, space), lerp(lerp(.50, .12, dark), .04, space)); sc.fog.density = lerp(.00042, .00028, space); }
+    v.renderer.toneMappingExposure = lerp(lerp(1.3, .95, dark), .92, space) + .18 * bright;
     var su = O.sky.material.uniforms; su.time.value = t; su.red.value = red; su.space.value = space; su.dark.value = dark; su.glow.value = 1 - .7 * dark; su.bright.value = bright * .35;
     O.sky.position.copy(cam.position); O.stars.position.copy(cam.position); O.stars2.position.copy(cam.position);
     O.stars.material.uniforms.time.value = t; O.stars.material.uniforms.amt.value = 1 - .3 * red;
     O.stars2.material.uniforms.time.value = t; O.stars2.material.uniforms.amt.value = space * 1.2;
     var px = v.renderer.getPixelRatio(); O.stars.material.uniforms.px.value = px; O.stars2.material.uniforms.px.value = px;
     O.moon.position.copy(cam.position).addScaledVector(dirYP(LAY.moon[0], LAY.moon[1], tmp), 2500); O.moon.scale.setScalar(720); O.moonHalo.position.copy(O.moon.position);
-    L.setOp(O.moon, (1 - space) * (1 - .8 * dark)); L.setOp(O.moonHalo, (1 - space) * (.2 - .14 * dark) * (1 - red)); O.moonHalo.scale.setScalar(2600);
+    L.setOp(O.moon, (1 - space) * (1 - .8 * dark)); L.setOp(O.moonHalo, (1 - space) * (.34 - .26 * dark) * (1 - red)); O.moonHalo.scale.setScalar(2600);
     var ab = Math.max(ramp(t, 44.5, 51) * (1 - ramp(t, 70, 79)), win(t, 90, 119, 3, 2.5) * .45, win(t, 158.4, 177, 1.5, 1.5) * .55, win(t, 200, 223, 2, 1) * .5);
     O.aur.forEach(function (m, i) { m.material.uniforms.time.value = t + i * 7; m.material.uniforms.alpha.value = ab * (i >= 6 ? .26 : .4); m.visible = ab > .003; });
     O.lava.forEach(function (l) { l.mesh.material.opacity = (.55 + .2 * Math.sin(t * 2 + l.seed)) * (1 - space * .6); L.setOp(l.glow, .22 * (1 - space)); });

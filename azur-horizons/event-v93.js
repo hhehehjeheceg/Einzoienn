@@ -1,5 +1,5 @@
 /* AZUR v93 — event-v93.js : retouches de « La Fin » d'après la vidéo de référence du 17/10.
- *  - Début comme la vidéo : le joueur est posé debout sur la colline face au dépôt de la fusée,
+ *  - Début comme la vidéo : le joueur est posé debout sur la pente de la colline, face au dépôt de la fusée en contrebas,
  *    PRE secondes avant le décollage (au lieu de 54 s dans le bus). Il peut marcher, sauter,
  *    construire et émoter tout de suite.
  *  - Le joueur reste libre de bouger pendant tout l'événement : en lévitation et pendant
@@ -15,6 +15,7 @@
   var M = E.mods.play81;
   M.__v93 = true;
   var PRE = 15; // secondes sur la colline avant le décollage de la fusée (vidéo : 6 s, on laisse le temps de bouger)
+  var FWD = 30; // mètres en avant du sommet : la pente laisse voir le dépôt en contrebas (vidéo, 0 s)
   var V = (E.v93 = { floating: 0, placed: false });
   function H(x, z) { try { return root.AZSim.heightAt(x, z); } catch (e) { return 0; } }
   function VT() { return E.filmVideoTime ? E.filmVideoTime() : E.tTotal; }
@@ -25,8 +26,8 @@
     var s = L && L.S; if (!s || !s.P) return false;
     try { if (!p.deployed && w._deployFromBus) w._deployFromBus(p, false); } catch (e) {}
     p.deployed = true; p.airborneFromBus = false; p.autoGlider = false; p.gliding = false; p.falling = false; p.jumping = false; p.flying = false;
-    p.x = s.P.x; p.z = s.P.z; p.y = H(p.x, p.z) + 0.05; p._lastX = p.x; p._lastZ = p.z; p._vy = 0; p._vx = 0; p._vz = 0; p.grounded = true;
-    if (s.F) { var yaw = Math.atan2(-s.F.x, -s.F.z); p.yaw = yaw; var g = game(); if (g) { g.yaw = yaw; g.pitch = -0.05; } }
+    var ahead = s.F ? FWD : 0; p.x = s.P.x + (s.F ? s.F.x * ahead : 0); p.z = s.P.z + (s.F ? s.F.z * ahead : 0); p.y = H(p.x, p.z) + 0.05; p._lastX = p.x; p._lastZ = p.z; p._vy = 0; p._vx = 0; p._vz = 0; p.grounded = true;
+    if (s.F) { var yaw = Math.atan2(-s.F.x, -s.F.z); p.yaw = yaw; var g = game(); if (g) { g.yaw = yaw; g.pitch = -0.15; } }
     return true;
   }
 

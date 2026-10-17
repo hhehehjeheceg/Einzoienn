@@ -201,11 +201,12 @@
   }
   function message(game, w, p) {
     if (!w || !p) return null;
-    if (w.phase === "waiting") {
+    const ev = root.AZEvent, onHill = !!(ev && ev.active && ev.v93 && ev.v93.placed);
+    if (w.phase === "waiting" && !onHill) {
       const n = Math.max(1, Math.ceil(10 - (w.phaseTime || 0)));
       return { ico: ICON.bus, text: `LE BUS DE COMBAT DÉCOLLE DANS <em>${n}</em> ${n > 1 ? "secondes" : "seconde"}` };
     }
-    if (w.phase === "transport" && !p.deployed) return { ico: ICON.bus, text: "SAUTE DU BUS QUAND TU VEUX", sub: "ESPACE · SAUTER" };
+    if (w.phase === "transport" && !p.deployed && !onHill) return { ico: ICON.bus, text: "SAUTE DU BUS QUAND TU VEUX", sub: "ESPACE · SAUTER" };
     if (p.downed) return { text: "À TERRE", sub: "UN COÉQUIPIER PEUT TE RÉANIMER" };
     const storm = stormMessage(game, w);
     if (p.falling && !p.gliding) return Object.assign({ text: "" }, storm || {}, { sub: "ESPACE · DÉPLOYER LE PLANEUR" });
