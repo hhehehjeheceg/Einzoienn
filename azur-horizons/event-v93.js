@@ -17,7 +17,32 @@
   M.__v93 = true;
   var BUS_PRE = 30; // secondes de bus avant le décollage de la fusée (le cœur en prévoyait 54)
   var FWD = 30; // mètres en avant du sommet : la pente laisse voir le dépôt en contrebas (vidéo, 0 s)
-  var V = (E.v93 = { floating: 0, placed: false, started: false, FWD: FWD });
+  var V = (E.v93 = { floating: 0, placed: false, started: false, FWD: FWD, busSpeed: loadSpeed() });
+
+  /* Événement 2 « Vol sans fin » : réglage de la vitesse du bus (×1 à ×12), boutons − / + et touches − / + */
+  function loadSpeed() { try { var v = +root.localStorage.getItem("azur.v93.busSpeed"); if (v >= 1 && v <= 12) return v; } catch (e) {} return 4; }
+  function saveSpeed(v) { try { root.localStorage.setItem("azur.v93.busSpeed", String(v)); } catch (e) {} }
+  function setSpeed(v) { V.busSpeed = Math.max(1, Math.min(12, Math.round(v))); saveSpeed(V.busSpeed); paintSpeed(); }
+  var speedEl = null;
+  function speedUi() {
+    if (speedEl || !root.document) return speedEl;
+    var d = root.document, st = d.createElement("style");
+    st.textContent = "#azv93-speed{position:fixed;left:50%;top:96px;transform:translateX(-50%);z-index:45;display:none;align-items:center;gap:10px;padding:8px 12px;border-radius:999px;background:rgba(6,14,32,.62);border:1px solid rgba(140,180,255,.4);font:700 12px/1 Barlow,system-ui,sans-serif;letter-spacing:.12em;color:#e6efff;text-transform:uppercase;pointer-events:auto;touch-action:manipulation}" +
+      "#azv93-speed.on{display:flex}#azv93-speed button{width:34px;height:34px;border-radius:50%;border:0;background:#ffd23a;color:#14223a;font:800 20px/1 Barlow,system-ui,sans-serif;cursor:pointer}#azv93-speed b{min-width:44px;text-align:center;font-size:16px;color:#ffd23a}";
+    d.head.appendChild(st);
+    speedEl = d.createElement("div"); speedEl.id = "azv93-speed";
+    speedEl.innerHTML = '<span>Vitesse du bus</span><button type="button" data-d="-1" aria-label="Moins vite">−</button><b>×4</b><button type="button" data-d="1" aria-label="Plus vite">+</button>';
+    speedEl.addEventListener("pointerdown", function (ev) { var b = ev.target.closest && ev.target.closest("button"); if (!b) return; ev.preventDefault(); ev.stopPropagation(); setSpeed(V.busSpeed + (+b.getAttribute("data-d"))); });
+    d.body.appendChild(speedEl); paintSpeed();
+    root.addEventListener("keydown", function (ev) {
+      if (!speedEl || !speedEl.classList.contains("on")) return;
+      if (ev.code === "Equal" || ev.code === "NumpadAdd" || ev.key === "+") setSpeed(V.busSpeed + 1);
+      else if (ev.code === "Minus" || ev.code === "Digit6" && ev.key === "-" || ev.code === "NumpadSubtract" || ev.key === "-") setSpeed(V.busSpeed - 1);
+    });
+    return speedEl;
+  }
+  function paintSpeed() { if (speedEl) { var b = speedEl.querySelector("b"); if (b) b.textContent = "×" + V.busSpeed; } }
+  function showSpeed(on) { var el = speedUi(); if (el) el.classList.toggle("on", !!on); }
   function H(x, z) { try { return root.AZSim.heightAt(x, z); } catch (e) { return 0; } }
   function VT() { return E.filmVideoTime ? E.filmVideoTime() : E.tTotal; }
   function game() { return root.AZUR; }
@@ -43,9 +68,12 @@
 
   var prevInit = M.init;
   M.init = function () {
-    V.placed = false; V.started = false; V.floating = 0; V.suckOff = null;
+    V.placed = false; V.started = false; V.floating = 0; V.suckOff = null; showSpeed(false);
     return prevInit.apply(this, arguments);
   };
+
+  var prevDispose = M.dispose;
+  M.dispose = function () { showSpeed(false); return prevDispose ? prevDispose.apply(this, arguments) : undefined; };
 
   var prevPre = M.preUpdate;
   M.preUpdate = function (dt) {
@@ -53,8 +81,9 @@
     if (E.active && w && p && !V.started) { V.started = true; if (E.tVideo < -BUS_PRE) E.tVideo = -BUS_PRE; }
     if (E.active && w && p && !V.placed) {
       if (p.deployed && p.grounded) V.placed = true;                                   // posé après le saut
-      else if (VT() > 9.5 && (!p.deployed || p.y - H(p.x, p.z) > 30) && placeOnHill(w, p)) V.placed = true; // filet : jamais rater le décollage
+      else if (w.eventVariant !== "flight" && VT() > 9.5 && (!p.deployed || p.y - H(p.x, p.z) > 30) && placeOnHill(w, p)) V.placed = true; // filet : jamais rater le décollage (pas en « Vol sans fin »)
     }
+    showSpeed(!!(E.active && w && p && w.eventVariant === "flight" && !p.deployed));
     var beforeX = p ? p.x : 0, beforeZ = p ? p.z : 0;
     var r = prevPre.apply(this, arguments);
     if (!p || !E.active) return r;

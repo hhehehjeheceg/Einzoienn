@@ -57,8 +57,30 @@
     ROUTE = { D: D, A: A0, B: B0, len: len, y: Math.max(Math.max(top, 0) + 175, deck + 70), t0: -54, t1: -4 };
     return ROUTE;
   }
-  function busRoute(t, w, p) {
+  /* v93 — ÉVÉNEMENT 2 « Vol sans fin » (w.eventVariant === 'flight') : le bus ne s'arrête jamais.
+   * Il tourne au-dessus de l'île (cercle centré sur le Point Zéro, qui passe au-dessus de la colline)
+   * pendant tout l'événement, à la vitesse réglée par le joueur (E.v93.busSpeed, ×1 à ×12 ; 30 m/s × réglage),
+   * et n'éjecte personne : le joueur saute quand il veut, ou regarde tout l'événement depuis le bus. */
+  var FB = null;
+  function flightBus(t, w, p, dt) {
+    var s = S(); if (!s || !s.P || !s.ZP) return;
+    if (!FB) {
+      var C = { x: s.ZP.x, z: s.ZP.z }, Rr = Math.max(380, Math.hypot(s.P.x - C.x, s.P.z - C.z)), a0 = Math.atan2(s.P.z - C.z, s.P.x - C.x) - 2.2, top = 0;
+      for (var i = 0; i < 48; i++) { var a = i / 48 * Math.PI * 2; top = Math.max(top, H(C.x + Math.cos(a) * Rr, C.z + Math.sin(a) * Rr)); }
+      var isl = E.end81 && E.end81.O && E.end81.O.isl, deck = isl ? isl.position.y + .08 * isl.scale.x + 70 : 0;
+      FB = { C: C, R: Rr, a: a0, y: Math.max(Math.max(top, 0) + 175, deck) };
+    }
+    var mult = Math.max(1, Math.min(12, +(E.v93 && E.v93.busSpeed) || 4)), v = 30 * mult;
+    FB.a += v * Math.min(.1, Math.max(0, +dt || 0)) / FB.R;
+    var x = FB.C.x + Math.cos(FB.a) * FB.R, z = FB.C.z + Math.sin(FB.a) * FB.R, tx = -Math.sin(FB.a), tz = Math.cos(FB.a), yaw = Math.atan2(-tx, -tz);
+    w._azBusOverride = { x: x, y: FB.y, z: z, yaw: yaw, lockId: null, release: false }; busOwn = true; // release:false → pas d'éjection forcée
+    if (w.aircraft) { w.aircraft.x = x; w.aircraft.y = FB.y; w.aircraft.z = z; w.aircraft.yaw = yaw; }
+    if (p && !p.deployed) { p.x = x; p.y = FB.y; p.z = z; }
+    E.v93flight = { speed: v, mult: mult, aboard: !!(p && !p.deployed) };
+  }
+  function busRoute(t, w, p, dt) {
     var s = S(); if (!s || !s.P) return;
+    if (w.eventVariant === 'flight') { flightBus(t, w, p, dt); return; }
     if (w.phase === 'transport' && t < 30) {
       var r = route(), k = (t - r.t0) / (r.t1 - r.t0), x = r.A.x + (r.B.x - r.A.x) * k, z = r.A.z + (r.B.z - r.A.z) * k;
       var y = r.y + (k > 1 ? (k - 1) * (k - 1) * 900 : 0);
@@ -331,7 +353,7 @@
     }
     if (!p) return;
     if (p.alive) { p.hp = Math.max(p.hp, 100); if (typeof p.shield === 'number') p.shield = Math.max(p.shield, 100); p.downed = false; }
-    busRoute(t, w, p);
+    busRoute(t, w, p, dt);
     if (t >= 253.6) { hideAll(p, w); publish(p, t); return; }
     if (st.hidden && t < 253.6) { st.hidden = false; var vv = api.view(); if (vv && vv.actorRoot) vv.actorRoot.visible = true; if (st.saved) { p.x = st.saved.x; p.z = st.saved.z; p.y = H(p.x, p.z) + 1; } }
     if (p.deployed && p.alive) {
@@ -361,7 +383,7 @@
     if (!animWrap) installPose();
   }
   function init(a) {
-    api = a; G = api.game(); on = true; hudShown = false; autoDropped = false; busOwn = false; BUS_Y = 0; hiddenBots = {}; ROUTE = null;
+    api = a; G = api.game(); on = true; hudShown = false; autoDropped = false; busOwn = false; BUS_Y = 0; hiddenBots = {}; ROUTE = null; FB = null;
     st = { mode: 'none', float: 0, hidden: false, suckFrom: null, landedSeen: false, kick: -99 };
     ensureDom(); installPose(); installColliders(); root.addEventListener('keydown', onKey); steerUser = -999; wrapLook();
     E.cameraZoom = 1; E.cameraShoulder = 1;
