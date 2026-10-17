@@ -1015,7 +1015,9 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     an.air = airborne;
     an.landT = Math.max(0, an.landT - dt);
     const emote = p.emote > 0 && !p.gliding && !p.falling;
-    if (p.downed) { base = an.speed > 0.3 ? "Crawl_Fwd_Loop" : "Crawl_Idle_Loop"; pickLocomotion(an, p, st, false, dt, menu); }
+    const ev = root.AZEvent, evFloat = ev && ev.active && ev.v93 && options.local ? ev.v93.floating : 0;
+    if (evFloat > 0.5 && !p.downed) { base = "Swim_Idle_Loop"; scale = 0.6; fade = 0.6; pickLocomotion(an, p, st, false, dt, menu); } // « La Fin » : lévitation bras écartés
+    else if (p.downed) { base = an.speed > 0.3 ? "Crawl_Fwd_Loop" : "Crawl_Idle_Loop"; pickLocomotion(an, p, st, false, dt, menu); }
     else if (p.swimming) { const r = pickLocomotion(an, p, st, false, dt, menu); base = an.speed > 0.4 ? "Swim_Fwd_Loop" : "Swim_Idle_Loop"; scale = an.speed > 0.4 ? Math.min(1.6, Math.max(0.7, an.speed / 2)) : 1; void r; }
     else if (emote) { base = EMOTES[p.emoteStyle] || "Dance_Loop"; fade = 0.25; }
     else if (p.gliding) { base = "Jump_Loop"; scale = 0.5; }
@@ -1031,7 +1033,7 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
       base = r[0]; part = r[1]; scale = r[2];
       if (p.useTime > 0) { const it = (p.inventory || [])[p.selected] || {}; upper = /shield|potion|bouclier|soda|fizz|fiole/i.test(it.item || it.id || it.kind || "") ? "Drink" : "Bandage_Loop"; part = "lower"; }
     }
-    if (armed && !emote && !p.downed && !p.swimming && !highAir) { upper = upper || (p.aim ? "Pistol_Aim_Neutral" : "Pistol_Idle_Loop"); if (!part) part = "lower"; }
+    if (armed && !emote && !p.downed && !p.swimming && !highAir && evFloat <= 0.5) { upper = upper || (p.aim ? "Pistol_Aim_Neutral" : "Pistol_Idle_Loop"); if (!part) part = "lower"; }
     // coup de pioche : le geste vient de anim-v67 (frappe à deux mains), le buste suit
     const swinging = harvesting && st.swing >= 0;
     if (emote) { upper = null; part = null; }

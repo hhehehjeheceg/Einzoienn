@@ -1125,7 +1125,6 @@
     O.escort.forEach(function (tr) {
       if (t < tr.a - .1 || t > tr.b + 1.6) { if (tr.mesh.visible) tr.set(0, 0, 0, t); return; }
       var kk = keyK(tr, t), ln = Math.max(.015, kk - keyK(tr, t - tr.spec.tail)); tr.set(kk, ln, (t > tr.a ? 1 : 0) * (1 - ramp(t, tr.b, tr.b + 1.4)), t);
-      if (k < .08 && k > 0) { /* au départ, les fusées accompagnent la météorite */ }
     });
     var zh = win(t, 182.95, 184.6, .06, 1.3); L.setOp(O.zHit, zh * .75); O.zHit.scale.setScalar(130 + 330 * U.easeOut(ramp(t, 182.95, 183.8))); L.setOp(O.zHitGlow, zh * .28); O.zHitGlow.scale.setScalar(220 + 260 * ramp(t, 182.95, 184));
     var mh = win(t, 216.15, 218.2, .06, 1.4); L.setOp(O.mHit, mh * .7); O.mHit.scale.setScalar(120 + 300 * U.easeOut(ramp(t, 216.15, 217))); L.setOp(O.mHitGlow, mh * .35); O.mHitGlow.scale.setScalar(200 + 260 * ramp(t, 216.15, 217.4));
