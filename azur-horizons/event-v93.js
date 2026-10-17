@@ -1,7 +1,8 @@
 /* AZUR v93 — event-v93.js : retouches de « La Fin » d'après la vidéo de référence du 17/10.
- *  - Début comme la vidéo : le joueur est posé debout sur la pente de la colline, face au dépôt de la fusée en contrebas,
- *    PRE secondes avant le décollage (au lieu de 54 s dans le bus). Il peut marcher, sauter,
- *    construire et émoter tout de suite.
+ *  - Début dans le bus de combat, BUS_PRE secondes avant le décollage (au lieu de 54 s) : il traverse l'île
+ *    vers la colline, le joueur saute quand il veut (largage automatique à T-4 s) et la descente le guide
+ *    vers la pente face au dépôt de la fusée. Une fois au sol il marche, saute, construit, émote.
+ *    Filet de sécurité : s'il n'est toujours pas posé au décollage, il est posé sur la colline.
  *  - Le joueur reste libre de bouger pendant tout l'événement : en lévitation et pendant
  *    l'aspiration, les commandes de déplacement le font dériver (l'événement garde la main
  *    sur la hauteur et la trajectoire générale, jamais sur l'immobilité).
@@ -14,9 +15,9 @@
   if (!E || !E.mods || !E.mods.play81 || E.mods.play81.__v93) return;
   var M = E.mods.play81;
   M.__v93 = true;
-  var PRE = 15; // secondes sur la colline avant le décollage de la fusée (vidéo : 6 s, on laisse le temps de bouger)
+  var BUS_PRE = 30; // secondes de bus avant le décollage de la fusée (le cœur en prévoyait 54)
   var FWD = 30; // mètres en avant du sommet : la pente laisse voir le dépôt en contrebas (vidéo, 0 s)
-  var V = (E.v93 = { floating: 0, placed: false });
+  var V = (E.v93 = { floating: 0, placed: false, started: false, FWD: FWD });
   function H(x, z) { try { return root.AZSim.heightAt(x, z); } catch (e) { return 0; } }
   function VT() { return E.filmVideoTime ? E.filmVideoTime() : E.tTotal; }
   function game() { return root.AZUR; }
@@ -42,16 +43,17 @@
 
   var prevInit = M.init;
   M.init = function () {
-    V.placed = false; V.floating = 0; V.suckOff = null;
+    V.placed = false; V.started = false; V.floating = 0; V.suckOff = null;
     return prevInit.apply(this, arguments);
   };
 
   var prevPre = M.preUpdate;
   M.preUpdate = function (dt) {
     var w = game() && game().world, p = me();
+    if (E.active && w && p && !V.started) { V.started = true; if (E.tVideo < -BUS_PRE) E.tVideo = -BUS_PRE; }
     if (E.active && w && p && !V.placed) {
-      if (E.tVideo < -PRE) E.tVideo = -PRE;
-      if (placeOnHill(w, p)) V.placed = true;
+      if (p.deployed && p.grounded) V.placed = true;                                   // posé après le saut
+      else if (VT() > 9.5 && (!p.deployed || p.y - H(p.x, p.z) > 30) && placeOnHill(w, p)) V.placed = true; // filet : jamais rater le décollage
     }
     var beforeX = p ? p.x : 0, beforeZ = p ? p.z : 0;
     var r = prevPre.apply(this, arguments);

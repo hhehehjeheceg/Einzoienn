@@ -43,10 +43,18 @@
   var ROUTE = null;
   function route() {
     if (ROUTE) return ROUTE;
-    var s = S(), dx = s.P.x, dz = s.P.z, dl = Math.hypot(dx, dz) || 1, D = { x: dx / dl, z: dz / dl };
-    var A0 = { x: -D.x * 840, z: -D.z * 840 }, B0 = { x: s.P.x + D.x * 210, z: s.P.z + D.z * 210 }, len = Math.hypot(B0.x - A0.x, B0.z - A0.z), top = 0;
+    var s = S(), isl = E.end81 && E.end81.O && E.end81.O.isl, dx, dz, dl, D, A0, B0, deck = 0;
+    if (isl) {
+      // v93 : le bus passe juste au-dessus de l'île volante puis au-dessus de la colline — on peut sauter et s'y poser
+      var I = isl.position; dx = s.P.x - I.x; dz = s.P.z - I.z; dl = Math.hypot(dx, dz) || 1; D = { x: dx / dl, z: dz / dl };
+      A0 = { x: I.x - D.x * 620, z: I.z - D.z * 620 }; B0 = { x: s.P.x + D.x * 210, z: s.P.z + D.z * 210 }; deck = I.y + .08 * isl.scale.x;
+    } else {
+      dx = s.P.x; dz = s.P.z; dl = Math.hypot(dx, dz) || 1; D = { x: dx / dl, z: dz / dl };
+      A0 = { x: -D.x * 840, z: -D.z * 840 }; B0 = { x: s.P.x + D.x * 210, z: s.P.z + D.z * 210 };
+    }
+    var len = Math.hypot(B0.x - A0.x, B0.z - A0.z), top = 0;
     for (var i = 0; i <= 40; i++) { var k = i / 40; top = Math.max(top, H(A0.x + (B0.x - A0.x) * k, A0.z + (B0.z - A0.z) * k)); }
-    ROUTE = { D: D, A: A0, B: B0, len: len, y: Math.max(top, 0) + 175, t0: -54, t1: -4 };
+    ROUTE = { D: D, A: A0, B: B0, len: len, y: Math.max(Math.max(top, 0) + 175, deck + 70), t0: -54, t1: -4 };
     return ROUTE;
   }
   function busRoute(t, w, p) {
@@ -73,7 +81,7 @@
   function guideDescent(p, dt, t) {
     var s = S(); if (!s || !p.deployed || p.grounded || t > 18) return;
     var inp = p._input || {}, idle = Math.abs(+inp.moveX || 0) + Math.abs(+inp.moveZ || 0) < .05;
-    var dx = s.P.x - p.x, dz = s.P.z - p.z, d = Math.hypot(dx, dz);
+    var fw = (E.v93 && E.v93.FWD) || 0, dx = s.P.x + s.F.x * fw - p.x, dz = s.P.z + s.F.z * fw - p.z, d = Math.hypot(dx, dz); // v93 : vers la pente face au dépôt
     if (idle && d > 6) { var sp = Math.min(d, (p.gliding ? 16 : 22)) * dt; p.x += dx / d * sp; p.z += dz / d * sp; p._lastX = p.x; p._lastZ = p.z; }
     if (p.gliding && t < 16 && idle) { var g = H(p.x, p.z); if (p.y - g > 3) p.y -= Math.min(p.y - g - 2, 9 * dt); }
     if (!st.landedSeen && idle) faceBase(p);
@@ -181,6 +189,13 @@
    * Le pas de tir est un sol. Tout disparaît dès que la fusée entre dans la faille (33,3 s). */
   var colHook = null;
   function rocketC() { var o = E.end81 && E.end81.O, rk = o && o.rocket; return rk && rk.visible ? rk.position : null; }
+  // v93 : point (x, z) dans le repère de l'île volante (elle tourne lentement sur elle-même)
+  function islLocal(x, z) {
+    var isl = E.end81 && E.end81.O && E.end81.O.isl; if (!isl || !isl.visible) return null;
+    var sc = isl.scale.x, wx = x - isl.position.x, wz = z - isl.position.z, c = Math.cos(isl.rotation.y), s = Math.sin(isl.rotation.y);
+    var lx = (wx * c - wz * s) / sc, lz = (wx * s + wz * c) / sc;
+    return { x: lx, z: lz, r: Math.hypot(lx, lz), sc: sc, y0: isl.position.y };
+  }
   function installColliders() {
     var Wp = root.AZSim && root.AZSim.World && root.AZSim.World.prototype; if (!Wp || colHook || !Wp.supportAt || !Wp._blocked) return;
     var sup = Wp.supportAt, blk = Wp._blocked;
@@ -189,6 +204,14 @@
       var best = sup.apply(this, arguments);
       try {
         if (!E.active) return best; var s = S();
+        // v93 : l'île volante est un sol (on peut s'y poser en sautant du bus)
+        var il = islLocal(x, z);
+        if (il) {
+          var itop = il.y0 + il.sc * (.08 + .05 * Math.max(0, 1 - il.r)) + .05; // dessus herbeux bombé (event-end81-models.js)
+          if (il.r < .92 && itop <= lim(cy, itop) && itop > best) best = itop;
+          var htop = il.y0 + .26 * il.sc; // toit de la cabane
+          if (Math.abs(il.x - .12) < .16 && Math.abs(il.z + .05) < .12 && htop <= lim(cy, htop) && htop > best) best = htop;
+        }
         if (s && s.BASE) { var pad = s.BASE.y + .7; if (Math.hypot(x - s.BASE.x, z - s.BASE.z) < 15.2 && pad <= lim(cy, pad - 9) && pad > best) best = pad; }
         var c = rocketC(); if (!c) return best;
         var d = Math.hypot(x - c.x, z - c.z), top = c.y + 27.6, sh = c.y + 25.6;
@@ -202,6 +225,12 @@
       if (blk.apply(this, arguments)) return true;
       try {
         if (!E.active || y == null) return false; var rr = r || .4, s = S();
+        var il = islLocal(x, z);
+        if (il) { // murs de la cabane et mât de l'île volante
+          var pad = rr / il.sc, hb = il.y0 + .08 * il.sc, ht = il.y0 + .26 * il.sc;
+          if (y > hb - 1 && y < ht - .3 && Math.abs(il.x - .12) < .16 + pad && Math.abs(il.z + .05) < .12 + pad) return true;
+          if (y > hb - 1 && y < il.y0 + .58 * il.sc && Math.hypot(il.x + .18, il.z - .1) < .016 + pad) return true;
+        }
         if (s && s.BASE && s.R) { var tx = s.BASE.x - s.R.x * 6.2, tz = s.BASE.z - s.R.z * 6.2; if (y < s.BASE.y + 34 && Math.hypot(x - tx, z - tz) < 2.2 + rr) return true; } // tour de lancement
         var c = rocketC(); if (!c) return false;
         if (y < c.y + 25.4 && y + 1.7 > c.y + 1.2 && Math.hypot(x - c.x, z - c.z) < 3.0 + rr) return true;              // fuselage

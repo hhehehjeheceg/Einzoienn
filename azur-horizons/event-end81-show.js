@@ -31,7 +31,7 @@
   var LAY = { moon: [35.8, 25], met: [71, 6, 560], isl: [92, 8, 760], imp: [67, 500] }; // impact : au sol JUSTE SOUS la météorite (vidéo), visible par-dessus le bord du plateau
   var HEMI_BR = new T.Color(.55, .85, 1);
   var tmp = new T.Vector3(), tmp2 = new T.Vector3(), tmp3 = new T.Vector3(), camPos = new T.Vector3(), camFwd = new T.Vector3();
-  var RIFTS = [], TRAILS = [], FLASHES = [], frame = 0, lastT = -999;
+  var RIFTS = [], TRAILS = [], FLASHES = [], BOOMS = [], STRIKES = [], frame = 0, lastT = -999;
   L.S = { P: P, BASE: BASE, F: F, R: R, ZP: ZP, IMPACT: IMPACT, STAR: STAR };
 
   function VT() { return E.filmVideoTime ? E.filmVideoTime() : E.tTotal; }
@@ -308,6 +308,7 @@
     if (!spec.entry && !spec.flashEnd && !spec.cap && !spec.noEntry && !near122(p1)) spec.entry = true; // v93 : jamais de disparition sans faille
     if (spec.entry) addRift(p1, Math.max(70, p1.distanceTo(P) * .13), spec.b - 1.5, spec.b + 1.3, { fi: .7, fo: .9, flash: [spec.b - .1], curl: 1.4, narrow: true });
     if (spec.flashEnd) FLASHES.push({ pos: p1, t: spec.b, size: spec.flashSize || 260 });
+    if ((spec.flashEnd && !spec.cap && !spec.noBoom) || spec.boom) addBoom(p1, spec.b, spec.boomSize || 1, H(p1.x, p1.z) > p1.y - 25);
     return tr;
   }
   function updateTrails(t) {
@@ -327,6 +328,105 @@
       else if (s2.userData.used !== frame) L.setOp(s2, 0);
     }
   }
+  /* ================================================ v93 : explosions et villes frappées */
+  /* Chaque fusée qui se brise explose : boule de feu, cœur blanc, onde au sol, débris qui retombent,
+   * fumée qui monte. Trois fusées sortent d'une faille et piquent sur trois villes visibles depuis la
+   * colline : les maisons touchées sont détruites (simulation) et brûlent jusqu'à la fin. */
+  var boomGeo = null, boomMat = null, ringGeo = null, RUBBLE = null;
+  function addBoom(pos, t, size, ground) {
+    if (!grp) return null;
+    if (!boomGeo) { boomGeo = new T.IcosahedronGeometry(1, 0); boomMat = mat(0x2b2523, { r: 1, flat: true }); ringGeo = new T.RingGeometry(.86, 1, 64, 1); }
+    var b = { pos: pos.clone(), t: t, k: size || 1, ground: !!ground, seed: BOOMS.length * 7.3 + 1 };
+    b.fire = L.sprite(grp, X.soft, 0xff7a2a, 60, true, 0); b.core = L.sprite(grp, X.glow, 0xfff0c8, 40, true, 0);
+    b.fire.position.copy(b.pos); b.core.position.copy(b.pos);
+    var n = low ? 8 : 14; b.deb = new T.InstancedMesh(boomGeo, boomMat, n); b.deb.visible = false; b.deb.frustumCulled = false; grp.add(b.deb);
+    b.v = []; for (var i = 0; i < n; i++) { var a = hsh(b.seed + i) * 6.283, up = .4 + hsh(b.seed + i * 3) * .9, sp = (18 + hsh(b.seed + i * 5) * 26) * b.k; b.v.push([Math.cos(a) * sp, up * sp * (ground ? 1.3 : .8), Math.sin(a) * sp, .5 + hsh(b.seed + i * 7) * 1.4]); }
+    if (ground) { b.ring = new T.Mesh(ringGeo, new T.MeshBasicMaterial({ color: 0xffc890, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, fog: false, side: T.DoubleSide })); b.ring.rotation.x = -Math.PI / 2; b.ring.position.set(b.pos.x, H(b.pos.x, b.pos.z) + 1.5, b.pos.z); b.ring.visible = false; b.ring.frustumCulled = false; grp.add(b.ring); }
+    BOOMS.push(b); return b;
+  }
+  var dm4 = new T.Object3D();
+  function updateBooms(t) {
+    var sys = O.smoke;
+    for (var i = 0; i < BOOMS.length; i++) {
+      var b = BOOMS[i], age = t - b.t, k = b.k, on = age > 0 && age < 14 && t < 223.4;
+      if (!on) { if (b.deb.visible) { b.deb.visible = false; L.setOp(b.fire, 0); L.setOp(b.core, 0); if (b.ring) b.ring.visible = false; } continue; }
+      var fb = 1 - ramp(age, .25, 2.6);
+      L.setOp(b.fire, fb * .95); b.fire.scale.setScalar((40 + 150 * U.easeOut(cl(age / .7))) * k); b.fire.material.color.setRGB(1, .45 + .3 * (1 - cl(age)), .16);
+      L.setOp(b.core, (1 - ramp(age, .05, .9)) * 1); b.core.scale.setScalar((30 + 90 * cl(age / .3)) * k);
+      if (b.ring) { var rk = cl(age / 1.5); b.ring.visible = rk < 1; b.ring.material.opacity = (1 - rk) * .75; b.ring.scale.setScalar((6 + 170 * U.easeOut(rk)) * k); }
+      // débris balistiques
+      var gy = b.ground ? H(b.pos.x, b.pos.z) : -1e9; b.deb.visible = age < 5;
+      if (b.deb.visible) for (var j = 0; j < b.v.length; j++) {
+        var v = b.v[j], x = b.pos.x + v[0] * age, z = b.pos.z + v[2] * age, y = Math.max(gy + .5, b.pos.y + v[1] * age - 11 * age * age);
+        dm4.position.set(x, y, z); dm4.rotation.set(age * 3 + j, age * 2 + j * .7, 0); dm4.scale.setScalar(v[3] * k * (1 - ramp(age, 3.5, 5))); dm4.updateMatrix(); b.deb.setMatrixAt(j, dm4.matrix);
+      }
+      if (b.deb.visible) b.deb.instanceMatrix.needsUpdate = true;
+      // fumée : panache sombre qui monte et s'élargit
+      if (sys) for (var p = 0; p < 10; p++) {
+        var u = p / 9, pa = age - u * 1.4; if (pa < 0) continue;
+        var rise = (8 + 34 * u) * Math.min(pa, 6) * .5 * k, spread = (6 + 26 * u) * k, a2 = hsh(b.seed + p) * 6.283;
+        var al = cl(pa * 2) * (1 - ramp(age, 8, 14)) * .75;
+        sys.add(b.pos.x + Math.cos(a2) * spread * .5, b.pos.y + rise + 4, b.pos.z + Math.sin(a2) * spread * .5, (24 + 30 * u + pa * 6) * k, .22, .2, .22, al, a2 + t * .05, p % 4, 0, (1 - cl(pa / 1.5)) * .9);
+      }
+    }
+    // maisons en feu dans les villes frappées
+    for (var s2 = 0; s2 < STRIKES.length; s2++) {
+      var S2 = STRIKES[s2];
+      if (t >= S2.t && !S2.done) { S2.done = true; destroyTown(S2); }
+      if (!S2.done || !S2.fires) continue;
+      var fa = t - S2.t, burn = fa > 0 && t < 223.4;
+      for (var h = 0; h < S2.fires.length; h++) {
+        var F2 = S2.fires[h], fl = .75 + .25 * Math.sin(t * (9 + h) + h * 2);
+        L.setOp(F2.s, burn ? .7 * fl * cl(fa) : 0); F2.s.scale.setScalar(F2.size * (1 + .15 * Math.sin(t * 7 + h)));
+        if (burn && sys && h < 8) for (var q = 0; q < 3; q++) { var qa = ((t * .6 + q / 3 + h * .13) % 1); sys.add(F2.x + Math.sin(h + q) * 3, F2.y + 4 + qa * 46, F2.z + Math.cos(h * 2 + q) * 3, 12 + qa * 26, .2, .19, .21, (1 - qa) * .55, h + q, q % 4, 0, (1 - qa) * .4); }
+      }
+    }
+  }
+  function yawOf(x, z) { var dx = x - P.x, dz = z - P.z; return Math.atan2(dx * R.x + dz * R.z, dx * F.x + dz * F.z) / D2R; }
+  function buildStrikes() {
+    var w = null; try { w = api.world(); } catch (e) {} if (!w || !w.objects) return;
+    var cells = {};
+    w.objects.forEach(function (o) {
+      if (o.type !== 'house' || o.dead) return; var d = Math.hypot(o.x - P.x, o.z - P.z); if (d < 250 || d > 820) return;
+      var y = yawOf(o.x, o.z), zy = yawOf(ZP.x, ZP.z), zd = Math.hypot(ZP.x - P.x, ZP.z - P.z);
+      if (y < -75 || y > 150 || Math.hypot(o.x - ZP.x, o.z - ZP.z) < 260) return; // pas les tours décoratives du Point Zéro
+      if (Math.abs(y - zy) < 16 && d > zd - 120) return; // ni une ville cachée derrière la bulle
+      var key = Math.round(o.x / 90) + ',' + Math.round(o.z / 90); (cells[key] = cells[key] || []).push(o);
+    });
+    var list = Object.keys(cells).map(function (k) { return cells[k]; }).filter(function (c) { return c.length >= 2; }).sort(function (a, b) { return b.length - a.length; });
+    var picks = [];
+    for (var i = 0; i < list.length && picks.length < 3; i++) {
+      var c = list[i], cx = 0, cz = 0; c.forEach(function (o) { cx += o.x; cz += o.z; }); cx /= c.length; cz /= c.length;
+      var y = yawOf(cx, cz); if (picks.some(function (p) { return Math.abs(p.yaw - y) < 32; })) continue;
+      picks.push({ x: cx, z: cz, yaw: y, d: Math.hypot(cx - P.x, cz - P.z), houses: c });
+    }
+    var TIMES = [97.6, 105.2, 113.9];
+    picks.forEach(function (p, i) {
+      var tI = TIMES[i], gy = H(p.x, p.z), gp = Math.atan2(gy + 3 - (P.y + 1.7), p.d) / D2R, side = i % 2 ? 1 : -1;
+      addTrail({ path: [[tI - 3.0, p.yaw - 28 * side, 50, 1000], [tI - 1.7, p.yaw - 12 * side, 30, p.d * .95 + 40], [tI - .7, p.yaw - 3 * side, 12, p.d], [tI, p.yaw, gp, p.d]], tail: 1.4, radius: 3.4, exit: true, noEntry: true });
+      var tgt = new T.Vector3(p.x, gy + 3, p.z);
+      addBoom(tgt, tI, 2.1, true);
+      STRIKES.push({ t: tI, x: p.x, z: p.z, houses: p.houses, done: false, fires: null });
+    });
+    E.v93strikes = STRIKES;
+  }
+  function destroyTown(S2) {
+    var w = null; try { w = api.world(); } catch (e) {}
+    S2.fires = [];
+    S2.houses.forEach(function (o) {
+      if (Math.hypot(o.x - S2.x, o.z - S2.z) > 70) return;
+      try { if (w && w._damageHit && !o.dead) w._damageHit({ object: o }, null, 1e6, o.x, o.y + 2, o.z); else o.dead = true; } catch (e) { o.dead = true; }
+      var gy = H(o.x, o.z), fs = L.sprite(grp, X.soft, 0xff6a20, 30, true, 0); fs.position.set(o.x, gy + 5, o.z);
+      S2.fires.push({ s: fs, x: o.x, y: gy, z: o.z, size: 26 + (o.w || 6) * 2.2 });
+      // décombres : tas de gravats sombres à la place de la maison
+      for (var r2 = 0; r2 < 3; r2++) {
+        var rb = new T.Mesh(boomGeo || new T.IcosahedronGeometry(1, 0), RUBBLE || (RUBBLE = mat(0x3a3330, { r: 1, flat: true })));
+        var sw = (o.w || 6) * (.55 - r2 * .12), sd = (o.d || o.w || 6) * (.5 - r2 * .1);
+        rb.scale.set(sw, 1.4 + r2 * .5, sd); rb.position.set(o.x + (hsh(r2 + o.x) - .5) * sw, gy + .4, o.z + (hsh(r2 * 3 + o.z) - .5) * sd); rb.rotation.y = hsh(o.x + r2) * 6;
+        grp.add(rb);
+      }
+    });
+  }
   function buildTrails() {
     var Y = function (a, b, c) { return [a, b, c]; };
     /* v85 — trajectoires relevées seconde par seconde sur la vidéo de référence (46 → 126 s).
@@ -337,7 +437,7 @@
     O.rA = addTrail({ path: [[53.9, -170, 47, 1300], [54.6, -172.5, 43, 1250], [55.6, -173, 38.8, 1150], [56.6, -174, 31.5, 1000], [57.25, -174.3, 26, 900], [57.75, -174.3, 17.8, 780],
       [58.25, -176.4, 12.8, 680], [58.75, -178.6, 6.8, 580], [59.0, 180, 6.0, 520], [59.25, 175.8, 4.8, 440], [59.5, 171.5, 4.8, 380], [59.75, 162.9, 5.0, 300], [60.0, 149.9, 6.3, 210],
       [60.25, 123.7, 8.8, 135], [60.5, 93.8, 10, 112], [60.75, 66.9, 8.2, 140], [61.0, 53.7, 6.6, 190], [61.25, 45, 5.3, 240], [61.5, 40.2, 4.3, 290], [61.75, 36.6, 3.3, 340], [62.0, 33.6, 2.5, 385], [62.38, 31.3, 1.8, 430]],
-      tail: 1.6, radius: 3.4, exit: true });
+      tail: 1.6, radius: 3.4, exit: true, boom: true, noEntry: true, boomSize: 1.3 }); // v93 : elle explose au loin (« boum » de 62,4 s)
     /* v89 — relevé image par image sur la vidéo (caméra recalée sur la lune et la météorite, champ 80°) :
      * chaque point = [instant, lacet, tangage, distance]. Les failles-méduses sont à (46,59) (110,56) (76,46) (96,43). */
     // 64,9 → 66,1 (MESURÉ) : passage EN RASE-MOTTE : elle tombe du ciel derrière le joueur à droite (crochet vers 203°),
@@ -405,7 +505,8 @@
     // 181 → 183 : la fusée remonte le laser rouge jusqu'à l'étoile du zénith (absolu)
     // v85 : elle descend le laser jusqu'au CONTACT avec le sommet du dôme (183 s) : éclat + onde de choc
     var a1 = STAR.clone().add(new T.Vector3(0, -40, 0)), a2 = ZP.clone().lerp(STAR, .45), a3 = ZP.clone().add(new T.Vector3(0, DOME_TOP, 0));
-    addTrail({ pts: [a1, a2, a3], a: 180.6, b: 183.0, len: .14, radius: 2.4, headSize: 70, flashEnd: true, flashSize: 300, fade: .5 });
+    addTrail({ pts: [a1, a2, a3], a: 180.6, b: 183.0, len: .14, radius: 2.4, headSize: 70, flashEnd: true, flashSize: 300, fade: .5, noBoom: true });
+    buildStrikes();
   }
 
   /* v85 — spirale d'éclats de la vidéo B : lambeaux blanc-lavande déchirés, enroulés en
@@ -1064,8 +1165,8 @@
     // bulle de l'onde de choc (183 → 185,6)
     var bk = cl((t - 183.05) / 2.6), bu = O.bubble.material.uniforms; O.bubble.visible = bk > 0 && bk < 1;
     if (O.bubble.visible) { var rr = 110 + 1450 * U.easeOut(bk); O.bubble.scale.setScalar(rr); bu.amt.value = (1 - bk) * .9; bu.time.value = t; bu.flash.value = (1 - bk) * .25; }
-    // orbe du Point Zéro (présent depuis le début, il nourrit ensuite le dôme)
-    var ov = 1 - ramp(t, 178.2, 180.5), ofl = Math.floor((t + 600) * 11), pul = 1 + .06 * Math.sin(t * 2.7) + .03 * Math.sin(t * 7.1);
+    // orbe du Point Zéro (présent depuis le début) — v93 : il reste dans la bulle quand la fusée du laser le frappe (183 s), plus discret ensuite, jusqu'à l'explosion
+    var ov = (1 - .45 * ramp(t, 184.6, 187.5)) * (1 - ramp(t, 222.6, 223.4)), ofl = Math.floor((t + 600) * 11), pul = 1 + .06 * Math.sin(t * 2.7) + .03 * Math.sin(t * 7.1);
     O.orb.visible = O.orbIn.visible = ov > .004;
     if (O.orb.visible) {
       var ou = O.orb.material.uniforms; ou.time.value = t; ou.amt.value = .35 * ov; ou.flash.value = .12 + .1 * Math.sin(t * 3);
@@ -1101,7 +1202,7 @@
       var gx = ZP.x + Math.cos(a) * 680, gz = ZP.z + Math.sin(a) * 680, p3 = new T.Vector3(gx, Math.max(H(gx, gz), 0) + 3, gz);
       var tr = new L.Trail(grp, [p0, pm, p1, p2, p3], 2.3, 0x8fd2ff, 0xffffff, X.star, { headSize: 70, rocket: L.models ? L.models.riftRocket(X, 1.9) : L.riftRocket(1.8), grow: 1.5 }); // v89 : traînées fines comme la vidéo
       tr.spec = { tp: [204.8 + e * .1, 209.2 + e * .08, 211.0 + e * .1, 212.6 + e * .12, 213.6 + e * .2], tail: 1.6 }; tr.fr = arcFracs(tr.curve, 5);
-      tr.a = tr.spec.tp[0]; tr.b = tr.spec.tp[4]; O.escort.push(tr); FLASHES.push({ pos: p3.clone().add(new T.Vector3(0, 6, 0)), t: tr.b, size: 160 });
+      tr.a = tr.spec.tp[0]; tr.b = tr.spec.tp[4]; O.escort.push(tr); FLASHES.push({ pos: p3.clone().add(new T.Vector3(0, 6, 0)), t: tr.b, size: 160 }); addBoom(p3, tr.b, 1.4, true); // v93 : elles s'écrasent et explosent
     }
     O.fireCol = new T.Mesh(new T.CylinderGeometry(9, 15, 1, 16, 1, true), new T.MeshBasicMaterial({ color: 0xff5a24, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, fog: false, side: T.DoubleSide }));
     O.fireCol.frustumCulled = false; O.fireCol.visible = false; grp.add(O.fireCol);
@@ -1450,7 +1551,7 @@
     if (v.environment && v.environment.stars) v.environment.stars.visible = false;
     lightsNight(t, cam);
     O.smoke.begin(); meteorOff(t, MOFF);
-    updateLaunch(t); updateBase(t, cam); updateIsland(t); updateSkyShow(t, cam); updateRifts(t, cam); updateTrails(t); updateMeteor(t, cam); updateImpact(t);
+    updateLaunch(t); updateBase(t, cam); updateIsland(t); updateSkyShow(t, cam); updateRifts(t, cam); updateTrails(t); updateMeteor(t, cam); updateImpact(t); updateBooms(t);
     updateZenith(t, cam); updateMeteor2(t); updateFinale(t, cam); updateVeil(t, cam);
     if (t > 153.2 && t < 192.5) E.meteorVisible = false;
     if (t > 216.4) E.meteorVisible = false;
@@ -1462,7 +1563,7 @@
   /* ============================================================ cycle de vie */
   function init(a) {
     api = a; G = api.game(); view = api.view(); on = true; frame = 0; black = false;
-    RIFTS = []; TRAILS = []; FLASHES = []; O = {};
+    RIFTS = []; TRAILS = []; FLASHES = []; BOOMS = []; STRIKES = []; O = {};
     try { build(); } catch (e) { console.error('[AZUR end81] build', e); }
     if (G) { O.prevTOD = G.timeOfDay; G.timeOfDay = 'night'; }
     hideWorldSky(true); hookRender();
@@ -1483,7 +1584,7 @@
     if (O.veil && O.veil.parentNode) O.veil.parentNode.removeChild(O.veil);
     if (G && O.prevTOD) G.timeOfDay = O.prevTOD;
     E.meteorVisible = false; E.meteorPos = null; E.zeroPointPos = null; E.end81 = null;
-    O = {}; RIFTS = []; TRAILS = []; FLASHES = [];
+    O = {}; RIFTS = []; TRAILS = []; FLASHES = []; BOOMS = []; STRIKES = [];
   }
   root.__end81Seek = function () { return { t: VT(), frame: frame, black: black, post: !!(post && !post.failed) }; };
   E.register('end81', { init: init, update: update, dispose: dispose });
