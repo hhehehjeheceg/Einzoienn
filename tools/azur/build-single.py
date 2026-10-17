@@ -137,7 +137,9 @@ def script_sub(m):
 
 
 html = re.sub(r'<script src="([^"]+)"></script>', script_sub, html)
-html = html.replace("<head>", "<head>\n" + head, 1) if "<head>" in html else head + html
+# styles and the loading screen first; the heavy embedded data goes right before the first script
+first = html.find("<script>/* ")
+html = html[:first] + head + html[first:] if first >= 0 else head + html
 left = re.findall(r'(?:src|href)="\./[^"]+"', html)
 with open(OUT, "w", encoding="utf-8") as f:
     f.write(html)
