@@ -547,10 +547,12 @@
   L.domeMaterial = function () {
     return new T.ShaderMaterial({
       transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide, fog: false,
-      uniforms: { time: { value: 0 }, amt: { value: 0 }, flash: { value: 0 }, cyan: { value: 0 }, ripple: { value: 0 }, ripT: { value: 0 }, hot: { value: 0 } },
-      vertexShader: 'varying vec3 vN;varying vec3 vV;varying vec3 vP;void main(){vP=position;vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',
+      uniforms: { time: { value: 0 }, amt: { value: 0 }, flash: { value: 0 }, cyan: { value: 0 }, ripple: { value: 0 }, ripT: { value: 0 }, hot: { value: 0 },
+        ripDir: { value: new T.Vector3(0, 1, 0) }, dentDir: { value: new T.Vector3(0, 1, 0) }, dent: { value: 0 }, dentW: { value: .42 }, wob: { value: 0 }, touch: { value: 0 } },
+      /* v93 : la membrane réagit — creux là où la météorite appuie (dent), ondulation qui part du point de contact (wob) */
+      vertexShader: 'uniform vec3 dentDir;uniform float dent,dentW,wob,time;varying vec3 vN;varying vec3 vV;varying vec3 vP;varying float vDt;void main(){vP=position;vec3 n0=normalize(position);float ang=acos(clamp(dot(n0,dentDir),-1.,1.));float pr=exp(-pow(ang/dentW,2.));vec3 q=position*(1.-dent*pr*(1.+.12*sin(time*23.)));q*=1.+wob*sin(ang*7.-time*9.)*exp(-ang*.9)*.06;vDt=pr*step(.001,dent);vec4 mv=modelViewMatrix*vec4(q,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',
       fragmentShader: [
-        'varying vec3 vN;varying vec3 vV;varying vec3 vP;uniform float time,amt,flash,cyan,ripple,ripT,hot;', NOISE,
+        'varying vec3 vN;varying vec3 vV;varying vec3 vP;varying float vDt;uniform float time,amt,flash,cyan,ripple,ripT,hot,touch;uniform vec3 ripDir;', NOISE,
         'void main(){vec3 p=normalize(vP);float f=1.-abs(dot(normalize(vN),normalize(vV)));float rim=pow(f,2.2);',
         'float ang=atan(p.z,p.x);float h=clamp(p.y,0.,1.);',
         'float sw=fbm(vec2(ang*2.+h*3.5-time*.35,h*5.-time*.55));float sw2=fbm(vec2(ang*4.-time*.5,h*9.+time*.3));',
@@ -558,9 +560,10 @@
         'vec3 pur=vec3(.62,.38,1.),pink=vec3(1.,.48,.86),cy=vec3(.45,.92,1.),wh=vec3(.9,.97,1.);',
         'vec3 c=mix(mix(pur,pink,sw),mix(cy,wh,sw2*.6),cyan);',
         'float base=exp(-h*7.)*1.3;float top=exp(-pow(acos(h)*3.,2.))*hot;',
-        'float d=acos(h);float rp=ripple*exp(-pow((d-ripT)*7.,2.));',
-        'float a=(rim*.6+streak*.2+base*.08)*amt+flash*(.3+rim*.5)+rp*.6+top*.9;',
-        'vec3 col=c*(.65+streak*.45)+wh*(flash*.6+rp*.8)+vec3(1.,.25,.2)*top;',
+        'float d=acos(clamp(dot(p,ripDir),-1.,1.));float rp=ripple*(exp(-pow((d-ripT)*7.,2.))+.55*exp(-pow((d-ripT*.62)*9.,2.)));',
+        'float tg=touch*(exp(-d*d*9.)*(1.1+.5*sin(time*31.))+vDt*.8+exp(-d*2.2)*pow(streak,1.5)*.9);',
+        'float a=(rim*.6+streak*.2+base*.08)*amt+flash*(.3+rim*.5)+rp*.6+top*.9+tg*.75;',
+        'vec3 col=c*(.65+streak*.45)+wh*(flash*.6+rp*.8+tg)+vec3(1.,.25,.2)*top+vec3(1.,.55,.3)*touch*exp(-d*d*30.)*.8;',
         'gl_FragColor=vec4(col,clamp(a,0.,1.));}'
       ].join('\n')
     });

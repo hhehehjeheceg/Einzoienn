@@ -160,7 +160,7 @@
     else if (t >= 45.5 && t < 54.2 && O2 && O2.r2p) { tgt = O2.r2p; pk = .85; }
     else if (t >= 54.2 && t < 62.6 && an.rA) { tgt = an.rA; pk = .9; }   // v89 : on suit la fusée comme la vidéo
     else if (t >= 62.6 && t < 64 && O2 && O2.b0p) { tgt = O2.b0p; pk = .9; }
-    else if (t >= 119 && t < 153.5 && E.meteorPos && E.meteorVisible) { tgt = E.meteorPos; pk = .9; }
+    else if (t >= 119 && t < 156.4 && E.meteorPos && E.meteorVisible) { tgt = E.meteorPos; pk = .9; }
     else if (t >= 157.8 && t < 176.8) { tgt = s.STAR; pk = 1; }
     else if (t >= 176.8 && t < 183.5) tgt = s.ZP;
     else if (t >= 183.5 && t < 188.6) tgt = s.ZP;
