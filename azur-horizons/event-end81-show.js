@@ -275,7 +275,7 @@
       var open = ramp(t, r.a, r.a + r.fi * 1.6), fl = 0;
       if (r.flash) for (var f = 0; f < r.flash.length; f++) fl = Math.max(fl, win(t, r.flash[f], r.flash[f] + 1.2, .12, .9));
       var gs = r.grow ? lerp(r.grow[2], 1, ramp(t, r.grow[0], r.grow[1])) : 1;
-      var dc = r.pos.distanceTo(cam.position); r.m.scale.setScalar(Math.min(r.size * .4, dc * .15) * (.55 + .45 * open) * (1 + .15 * fl) * gs); // v93 : petites étoiles à filaments comme la vidéo (≈ 8° de large)
+      var dc = r.pos.distanceTo(cam.position); r.m.scale.setScalar(Math.min(r.size, dc * .5) * (.55 + .45 * open) * (1 + .15 * fl) * gs);
       var u = r.m.material.uniforms; u.time.value = t; u.open.value = .25 + .75 * open; u.amt.value = op * (.85 + .15 * Math.sin(t * 7 + i)); u.flash.value = fl;
     }
   }
@@ -294,6 +294,8 @@
     for (var i = 0; i < n - 1; i++) if (t < tp[i + 1]) { var u = (t - tp[i]) / (tp[i + 1] - tp[i]); u = u * u * (3 - 2 * u) * .25 + u * .75; return fr[i] + (fr[i + 1] - fr[i]) * u; }
     return 1;
   }
+  // v93 : la fin d'une trajectoire est-elle déjà dans la faille de l'île (122° ; 28°) ?
+  function near122(p) { return O.b3p && p.distanceTo(O.b3p) < 60; }
   function addTrail(spec) {
     if (spec.path) { spec.tp = spec.path.map(function (q) { return q[0]; }); spec.pts = spec.path.map(function (q) { return [q[1], q[2], q[3]]; }); spec.a = spec.tp[0]; spec.b = spec.tp[spec.tp.length - 1]; }
     var pts = spec.pts.map(sp);
@@ -303,6 +305,7 @@
     if (spec.tp) tr.fr = arcFracs(tr.curve, pts.length);
     var p0 = pts[0], p1 = pts[pts.length - 1];
     if (spec.exit) addRift(p0, Math.max(70, p0.distanceTo(P) * .13), spec.a - 1.3, spec.a + 1.4, { fi: .6, fo: 1, flash: [spec.a - .2], curl: 1.4, narrow: true });
+    if (!spec.entry && !spec.flashEnd && !spec.cap && !spec.noEntry && !near122(p1)) spec.entry = true; // v93 : jamais de disparition sans faille
     if (spec.entry) addRift(p1, Math.max(70, p1.distanceTo(P) * .13), spec.b - 1.5, spec.b + 1.3, { fi: .7, fo: .9, flash: [spec.b - .1], curl: 1.4, narrow: true });
     if (spec.flashEnd) FLASHES.push({ pos: p1, t: spec.b, size: spec.flashSize || 260 });
     return tr;
@@ -385,14 +388,15 @@
     addTrail({ path: [[99.3, 30, 12.5, 1100], [99.9, 18.2, 13.1, 1100], [100.4, 13.3, 13.7, 1100], [100.9, 10.9, 13.6, 1100], [101.4, 5.5, 13.7, 1100], [101.9, 2.2, 13.9, 1100], [102.6, -3, 14, 1100]], tail: 1.0, radius: 2.4 });
     // 101,6 → 103,9 : passage RASANT tout près devant le joueur (102,4 s), de droite à gauche
     addTrail({ path: [[101.6, 40, 10, 300], [102.0, 8, 11, 150], [102.4, -33, 12.3, 90], [102.9, -65, 10, 95], [103.4, -90.8, 7.5, 140], [103.9, -105, 6, 240]], tail: 1.4, radius: 3.0, exit: true, entry: true });
-    // 103 → 108,3 : la formation monte en biais de gauche à droite…
-    addTrail({ path: [[103.0, -100, 16, 900], [103.4, -94.3, 18.3, 900], [104.4, -85.8, 22.7, 900], [105.4, -74.1, 28.3, 900], [106.4, -63.7, 32.4, 900], [107.4, -53.2, 35.3, 900], [108.3, -45, 37, 900]], tail: 1.2, radius: 2.6, exit: true });
-    addTrail({ path: [[103.1, -92, 15, 900], [103.4, -87.2, 16.6, 900], [104.4, -77.4, 22.8, 900], [105.4, -66.1, 30.1, 900], [106.4, -52.5, 33.2, 900], [107.4, -45.2, 33.7, 900], [108.3, -38, 34, 900]], tail: 1.2, radius: 2.6 });
-    // …pendant que d'autres la croisent de droite à gauche
-    addTrail({ path: [[103.9, -5, 21, 900], [104.4, -15, 22.7, 900], [105.4, -23, 25.7, 900], [106.4, -33, 27.3, 900], [107.4, -43.3, 26.2, 900], [108.4, -54.1, 26, 900], [109.0, -60, 26, 900]], tail: 1.2, radius: 2.6, exit: true });
-    addTrail({ path: [[106.9, -5, 15, 800], [107.4, -17, 17.4, 800], [108.4, -28.5, 24.9, 800], [109.0, -36, 27, 800]], tail: 1.0, radius: 2.4, exit: true });
-    addTrail({ path: [[107.9, -20, 19, 800], [108.4, -31.8, 21.7, 800], [109.0, -40, 23, 800]], tail: 1.0, radius: 2.4, exit: true });
-    addTrail({ path: [[107.9, -62, 15, 700], [108.4, -74.5, 16.1, 700], [109.0, -88, 17, 700]], tail: 1.0, radius: 2.4 });
+    // v93 — 103 → 111,6 (vidéo 108-111 s) : la formation se regroupe. Toutes les fusées partent de la gauche, prennent
+    // LA MÊME direction (en montant vers la droite), se rassemblent en haut à droite et plongent ensemble dans la même
+    // faille, l'étoile qui éclate au-dessus de l'île (122° ; 28°), juste avant que la faille s'ouvre derrière la météorite.
+    addTrail({ path: [[103.0, -100, 16, 900], [104.4, -80, 24, 900], [105.6, -40, 34, 920], [106.8, 10, 44, 940], [108.0, 70, 52, 970], [109.0, 125, 55, 1000], [109.9, 145, 47, 990], [110.5, 132, 36, 965], [111.0, 122.3, 28.4, 950]], tail: 1.4, radius: 2.7, exit: true });
+    addTrail({ path: [[103.1, -92, 15, 900], [104.5, -76, 22.5, 900], [105.7, -36, 32.5, 920], [106.9, 13, 42.5, 940], [108.1, 73, 50.5, 970], [109.1, 128, 53.5, 1000], [110.0, 147, 45.5, 990], [110.6, 133, 35, 965], [111.12, 122.5, 28.3, 950]], tail: 1.3, radius: 2.6 });
+    addTrail({ path: [[103.9, -5, 21, 900], [105.0, 15, 30, 920], [106.3, 45, 40, 940], [107.6, 85, 50, 970], [108.8, 120, 54, 1000], [109.8, 142, 48, 990], [110.5, 131, 36, 965], [111.2, 122, 28.2, 950]], tail: 1.3, radius: 2.6, exit: true });
+    addTrail({ path: [[106.9, -5, 15, 800], [107.7, 30, 28, 860], [108.5, 80, 44, 930], [109.4, 125, 52, 990], [110.1, 140, 45, 985], [110.7, 130, 35, 965], [111.3, 122.4, 28.6, 950]], tail: 1.1, radius: 2.4, exit: true });
+    addTrail({ path: [[107.6, 10, 19, 820], [108.4, 50, 34, 880], [109.2, 100, 48, 950], [109.9, 135, 50, 990], [110.5, 136, 40, 975], [111.0, 128, 33, 960], [111.45, 122, 28.3, 950]], tail: 1.0, radius: 2.4, exit: true });
+    addTrail({ path: [[107.7, -30, 15, 760], [108.5, 20, 30, 840], [109.3, 75, 46, 920], [110.0, 118, 52, 980], [110.6, 138, 44, 980], [111.1, 129, 34, 960], [111.6, 122.2, 28.5, 950]], tail: 1.0, radius: 2.4 });
     // 108,8 → 111,2 : la grosse fusée (et deux autres dans son sillage) plonge du haut à droite sur l'étoile qui explose
     // au-dessus de l'île (122° ; 28°) à 110,9 s
     addTrail({ path: [[108.8, 158, 52, 1000], [109.6, 145, 43, 980], [110.3, 131, 34, 960], [110.9, 122, 28, 950]], tail: 1.6, radius: 3.6 });
@@ -465,7 +469,7 @@
     // éclair à l'horizon quand la 2e fusée rentre dans sa faille (63 s)
     // v89 : la « frénésie » (vidéo 75,8 → 77,5) : une rafale d'éclats de foudre tout près du joueur, calée sur les coups de la musique
     O.frenzy = [[75.85, 40, 22, 150, 150], [76.1, -25, 17, 110, 120], [76.3, 28, 13, 95, 170], [76.6, -40, 10, 120, 150], [76.82, 6, 15, 100, 190], [77.1, -18, 11, 110, 160], [77.35, 24, 24, 140, 130]].map(function (f) {
-      var sp = L.sprite(grp, X.bursts[0], 0xa8d4ff, f[4], true, 0), co = L.sprite(grp, X.star, 0xffffff, f[4] * .5, true, 0), pos = skyPos(f[1], f[2], f[3]);
+      var sp = L.sprite(grp, X.burstBig[0], 0xa8d4ff, f[4], true, 0), co = L.sprite(grp, X.star, 0xffffff, f[4] * .5, true, 0), pos = skyPos(f[1], f[2], f[3]);
       sp.position.copy(pos); co.position.copy(pos); return { t: f[0], s: f[4], sp: sp, co: co };
     });
     O.b0p = skyPos(31.3, 1.8, 430); O.b0Bolts = L.sprite(grp, X.burstBig[1], 0xb8d8ff, 420, true, 0); O.b0Bolts.position.copy(O.b0p);
@@ -487,7 +491,7 @@
     addRift(skyPos(107, 52.5, 1100), 420, 63.2, 72.4, { seed: 6.6, wing: true, droop: .55, nw: 3, flash: [66.8, 69.6] });
     addRift(skyPos(74, 43, 1000), 360, 63.6, 71.6, { seed: 9.9, wing: true, droop: 1, nw: 2, flash: [66.2, 68.9] });
     addRift(skyPos(95, 42.2, 1050), 380, 64.2, 71.2, { seed: 14.1, wing: true, droop: .8, nw: 3, flash: [67.55] });
-    addRift(O.b3p, 480, 108.4, 117.5, { fi: 1, fo: 3, flash: [110.9], seed: 17.7 });
+    addRift(O.b3p, 480, 108.4, 117.5, { fi: 1, fo: 3, flash: [110.9, 111.2, 111.45, 111.65], seed: 17.7 }); // v93 : un éclat à chaque fusée de la formation qui s'y engouffre
     addRift(O.b2p, 260, 74.6, 80.4, { fi: .6, fo: 2, flash: [76], seed: 4.4, curl: 1.8 });
   }
 
@@ -639,15 +643,15 @@
     var sys = O.smoke;
     var c1r = .66, c1g = .48, c1b = .70;
     for (var p = 0; p < M.puffs.length; p++) {
-      var q = M.puffs[p], u = q.u, d = 24 + u * 225;
-      tmp2.copy(back).multiplyScalar(d * PLEN).addScaledVector(q.off, 9 + u * 34); tmp2.multiplyScalar(MS);
+      var q = M.puffs[p], u = q.u, d = 6 + u * 235; // v93 : le panache colle à la roche (vidéo 117-123 s), plus épais
+      tmp2.copy(back).multiplyScalar(d * PLEN).addScaledVector(q.off, 14 + u * 44); tmp2.multiplyScalar(MS);
       tmp2.x += Math.sin(t * .3 + p) * .6 * u; tmp2.y += Math.cos(t * .25 + p * 1.3) * .6 * u;
       var x = M.g.position.x + tmp2.x, y = M.g.position.y + tmp2.y, z = M.g.position.z + tmp2.z;
-      var a = appear * (u < .08 ? u / .08 : 1) * .92 * (1 - .25 * u);
+      var a = appear * (u < .02 ? .55 + u / .02 * .45 : 1) * .92 * (1 - .25 * u);
       var rr = lerp(c1r, .95, pale), gg = lerp(c1g, .86, pale), bb = lerp(c1b, .98, pale);
-      var warm = Math.max(0, 1 - u * 2.2) * heat * .9;
+      var warm = Math.max(0, 1 - u * 1.6) * heat; // base orangée qui enveloppe la roche
       if (t > 153.2) a *= 1 - ramp(t, 153.2, 154.6);
-      sys.add(x, y, z, q.s * MS * .82 * (1 + u * .2) * (1 + .03 * Math.sin(t + p)), rr, gg, bb, a, q.rot + t * q.sp, q.v, .15, warm);
+      sys.add(x, y, z, q.s * MS * (.95 + .25 * (1 - u)) * (1 + u * .2) * (1 + .03 * Math.sin(t + p)), rr, gg, bb, a, q.rot + t * q.sp, q.v, .15, warm);
     }
     // arcs électriques bleus (scintillement)
     var flick = Math.floor((t + 600) * 12);
@@ -924,7 +928,7 @@
     var b1 = win(t, 38.6, 42.6, .25, 2.2), g1 = U.easeOut((t - 38.6) / 1.8);
     L.setOp(O.b1Shell, b1 * .62 * ramp(t, 39.4, 40.3)); O.b1Shell.scale.setScalar((55 + 125 * g1) * 3.3); O.b1Shell.material.map = X.shell[flick % 2]; O.b1Shell.material.rotation = t * .1;
     L.setOp(O.b1Bolts, b1 * .85); O.b1Bolts.scale.setScalar((80 + 160 * g1) * 3.3); O.b1Bolts.material.map = X.burstBig[flick % 2]; O.b1Bolts.material.rotation = (flick % 5) * .4;
-    var fl1 = win(t, 38.75, 39.6, .06, .55); L.setOp(O.b1Core, Math.max(win(t, 38.5, 41.8, .1, 1.6) * .75, fl1)); O.b1Core.scale.setScalar((16 + 14 * g1 + 50 * fl1) * 3.3);
+    var fl1 = win(t, 38.75, 39.6, .06, .55); L.setOp(O.b1Core, Math.max(win(t, 38.5, 41.8, .1, 1.6) * .75, fl1)); O.b1Core.scale.setScalar((36 + 40 * g1 + 70 * fl1) * 3.3);
     O.darkCloud.material.opacity = win(t, 34.5, 47, 2, 3) * .55; O.darkCloud.visible = O.darkCloud.material.opacity > .01;
     // anneaux
     L.setOp(O.ringA, win(t, 42.1, 46.4, .6, 1)); O.ringA.scale.setScalar(260 + 30 * Math.sin(t * 3)); L.setOp(O.ringAs, win(t, 42.3, 46, .4, 1) * (.7 + .3 * Math.sin(t * 9)));
@@ -933,19 +937,19 @@
     var bk = win(t, 46.3, 51.6, 1, 1.4);
     O.beam.visible = bk > .01; O.beam.material.opacity = bk * (.62 + .08 * Math.sin(t * 6)); O.beam.rotation.y = t * .05;
     if (O.beam.visible) { var top = O.r2p, bot = tmp.copy(top); bot.y = P.y - 40; O.beam.position.copy(top).lerp(bot, .5); O.beam.scale.set(1, top.y - bot.y, 1); }
-    L.setOp(O.r2Glow, win(t, 47.6, 52, .8, 2)); O.r2Glow.scale.setScalar(120 + 160 * win(t, 47.6, 51, 1, 1));
+    L.setOp(O.r2Glow, win(t, 47.6, 52, .8, 2)); O.r2Glow.scale.setScalar(260 + 380 * win(t, 47.6, 51, 1, 1));
     // sphère rouge + gerbe près de la montagne (75,5-80)
     L.setOp(O.redSphere, win(t, 75.2, 76.3, .3, .2)); O.redSphere.scale.setScalar(34 + 14 * Math.sin(t * 20));
     L.setOp(O.redArcs, win(t, 75.2, 76.3, .2, .2)); O.redArcs.material.map = X.arcs[flick % 3];
-    L.setOp(O.b2Bolts, win(t, 76, 79.4, .1, 2) * .8); O.b2Bolts.scale.setScalar(120 + 260 * U.easeOut((t - 76) / 1.2)); O.b2Bolts.position.copy(O.b2p).lerp(O.b2hi, ramp(t, 76.6, 77.8)); O.b2Bolts.material.map = X.bursts[(flick + 1) % 3]; O.b2Bolts.material.rotation = flick * .5;
-    L.setOp(O.b2Core, win(t, 76, 78.6, .08, 1.8) * .8); O.b2Core.scale.setScalar(30 + 40 * ramp(t, 76, 77)); O.b2Core.position.copy(O.b2p).lerp(O.b2hi, ramp(t, 76.6, 77.8));
+    L.setOp(O.b2Bolts, win(t, 76, 79.4, .1, 2) * .8); O.b2Bolts.scale.setScalar(120 + 260 * U.easeOut((t - 76) / 1.2)); O.b2Bolts.position.copy(O.b2p).lerp(O.b2hi, ramp(t, 76.6, 77.8)); O.b2Bolts.material.map = X.burstBig[(flick + 1) % 2]; O.b2Bolts.material.rotation = flick * .5;
+    L.setOp(O.b2Core, win(t, 76, 78.6, .08, 1.8) * .8); O.b2Core.scale.setScalar(60 + 90 * ramp(t, 76, 77)); O.b2Core.position.copy(O.b2p).lerp(O.b2hi, ramp(t, 76.6, 77.8));
     L.setOp(O.b2Crack, win(t, 77.4, 81.0, .3, 1.8)); O.b2Crack.scale.setScalar(210); O.b2Crack.position.copy(O.b2hi);
     // portail arc-en-ciel
     var po = win(t, 81.6, 87.7, 1, .5), opn = U.easeOut((t - 81.6) / 1.6) * (1 - ramp(t, 87.1, 87.7));
-    L.setOp(O.portal, po); O.portal.scale.setScalar(30 + 170 * opn); O.portal.material.rotation = t * .05;
-    L.setOp(O.portalCrack, po * (.7 + .3 * hsh(flick))); O.portalCrack.scale.setScalar(45 + 75 * opn); O.portalCrack.material.map = X.crack[flick % 2]; O.portalCrack.material.rotation = flick * .3;
-    L.setOp(O.portalFlash, win(t, 85.5, 87.3, .4, .6)); O.portalFlash.scale.setScalar(70 + 120 * ramp(t, 85.5, 86.6));
-    L.setOp(O.portalBeam, win(t, 86.6, 87.9, .1, .6)); O.portalBeam.material.map = X.bursts[flick % 3]; O.portalBeam.scale.setScalar(170);
+    L.setOp(O.portal, po); O.portal.scale.setScalar(40 + 300 * opn); O.portal.material.rotation = t * .05;
+    L.setOp(O.portalCrack, po * (.7 + .3 * hsh(flick))); O.portalCrack.scale.setScalar(70 + 120 * opn); O.portalCrack.material.map = X.crack[flick % 2]; O.portalCrack.material.rotation = flick * .3;
+    L.setOp(O.portalFlash, win(t, 85.5, 87.3, .4, .6)); O.portalFlash.scale.setScalar(140 + 260 * ramp(t, 85.5, 86.6));
+    L.setOp(O.portalBeam, win(t, 86.6, 87.9, .1, .6)); O.portalBeam.material.map = X.bursts[flick % 3]; O.portalBeam.scale.setScalar(300);
     var po2 = win(t, 83, 87.4, .8, .5); L.setOp(O.portal2, po2); O.portal2.scale.setScalar(110 * U.easeOut((t - 83) / 1.2)); L.setOp(O.portal2Crack, po2 * (.6 + .4 * hsh(flick + 3))); O.portal2Crack.material.map = X.crack[(flick + 1) % 2];
     // éclats de verre quand la fusée traverse
     var sk2 = cl((t - 87.2) / 2.4);
@@ -962,11 +966,11 @@
     });
     L.setOp(O.b0Bolts, win(t, 62.3, 64.6, .1, 1.3) * .8); O.b0Bolts.scale.setScalar(160 + 300 * U.easeOut((t - 62.3) / 1)); O.b0Bolts.material.map = X.burstBig[flick % 2]; O.b0Bolts.material.rotation = flick * .45;
     // gerbe finale (110,5)
-    var b4 = win(t, 89.3, 92.6, .12, .8); L.setOp(O.b4Bolts, b4 * .8 * (.75 + .25 * hsh(flick))); O.b4Bolts.scale.setScalar(70 + 50 * ramp(t, 89.3, 90.4)); O.b4Bolts.material.map = X.bursts[flick % 3]; O.b4Bolts.material.rotation = flick * .4;
+    var b4 = win(t, 89.3, 92.6, .12, .8); L.setOp(O.b4Bolts, b4 * .8 * (.75 + .25 * hsh(flick))); O.b4Bolts.scale.setScalar(70 + 50 * ramp(t, 89.3, 90.4)); O.b4Bolts.material.map = X.burstBig[flick % 2]; O.b4Bolts.material.rotation = flick * .4;
     L.setOp(O.b4Core, b4 * .9); O.b4Core.scale.setScalar(26 + 14 * win(t, 90.2, 90.8, .1, .3));
-    L.setOp(O.b3Bolts, win(t, 110.85, 115, .08, 2.6) * .8); O.b3Bolts.scale.setScalar(140 + 230 * U.easeOut((t - 110.85) / 1.4)); O.b3Bolts.material.map = X.bursts[flick % 3]; // v93 : étoile à rayons fins (vidéo 113 s), pas la sphère de 42 s O.b3Bolts.material.rotation = flick * .37;
-    L.setOp(O.b3Core, win(t, 110.85, 114.2, .08, 2.2) * .85); O.b3Core.scale.setScalar(60 + 50 * ramp(t, 110.85, 111.8));
-    L.setOp(O.b3Crack, win(t, 113.8, 117.6, .8, 2)); O.b3Crack.scale.setScalar(240);
+    L.setOp(O.b3Bolts, win(t, 110.85, 115, .08, 2.6) * .8); O.b3Bolts.scale.setScalar(220 + 480 * U.easeOut((t - 110.85) / 1.4)); O.b3Bolts.material.map = X.burstBig[flick % 2]; O.b3Bolts.material.rotation = flick * .37;
+    L.setOp(O.b3Core, win(t, 110.85, 114.2, .08, 2.2) * .85); O.b3Core.scale.setScalar(170 + 150 * ramp(t, 110.85, 111.8));
+    L.setOp(O.b3Crack, win(t, 113.8, 117.6, .8, 2)); O.b3Crack.scale.setScalar(440);
   }
 
   /* ===================================== zénith, lasers, dôme, bulle (158-224) */
