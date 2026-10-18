@@ -31,18 +31,43 @@
     try { upgradeTowns(this); } catch (e) { if (root.console) console.warn("[AZUR bâtiments]", e); }
     return r;
   };
+  /* Bâtiments longs : deux parcelles voisines d'une même ville fusionnent en un seul grand immeuble
+   * (dans l'axe nord-sud, porte au nord, ou est-ouest), rue entre les deux comprise. */
+  function mergeLots(w) {
+    const W = S.MAP.waiting, houses = w.objects.filter((o) => o.type === "house" && !o.dead && (o.yaw || 0) === 0 && Math.hypot(o.x - W.x, o.z - W.z) > (W.radius || 82) + 60);
+    const gone = new Set();
+    for (const a of houses) {
+      if (gone.has(a) || a._merged) continue;
+      const style = a.style || "", big = style === "citadel" || style === "port";
+      if (style === "hamlet" || style === "farm") continue;
+      const k = hash((a.seed || 1) * 5 + 3);
+      if (k > (big ? .4 : .22)) continue;
+      const alongZ = true; // nord-sud seulement : la porte reste au nord, sur la rue
+      const b = houses.find((q) => q !== a && !gone.has(q) && !q._merged && q.region === a.region && (alongZ ? Math.abs(q.x - a.x) < 1.2 && q.z - a.z > 12 && q.z - a.z < 23 : Math.abs(q.z - a.z) < 1.2 && q.x - a.x > 12 && q.x - a.x < 24));
+      if (!b) continue;
+      if (alongZ) { const z0 = a.z - (a.d || 5.5), z1 = b.z + (b.d || 5.5); a.z = (z0 + z1) / 2; a.d = (z1 - z0) / 2; a.w = Math.max(a.w || 5.5, b.w || 5.5); }
+      else { const x0 = a.x - (a.w || 5.5), x1 = b.x + (b.w || 5.5); a.x = (x0 + x1) / 2; a.w = (x1 - x0) / 2; a.d = Math.max(a.d || 5.5, b.d || 5.5); }
+      a.y = Math.min(a.y, b.y); a._merged = true; gone.add(b);
+    }
+    if (gone.size) w.objects = w.objects.filter((o) => !gone.has(o));
+    return gone.size;
+  }
   function upgradeTowns(w) {
     const W = S.MAP.waiting, added = [];
+    w._ch1Merged = mergeLots(w);
     for (const o of w.objects) {
       if (o.type !== "house" || o.dead || Math.hypot(o.x - W.x, o.z - W.z) < (W.radius || 82) + 60) continue;
       const k = hash(o.seed || o.x * 7 + o.z), k2 = hash((o.seed || 1) * 3 + 11), style = o.style || "";
       let floors = o.floors || 1;
-      if (style === "citadel" || style === "port") floors = Math.max(floors, 4 + Math.floor(k * 4.99));
+      if (style === "citadel") floors = Math.max(floors, 6 + Math.floor(k * 6.99));
+      else if (style === "port") floors = Math.max(floors, 5 + Math.floor(k * 4.99));
       else if (style === "hamlet" || style === "farm") floors = Math.max(floors, 2 + (k < .45 ? 1 : 0));
-      else floors = Math.max(floors, 2 + Math.floor(k * 2.99));
-      floors = Math.min(10, floors);
-      o.w = Math.min(6.4, Math.max(o.w || 5, 5.3 + k2 * 1.1));
-      o.d = Math.min(6.2, Math.max(o.d || o.w, 5.3 + hash(k2 * 977) * .9));
+      else floors = Math.max(floors, 3 + Math.floor(k * 2.99));
+      floors = Math.min(o._merged ? 14 : 12, floors + (o._merged ? 1 : 0));
+      if (!o._merged) {
+        o.w = Math.min(6.6, Math.max(o.w || 5, 5.5 + k2 * 1.1));
+        o.d = Math.min(6.4, Math.max(o.d || o.w, 5.5 + hash(k2 * 977) * .9));
+      }
       o.floors = floors; o.h = floors * FLOOR; o.maxHp = o.hp = Math.max(o.hp || 420, 260 + floors * 120);
       if (o.door) { o.door.z = o.z - o.d; o.door.x = o.x; }
       o._panels = null; o._stair = stairOf(o);
@@ -100,10 +125,25 @@
   A.objectModel = function (o) {
     const g = prevModel.apply(this, arguments);
     if (!o || o.type !== "house" || !o._stair) return g;
-    try { g.add(details(o)); } catch (e) { if (root.console) console.warn("[AZUR bâtiments] modèle", e); }
+    try { g.add(details(o)); g.add(ceilings(o)); } catch (e) { if (root.console) console.warn("[AZUR bâtiments] modèle", e); }
     return g;
   };
   const GLASS = ["#3f6f8a", "#4b7f9c", "#35607a"], LIT = "#ffd98a", FRAME = "#eef1ee", SLAB = "#b9b3a6", STEP = "#9c8f7c", RAIL = "#5a5f66";
+  // plafonds : sous chaque plancher, matière non éclairée (sinon la lumière d'ambiance du sol les teinte en vert)
+  let CEIL = null;
+  function ceilings(o) {
+    const m = new A.Model(), w = o.w, d = o.d, st = o._stair;
+    for (let f = 1; f < (o.floors || 1); f++) {
+      const y = f * FLOOR - .215, iw = w - .32, id = d - .32;
+      m.box(st.x0 + iw, .02, id * 2, "#d9d3c6", (st.x0 - iw) / 2, y, 0);
+      const cw = st.x1 - st.x0 + .3, cx = (st.x0 + st.x1 + .3) / 2, za = -id, zb = st.z0 - .3, zc = st.z1 + .3, zd = id;
+      if (zb > za) m.box(cw, .02, zb - za, "#d9d3c6", cx, y, (za + zb) / 2);
+      if (zd > zc) m.box(cw, .02, zd - zc, "#d9d3c6", cx, y, (zc + zd) / 2);
+    }
+    const mesh = m.mesh();
+    if (!CEIL) CEIL = new T.MeshBasicMaterial({ vertexColors: true, color: 0xb8b2a6 });
+    mesh.material = CEIL; mesh.userData.shared = true; mesh.castShadow = false; return mesh;
+  }
   function details(o) {
     const m = new A.Model(), w = o.w, d = o.d, floors = o.floors || 1, st = o._stair;
     // planchers intérieurs, avec la trémie de l'escalier
