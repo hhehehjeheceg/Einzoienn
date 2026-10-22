@@ -31,6 +31,18 @@ const LINKS = [], ALTS = [];
 })();
 const THINKP = new Cloud(420, THINK), THINKPP = [];
 (() => { const r = mulberry32(77); for (let i = 0; i < THINKP.n; i++) THINKPP.push({ x: -3 + r() * 16, y: -3 + r() * 6, z: -6 + r() * 7, s: .015 + r() * .04, c: r() < .5 ? HU.amber : BR.cream, ph: r() * TAU }); })();
+const WEB = (() => {   // 150 faint nodes around the graph, each joined to its two nearest neighbours
+  const r = mulberry32(3131), P = [];
+  for (let i = 0; i < 150; i++) P.push(V3(C6[0] - 4 + r() * 18, C6[1] - 3.5 + r() * 7, C6[2] - 9 + r() * 7));
+  const E = [];
+  P.forEach((a, i) => P.map((b, j) => [a.distanceTo(b), j]).filter(([, j]) => j !== i).sort((x, y) => x[0] - y[0]).slice(0, 2).forEach(([, j]) => { if (i < j) E.push([i, j]); }));
+  const pos = new Float32Array(E.length * 6);
+  E.forEach(([i, j], k) => { pos.set([P[i].x, P[i].y, P[i].z, P[j].x, P[j].y, P[j].z], k * 6); });
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x9a86ff, transparent: true, opacity: .22, blending: THREE.AdditiveBlending, depthWrite: false }));
+  THINK.add(lines);
+  return { P, E, nodes: new Cloud(150, THINK), pulses: new Cloud(60, THINK), lines };
+})();
 const stepU = (t, k) => o5(seg(t, T_STEPS[k], T_STEPS[k] + .36));
 function thinkHead(t) {   // where the thought is: the head of the last growing link
   let p = NODES[0].clone();
@@ -55,6 +67,15 @@ function setupThink(t) {
   });
   THINKPP.forEach((p, i) => THINKP.set(i, C6[0] + p.x + .15 * Math.sin(t * .5 + p.ph), C6[1] + p.y + .1 * Math.sin(t * .7 + p.ph), C6[2] + p.z, p.s, p.c, .5 * (.6 + .4 * Math.sin(t * 2 + p.ph))));
   THINKP.commit();
+  const a = t - T_THINK;
+  WEB.lines.material.opacity = .22 * ss(a / .6);
+  WEB.P.forEach((p, i) => WEB.nodes.set(i, p.x, p.y, p.z, .05, i % 3 ? [154, 134, 255] : HU.amber, .7 * ss(a / .6) * (.5 + .5 * Math.sin(t * 3 + i))));
+  WEB.nodes.commit();
+  for (let i = 0; i < WEB.pulses.n; i++) {   // light running along random edges
+    const e = WEB.E[(i * 7 + Math.floor(t * 1.3 + i * .37)) % WEB.E.length], u = fract(t * 1.3 + i * .37), A = WEB.P[e[0]], Bp = WEB.P[e[1]];
+    WEB.pulses.set(i, lerp(A.x, Bp.x, u), lerp(A.y, Bp.y, u), lerp(A.z, Bp.z, u), .09, i % 2 ? HU.amber : [190, 170, 255], Math.sin(Math.PI * u) * ss(a / .6));
+  }
+  WEB.pulses.commit();
   const h = thinkHead(t), push = inn(seg(t, bt(31), bt(32)));
   setSparkMat('clay');
   sparkAt(h.x, h.y, h.z + .05, .2 + .05 * pulse(t, T_STEPS[3] + .34, 1, .3) + .25 * push, .3, .3 * Math.sin(t * 1.4), -t * 2.4, 1, 0);
@@ -71,6 +92,7 @@ function bgThink(t) {
   ground('think', t);
   const sp = sparkScreen();
   glow(SOFT.amber, sp.x, sp.y, 380, .32, 'lighter');
+  bokeh(t, ['violet', 'amber', 'sky'], .8);
   vignette(.5);
 }
 function fgThink(t) {
@@ -88,6 +110,7 @@ function fgThink(t) {
     const t0 = T_STEPS[A.k] - .08 + .5, s = proj(A.E.x, A.E.y, A.E.z), a = o5(seg(t, t0, t0 + .2)) * (1 - seg(t, t0 + .5, t0 + .9));
     if (a > 0) { ctx.strokeStyle = rgb(BR.cream, .5 * a); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s.x + 14, s.y - 6); ctx.lineTo(s.x + 26, s.y + 6); ctx.moveTo(s.x + 26, s.y - 6); ctx.lineTo(s.x + 14, s.y + 6); ctx.stroke(); }
   });
+  lightLeak(t, T_THINK - .05, .9, HU.violet, -1, .35);
   const out_ = seg(t, bt(30.6), bt(31.3));
   rise('Je réfléchis', 150, 240, FR(104), BR.cream, spring(t - T_THINK - .08, 170, .78), out_, { lh: 124, ls: -2 });
   rise('avant de répondre.', 150, 362, FR(104), BR.cream, spring(t - bt(27), 170, .78), out_, { lh: 124, ls: -2 });

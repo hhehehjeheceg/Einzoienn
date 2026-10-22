@@ -73,7 +73,8 @@ function bgLang(t) {
   ground('aurora', t);
   const sp = sparkScreen(), a = t - T_DROP;
   glow(SOFT.clay, sp.x, sp.y, 500 + 300 * spring(a, 30, .9), .55 + .4 * pulse(t, T_DROP, 1, .4), 'lighter');
-  godrays(sp.x, sp.y, 1300, .35 * pulse(t, T_DROP, 1, .7) + .08, t * .1, HU.amber, 22);
+  godrays(sp.x, sp.y, 1300, .35 * pulse(t, T_DROP, 1, .7) + .1 + .12 * kickEnv(t), t * .1, HU.amber, 22);
+  bokeh(t, ['violet', 'rose', 'amber', 'clay'], 1.1);
   vignette(.55);
 }
 function fgLang(t) {
@@ -84,6 +85,8 @@ function fgLang(t) {
   shock(t, T_DROP + .12, sp.x, sp.y, { R: 900, w: 3, life: .8, a: .5 });
   streaks(sp.x, sp.y, t, T_DROP, .7, false, { n: 90, R: 1500, L: 340, a: .9, seed: 31, col: HU.amber });
   for (let k = 1; k < 8; k++) shock(t, T_DROP + k * BEAT, sp.x, sp.y, { R: 420, w: 1.5, life: .45, a: .25 });
+  lasers(t, T_DROP + .02, 11.2, [BR.clay, HU.violet, HU.amber, HU.rose], { n: 8, a: .75 });
+  bokeh(t, ['amber', 'rose'], .9, true);
   const t0 = bt(17), out_ = seg(t, 10.9, 11.15);
   rise('Je parle votre langue.', 960, 968, FR(92), BR.cream, spring(t - t0, 170, .78), out_, { lh: 110, align: 'center', ls: -1.5 });
   rise('ET DES DIZAINES D’AUTRES', 960, 1024, SANS(18, 600), BR.cream, spring(t - t0 - .3, 170, .8), out_, { lh: 30, align: 'center', ls: 6, alpha: .55, rot: 0 });

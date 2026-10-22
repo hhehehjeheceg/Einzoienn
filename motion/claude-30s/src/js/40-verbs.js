@@ -242,7 +242,13 @@ function bgVerb(t) {
   const sp = sparkScreen();
   glow(SOFT.clay, sp.x, sp.y, 260, .3, 'lighter');
   glow(SOFT.clay, 1300, 560, 900, .12, 'lighter');
+  bokeh(t, ['clay', 'amber', 'violet', 'rose'], .9, false, [-(t - 3.5) * 120, 0]);
 }
+const CHIPS = [   // [station, label, offset x, y, z from the station centre, delay after the verb, hue]
+  [0, 'Ton : chaleureux', 2.9, 1.25, .4, .35, 'amber'], [0, 'Orthographe ✓', -.15, -1.35, .5, .55, 'mint'],
+  [1, 'Tests 3/3 ✓', 3.0, 1.1, .5, .5, 'mint'], [1, 'Python 3', -.1, -1.2, .6, .3, 'sky'],
+  [2, 'Tendance ↗', 2.95, 1.0, .5, .55, 'amber'], [2, 'Résumé prêt', -.2, 1.15, .4, .7, 'violet'],
+];
 const VERB_SUB = ['Textes, e-mails, histoires.', 'Python, JavaScript, SQL…', 'Documents, données, images.'];
 function fgVerb(t) {
   if (t < 3.65) fgOpen(t);
@@ -263,6 +269,22 @@ function fgVerb(t) {
     rise(VERBS[k], 160, 600, FR(150), BR.cream, pin, pout, { lh: 170, ls: -3 });
     rise(VERB_SUB[k], 168, 690, SANS(30, 500), BR.cream, spring(t - t0 - .14, 190, .8), pout, { lh: 44, alpha: .6, rot: 0 });
   }
+  // chips: small labels that pop around each object (they say what the spark is doing)
+  CHIPS.forEach(([k, label, ox, oy, oz, dt, hue]) => {
+    const C = [C1, C2, C3][k], t0 = T_V[k] + dt, tEnd = k < 2 ? T_V[k + 1] - .2 : T_BURST[0];
+    const p = spring(t - t0, 230, .72), out_ = io(seg(t, tEnd - .1, tEnd + .1));
+    if (p <= .002 || out_ >= 1) return;
+    const s = proj(C[0] + ox, C[1] + oy + .05 * Math.sin(t * 2 + ox), C[2] + oz), f = SANS(22, 600), w = tw(label, f) + 54;
+    ctx.save(); ctx.translate(s.x, s.y); ctx.scale(p * (1 - out_), p * (1 - out_));
+    ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
+    rr(-w / 2, -22, w, 44, 22); ctx.fillStyle = 'rgba(28,26,34,0.82)'; ctx.fill(); ctx.shadowColor = 'rgba(0,0,0,0)';
+    ctx.lineWidth = 1.5; ctx.strokeStyle = rgb(HU[hue], .8); ctx.stroke();
+    circ(-w / 2 + 22, 0, 6); ctx.fillStyle = rgb(HU[hue]); ctx.fill();
+    txt(label, -w / 2 + 36, 8, f, BR.cream);
+    ctx.restore();
+  });
+  WH.forEach(([a, b], i) => lightLeak(t, a - .1, b - a + .35, [HU.amber, HU.rose, HU.violet][i], i % 2 ? -1 : 1, .32));
+  bokeh(t, ['amber', 'clay'], .7, true, [-(t - 3.5) * 300, 0]);
   // honest label under the chart
   if (t > T_V[2]) {
     const b = proj(C3[0] + 1.1, C3[1] - .78, 1.15), a = ss(seg(t, T_V[2] + .5, T_V[2] + .7));

@@ -34,6 +34,17 @@ SPARK.add(EMBER);
 const HUB = new THREE.Mesh(new THREE.SphereGeometry(.13, 40, 20), MAT.clay);
 HUB.scale.set(1, 1, .62); SPARK.add(HUB);
 
+// a swarm of motes orbiting the spark everywhere (spark-local coordinates, so it follows every move)
+const AURA = new Cloud(90, SPARK), AURAP = [];
+(() => { const r = mulberry32(4040); for (let i = 0; i < AURA.n; i++) AURAP.push({ r: 1.15 + r() * 1.1, a: r() * TAU, y: (r() - .5) * .9, w: (.4 + r() * .9) * (r() < .5 ? 1 : -1), s: .02 + r() * .035, c: r() < .5 ? HU.amber : r() < .6 ? BR.cream : BR.clay, ph: r() * TAU }); })();
+let AURA_A = 1;
+function setAura(t, s, a) {
+  AURAP.forEach((p, i) => {
+    const an = p.a + t * p.w;
+    AURA.set(i, Math.cos(an) * p.r, Math.sin(an) * p.r * .9 + p.y * .3, p.y + Math.sin(an) * .3, p.s * s, p.c, a * (.45 + .55 * Math.sin(t * 4 + p.ph)) ** 2);
+  });
+  AURA.commit();
+}
 // grow: 0..1 global growth, or a function i -> growth of ray i
 function sparkAt(x, y, z, s, rx, ry, rz, grow = 1, ember = 0) {
   SPARK.visible = s > .0005;
@@ -47,5 +58,6 @@ function sparkAt(x, y, z, s, rx, ry, rz, grow = 1, ember = 0) {
   const gAll = typeof grow === 'function' ? grow(11) : grow;
   HUB.visible = gAll > .02; HUB.scale.set(clamp(gAll * 1.5), clamp(gAll * 1.5), .62 * clamp(gAll * 1.5));
   EMBER.visible = ember > .002; EMBER.scale.setScalar(Math.max(1e-3, ember));
+  setAura(CUR_T, Math.max(1e-4, s), AURA_A * clamp(gAll));
 }
 const sparkScreen = () => proj(SPARK.position.x, SPARK.position.y, SPARK.position.z);

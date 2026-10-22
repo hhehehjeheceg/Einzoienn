@@ -3,6 +3,8 @@
 //  where "Comment puis-je vous aider ?" is typed, a light sweep on the final chord. Nothing freezes.
 // =====================================================================================================
 const C10 = [0, 210, 0];
+const FIN = sceneGroup();
+const CONF3 = new Confetti(140, FIN, 77, [0xd97757, 0xf2b45a, 0xa99bff, 0xf28fae, 0x5fd3a6]);
 const LOCK = { word: 'Claude', font: FR(200), y: 470, r: 96, gap: 44 };
 function lockLayout() {
   const ww = tw(LOCK.word, LOCK.font, -4), total = 2 * LOCK.r + LOCK.gap + ww, x0 = 960 - total / 2;
@@ -14,6 +16,9 @@ function camFinale(t) {
 }
 function setupFinale(t) {
   setLook(true);
+  FIN.visible = true;
+  CONF3.fall(t - T_FLOOD + 6, [C10[0], C10[1], C10[2] - 2.5], 16, 9, 3, .5, 1.3);
+  CONF3.mesh.visible = t > T_FLOOD + .2;
   const a = t - T_FLOOD, L = lockLayout(), ppu = pxPerUnit(CAM.position.z - C10[2]);
   const land = spring(a - .05, 70, .8);
   // the spark arrives from the centre of the flood (where the rush left it) to its place in the lockup
@@ -42,8 +47,8 @@ function fgFinale(t) {
   flash(.85 * pulse(t, T_FLOOD, 1, .1), BR.white);
   // wordmark
   riseLetters(LOCK.word, L.wx, LOCK.y, LOCK.font, BR.ink, t, T_FLOOD + .28, .045, { lh: 220, ls: -4, align: 'left', k: 170, z: .8, rot: .12 });
-  sheen(LOCK.word, L.wx, LOCK.y, LOCK.font, -4, seg(t, T_FINAL + .02, T_FINAL + .75), [255, 250, 240], .9, 260);
-  sheen(LOCK.word, L.wx, LOCK.y, LOCK.font, -4, seg(t, T_FINAL + .02, T_FINAL + .75), BR.clay, .35, 520);
+  sheen(LOCK.word, L.wx, LOCK.y, LOCK.font, -4, seg(t, T_FINAL + .02, T_FINAL + .75), [255, 250, 240], .5, 260);
+  sheen(LOCK.word, L.wx, LOCK.y, LOCK.font, -4, seg(t, T_FINAL + .02, T_FINAL + .75), BR.clay, .22, 520);
   // prompt box
   const p = spring(t - T_PROMPT, 120, .8), bw = 980, bh = 104, bx = 960 - bw / 2, by = 690 + (1 - p) * 70;
   if (p > .002) {
@@ -72,6 +77,7 @@ function fgFinale(t) {
     const an = r() * TAU, d = 120 + r() * 70, t0 = T_FINAL + .05 + r() * .5;
     sparkle(sp.x + Math.cos(an) * d, sp.y + Math.sin(an) * d, 10 + r() * 8, t * 1.2 + i, .9 * Math.sin(Math.PI * seg(t, t0, t0 + .55)), BR.clay);
   }
+  lightLeak(t, T_FINAL - .1, 1.0, [255, 214, 170], 1, .35);
   vignette(.12, [120, 80, 50]);
 }
 SCENES.push({ t0: T_FLOOD, cam: camFinale, setup: setupFinale, bg: bgFinale, fg: fgFinale });

@@ -7,6 +7,7 @@ const HALTON = (i, b) => { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i
 function sceneAt(t) { let s = SCENES[0]; for (const S of SCENES) if (t >= S.t0) s = S; return s; }
 
 function draw(t) {
+  CUR_T = t; AURA_A = 1;
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
   for (const g of GROUPS) g.visible = false;
   const S = sceneAt(t), c = S.cam(t);
@@ -69,13 +70,13 @@ function grain(f, a) {
   main.restore();
 }
 function composite(ts, alpha) {
-  const { dx, dy } = shake(ts), s = 1 + Math.max(Math.abs(dx) / 960, Math.abs(dy) / 540) * 1.2;
+  const { dx, dy } = shake(ts), s = (1 + Math.max(Math.abs(dx) / 960, Math.abs(dy) / 540) * 1.2) * (1 + kickEnv(ts) * (inDrop(ts) ? .018 : .008));
   main.globalAlpha = alpha; main.globalCompositeOperation = 'source-over';
   main.setTransform(s, 0, 0, s, 960 * (1 - s) + dx, 540 * (1 - s) + dy);
   main.drawImage(scr, 0, 0);
   main.setTransform(1, 0, 0, 1, 0, 0); main.globalAlpha = 1;
 }
-function post(t, f) { bloom(bloomAmt(t)); chroma(caAmt(t)); grain(f, t < T_FLOOD ? .065 : .04); }
+function post(t, f) { zoomBlur(zoomAmt(t)); glitch(glitchAmt(t), f); bloom(bloomAmt(t) + (inDrop(t) ? .18 * kickEnv(t) : 0)); chroma(caAmt(t) + (inDrop(t) ? .002 * kickEnv(t) : 0)); grain(f, t < T_FLOOD ? .065 : .04); }
 
 // motion-blur budget: sub-frames per output frame, more where things move fast; never blur across a hard cut
 function subN(t) { let n = 3; for (const [a, b, k] of SUBS) if (t >= a && t < b) n = Math.max(n, k); return Math.min(n, 9); }

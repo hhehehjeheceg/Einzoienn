@@ -2,6 +2,8 @@
 
     python3 finish.py            -> claude-30s.mp4 + out/contact.png
 """
+import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -13,6 +15,16 @@ parts = sorted(OUT.glob("part[0-9].mkv"))
 
 def run(*a):
     subprocess.run(["ffmpeg", "-v", "error", "-y", *a], check=True)
+
+
+# two-pass loudnorm: -14 LUFS integrated, true peak -1.3 dB
+LN = "loudnorm=I=-14:TP=-1.3:LRA=11"
+m = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(OUT / "mix_raw.wav"), "-af", LN + ":print_format=json", "-f", "null", "-"],
+                   capture_output=True, text=True).stderr
+d = json.loads(re.search(r"\{[^{}]*\}", m[m.rfind("Parsed_loudnorm"):]).group(0))
+run("-i", str(OUT / "mix_raw.wav"), "-af", f"{LN}:measured_I={d['input_i']}:measured_TP={d['input_tp']}:measured_LRA={d['input_lra']}"
+    f":measured_thresh={d['input_thresh']}:offset={d['target_offset']}:linear=true", "-ar", "48000", str(OUT / "mix.wav"))
+run("-i", str(OUT / "mix.wav"), "-c:a", "aac", "-b:a", "256k", str(HERE / "claude-30s-audio.m4a"))
 
 
 run("-f", "concat", "-safe", "0", "-i", str(OUT / "parts.txt"), "-i", str(OUT / "mix.wav"),

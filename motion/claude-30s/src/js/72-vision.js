@@ -115,10 +115,14 @@ function camSee(t) {
 function bgSee(t) {
   ground('dusk', t);
   glow(SOFT.rose, 1300, 560, 900, .18, 'lighter');
+  bokeh(t, ['rose', 'violet', 'amber'], .8);
   vignette(.55);
 }
 function fgSee(t) {
   flash(.85 * pulse(t, T_SEE, 1, .08), BR.white);
+  lightLeak(t, T_SEE + .05, 1.4, HU.rose, 1, .35);
+  lightLeak(t, bt(39.2), .7, HU.violet, -1, .3);
+  bokeh(t, ['rose', 'amber'], .7, true);
   const a = t - T_SEE, out_ = seg(t, bt(39.3), bt(39.9));
   rise('Je vois.', 160, 560, FR(150), BR.cream, spring(a - .1, 170, .8), out_, { lh: 170, ls: -3 });
   rise('Photos, schémas, captures d’écran.', 168, 650, SANS(30, 500), BR.cream, spring(a - .3, 170, .8), out_, { lh: 44, alpha: .6, rot: 0 });

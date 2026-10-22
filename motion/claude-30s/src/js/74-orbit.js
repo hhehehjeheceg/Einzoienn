@@ -30,7 +30,7 @@ INITS.push(initCards);
 const ORBP = new Cloud(500, ORB), ORBPP = [];
 (() => { const r = mulberry32(919), cols = [BR.clay, HU.amber, HU.violet, BR.cream, HU.rose]; for (let i = 0; i < ORBP.n; i++) ORBPP.push({ r: 1.5 + Math.pow(r(), .6) * 6, a: r() * TAU, y: (r() - .5) * 2.4, s: .015 + r() * .045, c: cols[Math.floor(r() * 5)], w: .3 + r() }); })();
 const orbitU = t => seg(t, T_ORBIT, T_DROP2);
-const orbitAng = t => { const u = orbitU(t); return 1.2 * u + 6 * u ** 4; };
+const orbitAng = t => { const u = orbitU(t); return 1.0 * u + 5 * u ** 5; };
 const SUCK2 = bt(47.4);
 function setupOrbit(t) {
   ORB.visible = true;
@@ -63,6 +63,7 @@ function camOrbit(t) {
 function bgOrbit(t) {
   ground('think', t);
   ground('aurora', t, .55 * ss(orbitU(t)));
+  bokeh(t, ['violet', 'rose', 'amber'], .5 + .8 * orbitU(t), false, [0, -orbitU(t) * 600]);
   const sp = sparkScreen();
   glow(SOFT.clay, sp.x, sp.y, 300 + 400 * orbitU(t), .25 + .4 * orbitU(t), 'lighter');
   vignette(.5);
@@ -88,6 +89,17 @@ function fgOrbit(t) {
   const u = orbitU(t);
   rise('Tout ça, dans une seule conversation.', 960, 980, FR(64), BR.cream, spring(t - T_ORBIT - .15, 170, .8), seg(t, SUCK2 - .25, SUCK2), { lh: 80, align: 'center', ls: -1 });
   for (let k = 0; k < 8; k++) shock(t, T_ORBIT + k * BEAT * (k < 4 ? 1 : .5), sp.x, sp.y, { R: 380, w: 1.5, life: .4, a: .2 * u + .1 });
+  if (u > 0) {   // speed lines leaving the centre, denser and faster as the orbit accelerates
+    const r = mulberry32(777);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+    for (let i = 0; i < 70; i++) {
+      const an = r() * TAU, ph = r(), sp_ = .6 + r(), d = fract(ph + t * sp_ * (.4 + 2.2 * u * u)) * 1300, L = (40 + 260 * u * u) * (.4 + r());
+      ctx.strokeStyle = rgb(r() < .5 ? BR.cream : HU.violet, (.08 + .45 * u * u) * Math.min(1, d / 200) * (1 - suck));
+      ctx.lineWidth = 1 + 2 * r();
+      ctx.beginPath(); ctx.moveTo(sp.x + Math.cos(an) * d, sp.y + Math.sin(an) * d); ctx.lineTo(sp.x + Math.cos(an) * (d + L), sp.y + Math.sin(an) * (d + L)); ctx.stroke();
+    }
+    ctx.restore();
+  }
   streaks(sp.x, sp.y, t, SUCK2 - .05, T_DROP2 - SUCK2 + .05, true, { n: 90, R: 1300, L: 320, a: .85, seed: 13, col: HU.violet });
   glow(GLOW.amber, sp.x, sp.y, 40 + 300 * suck, .9 * suck);
   glow(GLOW.white, sp.x, sp.y, 20 + 40 * suck, suck);

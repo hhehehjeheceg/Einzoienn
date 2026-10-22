@@ -55213,7 +55213,7 @@ function flowField(t, lut, o = {}) {
   return FB.c;
 }
 const FLOWCACHE = {};
-let CUR_F = 0;   // output frame being rendered (per-frame caches: every motion-blur sub-frame reuses them)
+let CUR_F = 0, CUR_T = 0;   // output frame being rendered (per-frame caches: every motion-blur sub-frame reuses them)
 function flowBG(name, lut, o, alpha = 1) {
   let e = FLOWCACHE[name]; if (!e) e = FLOWCACHE[name] = { key: -1, c: mk(FBW, FBH).c };
   if (e.key !== CUR_F) { flowField(CUR_F / FPS, lut, o); e.c.getContext('2d').drawImage(FB.c, 0, 0); e.key = CUR_F; }
@@ -55562,6 +55562,167 @@ function streaks(x, y, t, t0, dur, inward, o = {}) {
   ctx.restore();
 }
 
+// ===== 15-ambience.js =====
+// =====================================================================================================
+//  Ambience shared by every scene: the beat (kick envelope, camera punches), bokeh, light leaks, lasers,
+//  zoom blur and glitch on the cuts. All of it follows the score's grid, so picture and music breathe together.
+// =====================================================================================================
+
+// ------------------------------------------------------------------ kicks, as written in audio.py
+const KICK_T = (() => {
+  const k = [];
+  for (let b = 4; b < 8; b++) k.push([bt(b), .35]);
+  for (let b = 8; b < 14; b++) k.push([bt(b), .7]);
+  for (let b = 16; b < 32; b++) k.push([bt(b), b < 24 ? 1 : .75]);
+  for (let b = 44; b < 46; b++) k.push([bt(b), .6]);
+  for (let b = 46; b < 47; b += .5) k.push([bt(b), .7]);
+  for (let b = 47; b < 47.75; b += .25) k.push([bt(b), .8]);
+  for (let b = 48; b < 56; b++) k.push([bt(b), 1]);
+  k.push([bt(56), 1]);
+  return k;
+})();
+function kickEnv(t, tau = .11) {
+  let e = 0;
+  for (const [k, a] of KICK_T) if (t >= k && t < k + .6) e = Math.max(e, a * Math.exp(-(t - k) / tau));
+  return e;
+}
+const inDrop = t => (t >= T_DROP && t < T_THINK + BAR * 2) || (t >= T_DROP2 && t < T_FLOOD);
+
+// ------------------------------------------------------------------ bokeh: soft discs with a brighter rim, drifting with depth
+function makeBokeh(col, size = 200) {
+  const { c, g } = mk(size, size), h = size / 2, gr = g.createRadialGradient(h, h, 0, h, h, h);
+  gr.addColorStop(0, rgb(col, .22)); gr.addColorStop(.72, rgb(col, .32)); gr.addColorStop(.88, rgb(col, .7)); gr.addColorStop(1, rgb(col, 0));
+  g.fillStyle = gr; g.fillRect(0, 0, size, size); return c;
+}
+const BOKEH = {};
+for (const k of Object.keys(HU)) BOKEH[k] = makeBokeh(HU[k]);
+BOKEH.cream = makeBokeh(BR.cream); BOKEH.white = makeBokeh(BR.white);
+const BOKP = [];
+(() => { const r = mulberry32(5150); for (let i = 0; i < 70; i++) BOKP.push({ x: r(), y: r(), z: r(), ph: r() * TAU, k: r() }); })();
+function bokeh(t, hues, a = 1, near = false, drift = [0, 0]) {
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  BOKP.forEach((p, i) => {
+    if (near !== (p.z > .82)) return;
+    const z = near ? 1.4 + p.z : .4 + p.z, R = (near ? 90 : 16) + (near ? 110 : 60) * p.k;
+    const x = ((p.x * (W + 400) + t * (14 + 24 * z) + drift[0] * z) % (W + 400)) - 200, y = ((p.y * (H + 300) - t * (6 + 10 * z) + drift[1] * z + 9000) % (H + 300)) - 150;
+    const al = a * (near ? .1 : .16) * (.55 + .45 * Math.sin(t * 1.3 + p.ph));
+    if (al <= .003) return;
+    ctx.globalAlpha = al; ctx.drawImage(BOKEH[hues[i % hues.length]], x - R, y - R, 2 * R, 2 * R);
+  });
+  ctx.restore();
+}
+
+// ------------------------------------------------------------------ light leak: a warm blob of light crossing the frame
+function lightLeak(t, t0, dur, col = HU.amber, dir = 1, a = .45) {
+  const u = (t - t0) / dur; if (u <= 0 || u >= 1) return;
+  const x = dir > 0 ? lerp(-500, W + 500, ss(u)) : lerp(W + 500, -500, ss(u)), y = 380 + 220 * Math.sin(u * 3);
+  ctx.save(); ctx.globalCompositeOperation = 'screen';
+  const g = ctx.createRadialGradient(x, y, 0, x, y, 1000);
+  g.addColorStop(0, rgb(col, a * Math.sin(Math.PI * u))); g.addColorStop(.45, rgb(col, a * .4 * Math.sin(Math.PI * u))); g.addColorStop(1, rgb(col, 0));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+// ------------------------------------------------------------------ lasers: beams from the floor (or the ceiling), sweeping on the beat
+function laser(x0, y0, ang, len, col, a, w = 1) {
+  if (a <= .004) return;
+  const x1 = x0 + Math.sin(ang) * len, y1 = y0 - Math.cos(ang) * len;
+  ctx.lineCap = 'round';
+  [[46 * w, .05], [16 * w, .12], [5 * w, .45], [1.6 * w, 1]].forEach(([lw, k]) => {
+    const g = ctx.createLinearGradient(x0, y0, x1, y1);
+    g.addColorStop(0, rgb(k === 1 ? BR.white : col, a * k)); g.addColorStop(.7, rgb(col, a * k * .5)); g.addColorStop(1, rgb(col, 0));
+    ctx.strokeStyle = g; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  });
+  glow(GLOW.white, x0, y0, 30 * w, a * .8);
+}
+function lasers(t, t0, t1, cols, o = {}) {
+  if (t < t0 || t > t1) return;
+  const fade = ss(seg(t, t0, t0 + .15)) * (1 - ss(seg(t, t1 - .3, t1))), n = o.n || 8, top = !!o.top;
+  const beat = (t - T_DROP) / BEAT, k = kickEnv(t, .2);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const src = [140, 620, 1300, 1780];   // four projectors, each fanning beams that cross the frame
+  for (let i = 0; i < n; i++) {
+    const j = i % 4, x0 = src[j], side = x0 < W / 2 ? 1 : -1;
+    const sweep = side * (.25 + .3 * Math.sin(beat * Math.PI / 2 + i * 1.3)) + (i >= 4 ? -side * .45 : 0);
+    const on = .5 + .5 * (Math.floor(beat * 2 + i) % 2 === 0 ? 1 : .3);
+    laser(x0, top ? -20 : H + 20, top ? Math.PI - sweep : sweep, 2200, cols[i % cols.length], (o.a || .55) * fade * on * (.65 + .6 * k), 1.5);
+  }
+  ctx.restore();
+}
+
+// ------------------------------------------------------------------ post effects on the composited frame: zoom blur and glitch slices
+const ZB = mk(W, H), zbx = ZB.g;
+function zoomBlur(amt, cx = 960, cy = 540) {
+  if (amt <= .002) return;
+  zbx.globalCompositeOperation = 'copy'; zbx.drawImage(cv, 0, 0);
+  main.save(); main.setTransform(1, 0, 0, 1, 0, 0);
+  for (let i = 1; i <= 6; i++) {
+    const s = 1 + amt * i / 6;
+    main.globalAlpha = 1 / (i + 1);
+    main.setTransform(s, 0, 0, s, cx * (1 - s), cy * (1 - s)); main.drawImage(ZB.c, 0, 0);
+  }
+  main.restore();
+}
+function glitch(amt, seed) {
+  if (amt <= .01) return;
+  zbx.globalCompositeOperation = 'copy'; zbx.drawImage(cv, 0, 0);
+  const r = mulberry32(seed);
+  main.save(); main.setTransform(1, 0, 0, 1, 0, 0);
+  for (let i = 0; i < 9; i++) {
+    const y = r() * H, h = 8 + r() * 70, dx = (r() - .5) * 160 * amt;
+    main.drawImage(ZB.c, 0, y, W, h, dx, y, W, h);
+    if (r() < .4) { main.globalCompositeOperation = 'lighter'; main.globalAlpha = .25 * amt; main.fillStyle = r() < .5 ? '#ff3d6e' : '#3dd8ff'; main.fillRect(0, y, W, h * .3); main.globalAlpha = 1; main.globalCompositeOperation = 'source-over'; }
+  }
+  main.restore();
+}
+const ZOOM_HITS = [[T_IGN, .05], [T_DROP, .14], [T_THINK, .06], [T_SEE, .05], [T_HONEST, .03], [T_DROP2, .16], [T_FLOOD, .08]];
+const zoomAmt = t => { let a = 0; for (const [b, k] of ZOOM_HITS) a += pulse(t, b, k, .12); for (const w of WH_T) a += .035 * Math.sin(Math.PI * clamp((t - w[0]) / (w[1] - w[0]))); return a; };
+const WH_T = [[3.52, 3.8], [4.47, 4.72], [5.4, 5.66]];
+function glitchAmt(t) { let a = 0; for (const w of T_BURST) a += t >= w && t < w + .09 ? 1 - (t - w) / .09 : 0; if (t >= T_DROP && t < T_DROP + .06) a += 1; if (t >= T_DROP2 && t < T_DROP2 + .06) a += 1; return a; }
+
+// ------------------------------------------------------------------ 3D confetti: an instanced cloud of little glazed papers that flutter
+const _m = new THREE.Matrix4(), _s3 = V3(1, 1, 1), _p3 = V3();
+class Confetti {
+  constructor(n, parent, seed, cols) {
+    const g = new THREE.PlaneGeometry(.07, .11);
+    this.mesh = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ roughness: .45, metalness: .1, side: THREE.DoubleSide }), n);
+    this.mesh.frustumCulled = false; parent.add(this.mesh);
+    const r = mulberry32(seed), c = new THREE.Color();
+    this.P = [];
+    for (let i = 0; i < n; i++) {
+      const u = r() * 2 - 1, ph = r() * TAU, s = Math.sqrt(1 - u * u), sp = 2 + r() * 7;
+      this.P.push({ vx: s * Math.cos(ph) * sp, vy: Math.abs(u) * sp * .9 + 1.5, vz: s * Math.sin(ph) * sp * .6, rx: r() * TAU, ry: r() * TAU, w: 4 + r() * 8, sw: r() * TAU, sc: .7 + r() * .7, x0: r() * 2 - 1, y0: r(), z0: r() * 2 - 1 });
+      c.set(cols[Math.floor(r() * cols.length)]); this.mesh.setColorAt(i, c);
+    }
+    this.mesh.instanceColor.needsUpdate = true;
+  }
+  // burst from a point: falls with drag and gravity, flutters
+  burst(t, t0, origin, scale = 1) {
+    const a = t - t0; this.mesh.visible = a > 0;
+    if (a <= 0) return;
+    this.P.forEach((p, i) => {
+      const k = 2.2, f = (1 - Math.exp(-k * a)) / k;
+      _p3.set(origin[0] + p.vx * f * scale + Math.sin(a * 2 + p.sw) * .15, origin[1] + p.vy * f * scale - .55 * a * a, origin[2] + p.vz * f * scale);
+      _q.setFromEuler(_e.set(p.rx + a * p.w, p.ry + a * p.w * .7, a * 3));
+      _s3.setScalar(p.sc * scale);
+      this.mesh.setMatrixAt(i, _m.compose(_p3, _q, _s3));
+    });
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+  // a gentle fall through a box (w, h, d) centred on c
+  fall(t, c, w, h, d, speed = .35, scale = 1) {
+    this.mesh.visible = true;
+    this.P.forEach((p, i) => {
+      const y = c[1] + h / 2 - ((p.y0 * h + t * speed * (.7 + .5 * p.sc)) % h);
+      _p3.set(c[0] + p.x0 * w / 2 + Math.sin(t * 1.3 + p.sw) * .25, y, c[2] + p.z0 * d / 2);
+      _q.setFromEuler(_e.set(p.rx + t * p.w * .4, p.ry + t * p.w * .3, t));
+      _s3.setScalar(p.sc * scale);
+      this.mesh.setMatrixAt(i, _m.compose(_p3, _q, _s3));
+    });
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+}
+
 // ===== 20-spark.js =====
 // =====================================================================================================
 //  The spark: the one object of the film. Twelve glazed terracotta rays (slightly irregular, hand-made),
@@ -55599,6 +55760,17 @@ SPARK.add(EMBER);
 const HUB = new THREE.Mesh(new THREE.SphereGeometry(.13, 40, 20), MAT.clay);
 HUB.scale.set(1, 1, .62); SPARK.add(HUB);
 
+// a swarm of motes orbiting the spark everywhere (spark-local coordinates, so it follows every move)
+const AURA = new Cloud(90, SPARK), AURAP = [];
+(() => { const r = mulberry32(4040); for (let i = 0; i < AURA.n; i++) AURAP.push({ r: 1.15 + r() * 1.1, a: r() * TAU, y: (r() - .5) * .9, w: (.4 + r() * .9) * (r() < .5 ? 1 : -1), s: .02 + r() * .035, c: r() < .5 ? HU.amber : r() < .6 ? BR.cream : BR.clay, ph: r() * TAU }); })();
+let AURA_A = 1;
+function setAura(t, s, a) {
+  AURAP.forEach((p, i) => {
+    const an = p.a + t * p.w;
+    AURA.set(i, Math.cos(an) * p.r, Math.sin(an) * p.r * .9 + p.y * .3, p.y + Math.sin(an) * .3, p.s * s, p.c, a * (.45 + .55 * Math.sin(t * 4 + p.ph)) ** 2);
+  });
+  AURA.commit();
+}
 // grow: 0..1 global growth, or a function i -> growth of ray i
 function sparkAt(x, y, z, s, rx, ry, rz, grow = 1, ember = 0) {
   SPARK.visible = s > .0005;
@@ -55612,6 +55784,7 @@ function sparkAt(x, y, z, s, rx, ry, rz, grow = 1, ember = 0) {
   const gAll = typeof grow === 'function' ? grow(11) : grow;
   HUB.visible = gAll > .02; HUB.scale.set(clamp(gAll * 1.5), clamp(gAll * 1.5), .62 * clamp(gAll * 1.5));
   EMBER.visible = ember > .002; EMBER.scale.setScalar(Math.max(1e-3, ember));
+  setAura(CUR_T, Math.max(1e-4, s), AURA_A * clamp(gAll));
 }
 const sparkScreen = () => proj(SPARK.position.x, SPARK.position.y, SPARK.position.z);
 
@@ -55737,10 +55910,12 @@ function bgOpen(t) {
   const pre = ss(t / .4) * (.35 + .3 * pulse(t, bt(1), 1, .2));
   glow(SOFT.clay, sp.x, sp.y, 300 + 500 * ign * spring(t - T_IGN, 40, .9), (pre * (1 - ign) + ign * (.42 + .4 * pulse(t, T_IGN, 1, .35))) * (1 - .4 * seg(t, 2, 3.5)), 'lighter');
   godrays(sp.x, sp.y, 1100, ign * (.5 * pulse(t, T_IGN, 1, .5) + .16) * (1 - .6 * seg(t, 1.9, 3.5)), t * .12);
+  bokeh(t, ['clay', 'amber', 'rose', 'violet'], ss(t / 1.2) * (.6 + .6 * ign));
 }
 function fgOpen(t) {
   const sp = sparkScreen();
-  // ignition: flash, flare, shock rings
+  // the ember's own little flare before the ignition, then the ignition: flash, flare, shock rings
+  if (t < T_IGN) flare(sp.x, sp.y, 70 + 25 * pulse(t, bt(1), 1, .2), .28 * ss(t / .4) + .3 * pulse(t, bt(1), 1, .2), 'amber');
   flare(sp.x, sp.y, 150, 1.25 * pulse(t, T_IGN, 1, .2), 'amber');
   glow(GLOW.white, sp.x, sp.y, 700, .55 * pulse(t, T_IGN, 1, .1));
   shock(t, T_IGN, sp.x, sp.y, { R: 900, w: 4, life: .8 });
@@ -55751,6 +55926,15 @@ function fgOpen(t) {
     const an = r() * TAU, d = 170 + r() * 230, t0 = T_IGN + .15 + r() * 1.3, a = Math.sin(Math.PI * seg(t, t0, t0 + .45));
     sparkle(sp.x + Math.cos(an) * d, sp.y + Math.sin(an) * d * .8, 9 + r() * 10, t * 1.5 + i, a * .9 * (1 - seg(t, 1.9, 2.1)));
   }
+  // each 3D letter lands with a small shock and two sparkles
+  LETTERS.forEach((L, i) => {
+    const tl = letterT(i) + .1, s = proj(WORD_X0 + L.x, BASE_Y, 0);
+    shock(t, tl, s.x, s.y, { R: 120, w: 2, life: .4, a: .6, col: BR.cream, col2: BR.clay });
+    for (let j = 0; j < 3; j++) { const a = Math.sin(Math.PI * seg(t, tl + j * .05, tl + .4 + j * .05)); sparkle(s.x + (j - 1) * 46, s.y - 20 - j * 34, 8 + 4 * j, t * 2 + i, a * .9, j === 1 ? HU.amber : BR.cream); }
+  });
+  lightLeak(t, T_CLAUDE - .25, 1.3, HU.amber, 1, .35);
+  lightLeak(t, 3.3, .7, BR.clay, 1, .4);
+  bokeh(t, ['amber', 'clay'], .8 * ss(seg(t, .5, 1.5)), true);
   // "Bonjour."
   riseLetters('Bonjour.', 960, 860, FR(124), BR.cream, t, T_HELLO, .042, { lh: 140, ls: -2, te: T_CLAUDE - .14, est: .02, ed: .26 });
   // "Je suis", attached to the 3D word, and the caption
@@ -56011,7 +56195,13 @@ function bgVerb(t) {
   const sp = sparkScreen();
   glow(SOFT.clay, sp.x, sp.y, 260, .3, 'lighter');
   glow(SOFT.clay, 1300, 560, 900, .12, 'lighter');
+  bokeh(t, ['clay', 'amber', 'violet', 'rose'], .9, false, [-(t - 3.5) * 120, 0]);
 }
+const CHIPS = [   // [station, label, offset x, y, z from the station centre, delay after the verb, hue]
+  [0, 'Ton : chaleureux', 2.9, 1.25, .4, .35, 'amber'], [0, 'Orthographe ✓', -.15, -1.35, .5, .55, 'mint'],
+  [1, 'Tests 3/3 ✓', 3.0, 1.1, .5, .5, 'mint'], [1, 'Python 3', -.1, -1.2, .6, .3, 'sky'],
+  [2, 'Tendance ↗', 2.95, 1.0, .5, .55, 'amber'], [2, 'Résumé prêt', -.2, 1.15, .4, .7, 'violet'],
+];
 const VERB_SUB = ['Textes, e-mails, histoires.', 'Python, JavaScript, SQL…', 'Documents, données, images.'];
 function fgVerb(t) {
   if (t < 3.65) fgOpen(t);
@@ -56032,6 +56222,22 @@ function fgVerb(t) {
     rise(VERBS[k], 160, 600, FR(150), BR.cream, pin, pout, { lh: 170, ls: -3 });
     rise(VERB_SUB[k], 168, 690, SANS(30, 500), BR.cream, spring(t - t0 - .14, 190, .8), pout, { lh: 44, alpha: .6, rot: 0 });
   }
+  // chips: small labels that pop around each object (they say what the spark is doing)
+  CHIPS.forEach(([k, label, ox, oy, oz, dt, hue]) => {
+    const C = [C1, C2, C3][k], t0 = T_V[k] + dt, tEnd = k < 2 ? T_V[k + 1] - .2 : T_BURST[0];
+    const p = spring(t - t0, 230, .72), out_ = io(seg(t, tEnd - .1, tEnd + .1));
+    if (p <= .002 || out_ >= 1) return;
+    const s = proj(C[0] + ox, C[1] + oy + .05 * Math.sin(t * 2 + ox), C[2] + oz), f = SANS(22, 600), w = tw(label, f) + 54;
+    ctx.save(); ctx.translate(s.x, s.y); ctx.scale(p * (1 - out_), p * (1 - out_));
+    ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
+    rr(-w / 2, -22, w, 44, 22); ctx.fillStyle = 'rgba(28,26,34,0.82)'; ctx.fill(); ctx.shadowColor = 'rgba(0,0,0,0)';
+    ctx.lineWidth = 1.5; ctx.strokeStyle = rgb(HU[hue], .8); ctx.stroke();
+    circ(-w / 2 + 22, 0, 6); ctx.fillStyle = rgb(HU[hue]); ctx.fill();
+    txt(label, -w / 2 + 36, 8, f, BR.cream);
+    ctx.restore();
+  });
+  WH.forEach(([a, b], i) => lightLeak(t, a - .1, b - a + .35, [HU.amber, HU.rose, HU.violet][i], i % 2 ? -1 : 1, .32));
+  bokeh(t, ['amber', 'clay'], .7, true, [-(t - 3.5) * 300, 0]);
   // honest label under the chart
   if (t > T_V[2]) {
     const b = proj(C3[0] + 1.1, C3[1] - .78, 1.15), a = ss(seg(t, T_V[2] + .5, T_V[2] + .7));
@@ -56189,7 +56395,8 @@ function bgLang(t) {
   ground('aurora', t);
   const sp = sparkScreen(), a = t - T_DROP;
   glow(SOFT.clay, sp.x, sp.y, 500 + 300 * spring(a, 30, .9), .55 + .4 * pulse(t, T_DROP, 1, .4), 'lighter');
-  godrays(sp.x, sp.y, 1300, .35 * pulse(t, T_DROP, 1, .7) + .08, t * .1, HU.amber, 22);
+  godrays(sp.x, sp.y, 1300, .35 * pulse(t, T_DROP, 1, .7) + .1 + .12 * kickEnv(t), t * .1, HU.amber, 22);
+  bokeh(t, ['violet', 'rose', 'amber', 'clay'], 1.1);
   vignette(.55);
 }
 function fgLang(t) {
@@ -56200,6 +56407,8 @@ function fgLang(t) {
   shock(t, T_DROP + .12, sp.x, sp.y, { R: 900, w: 3, life: .8, a: .5 });
   streaks(sp.x, sp.y, t, T_DROP, .7, false, { n: 90, R: 1500, L: 340, a: .9, seed: 31, col: HU.amber });
   for (let k = 1; k < 8; k++) shock(t, T_DROP + k * BEAT, sp.x, sp.y, { R: 420, w: 1.5, life: .45, a: .25 });
+  lasers(t, T_DROP + .02, 11.2, [BR.clay, HU.violet, HU.amber, HU.rose], { n: 8, a: .75 });
+  bokeh(t, ['amber', 'rose'], .9, true);
   const t0 = bt(17), out_ = seg(t, 10.9, 11.15);
   rise('Je parle votre langue.', 960, 968, FR(92), BR.cream, spring(t - t0, 170, .78), out_, { lh: 110, align: 'center', ls: -1.5 });
   rise('ET DES DIZAINES D’AUTRES', 960, 1024, SANS(18, 600), BR.cream, spring(t - t0 - .3, 170, .8), out_, { lh: 30, align: 'center', ls: 6, alpha: .55, rot: 0 });
@@ -56242,6 +56451,18 @@ const LINKS = [], ALTS = [];
 })();
 const THINKP = new Cloud(420, THINK), THINKPP = [];
 (() => { const r = mulberry32(77); for (let i = 0; i < THINKP.n; i++) THINKPP.push({ x: -3 + r() * 16, y: -3 + r() * 6, z: -6 + r() * 7, s: .015 + r() * .04, c: r() < .5 ? HU.amber : BR.cream, ph: r() * TAU }); })();
+const WEB = (() => {   // 150 faint nodes around the graph, each joined to its two nearest neighbours
+  const r = mulberry32(3131), P = [];
+  for (let i = 0; i < 150; i++) P.push(V3(C6[0] - 4 + r() * 18, C6[1] - 3.5 + r() * 7, C6[2] - 9 + r() * 7));
+  const E = [];
+  P.forEach((a, i) => P.map((b, j) => [a.distanceTo(b), j]).filter(([, j]) => j !== i).sort((x, y) => x[0] - y[0]).slice(0, 2).forEach(([, j]) => { if (i < j) E.push([i, j]); }));
+  const pos = new Float32Array(E.length * 6);
+  E.forEach(([i, j], k) => { pos.set([P[i].x, P[i].y, P[i].z, P[j].x, P[j].y, P[j].z], k * 6); });
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x9a86ff, transparent: true, opacity: .22, blending: THREE.AdditiveBlending, depthWrite: false }));
+  THINK.add(lines);
+  return { P, E, nodes: new Cloud(150, THINK), pulses: new Cloud(60, THINK), lines };
+})();
 const stepU = (t, k) => o5(seg(t, T_STEPS[k], T_STEPS[k] + .36));
 function thinkHead(t) {   // where the thought is: the head of the last growing link
   let p = NODES[0].clone();
@@ -56266,6 +56487,15 @@ function setupThink(t) {
   });
   THINKPP.forEach((p, i) => THINKP.set(i, C6[0] + p.x + .15 * Math.sin(t * .5 + p.ph), C6[1] + p.y + .1 * Math.sin(t * .7 + p.ph), C6[2] + p.z, p.s, p.c, .5 * (.6 + .4 * Math.sin(t * 2 + p.ph))));
   THINKP.commit();
+  const a = t - T_THINK;
+  WEB.lines.material.opacity = .22 * ss(a / .6);
+  WEB.P.forEach((p, i) => WEB.nodes.set(i, p.x, p.y, p.z, .05, i % 3 ? [154, 134, 255] : HU.amber, .7 * ss(a / .6) * (.5 + .5 * Math.sin(t * 3 + i))));
+  WEB.nodes.commit();
+  for (let i = 0; i < WEB.pulses.n; i++) {   // light running along random edges
+    const e = WEB.E[(i * 7 + Math.floor(t * 1.3 + i * .37)) % WEB.E.length], u = fract(t * 1.3 + i * .37), A = WEB.P[e[0]], Bp = WEB.P[e[1]];
+    WEB.pulses.set(i, lerp(A.x, Bp.x, u), lerp(A.y, Bp.y, u), lerp(A.z, Bp.z, u), .09, i % 2 ? HU.amber : [190, 170, 255], Math.sin(Math.PI * u) * ss(a / .6));
+  }
+  WEB.pulses.commit();
   const h = thinkHead(t), push = inn(seg(t, bt(31), bt(32)));
   setSparkMat('clay');
   sparkAt(h.x, h.y, h.z + .05, .2 + .05 * pulse(t, T_STEPS[3] + .34, 1, .3) + .25 * push, .3, .3 * Math.sin(t * 1.4), -t * 2.4, 1, 0);
@@ -56282,6 +56512,7 @@ function bgThink(t) {
   ground('think', t);
   const sp = sparkScreen();
   glow(SOFT.amber, sp.x, sp.y, 380, .32, 'lighter');
+  bokeh(t, ['violet', 'amber', 'sky'], .8);
   vignette(.5);
 }
 function fgThink(t) {
@@ -56299,6 +56530,7 @@ function fgThink(t) {
     const t0 = T_STEPS[A.k] - .08 + .5, s = proj(A.E.x, A.E.y, A.E.z), a = o5(seg(t, t0, t0 + .2)) * (1 - seg(t, t0 + .5, t0 + .9));
     if (a > 0) { ctx.strokeStyle = rgb(BR.cream, .5 * a); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s.x + 14, s.y - 6); ctx.lineTo(s.x + 26, s.y + 6); ctx.moveTo(s.x + 26, s.y - 6); ctx.lineTo(s.x + 14, s.y + 6); ctx.stroke(); }
   });
+  lightLeak(t, T_THINK - .05, .9, HU.violet, -1, .35);
   const out_ = seg(t, bt(30.6), bt(31.3));
   rise('Je réfléchis', 150, 240, FR(104), BR.cream, spring(t - T_THINK - .08, 170, .78), out_, { lh: 124, ls: -2 });
   rise('avant de répondre.', 150, 362, FR(104), BR.cream, spring(t - bt(27), 170, .78), out_, { lh: 124, ls: -2 });
@@ -56427,10 +56659,14 @@ function camSee(t) {
 function bgSee(t) {
   ground('dusk', t);
   glow(SOFT.rose, 1300, 560, 900, .18, 'lighter');
+  bokeh(t, ['rose', 'violet', 'amber'], .8);
   vignette(.55);
 }
 function fgSee(t) {
   flash(.85 * pulse(t, T_SEE, 1, .08), BR.white);
+  lightLeak(t, T_SEE + .05, 1.4, HU.rose, 1, .35);
+  lightLeak(t, bt(39.2), .7, HU.violet, -1, .3);
+  bokeh(t, ['rose', 'amber'], .7, true);
   const a = t - T_SEE, out_ = seg(t, bt(39.3), bt(39.9));
   rise('Je vois.', 160, 560, FR(150), BR.cream, spring(a - .1, 170, .8), out_, { lh: 170, ls: -3 });
   rise('Photos, schémas, captures d’écran.', 168, 650, SANS(30, 500), BR.cream, spring(a - .3, 170, .8), out_, { lh: 44, alpha: .6, rot: 0 });
@@ -56485,7 +56721,7 @@ INITS.push(initCards);
 const ORBP = new Cloud(500, ORB), ORBPP = [];
 (() => { const r = mulberry32(919), cols = [BR.clay, HU.amber, HU.violet, BR.cream, HU.rose]; for (let i = 0; i < ORBP.n; i++) ORBPP.push({ r: 1.5 + Math.pow(r(), .6) * 6, a: r() * TAU, y: (r() - .5) * 2.4, s: .015 + r() * .045, c: cols[Math.floor(r() * 5)], w: .3 + r() }); })();
 const orbitU = t => seg(t, T_ORBIT, T_DROP2);
-const orbitAng = t => { const u = orbitU(t); return 1.2 * u + 6 * u ** 4; };
+const orbitAng = t => { const u = orbitU(t); return 1.0 * u + 5 * u ** 5; };
 const SUCK2 = bt(47.4);
 function setupOrbit(t) {
   ORB.visible = true;
@@ -56518,6 +56754,7 @@ function camOrbit(t) {
 function bgOrbit(t) {
   ground('think', t);
   ground('aurora', t, .55 * ss(orbitU(t)));
+  bokeh(t, ['violet', 'rose', 'amber'], .5 + .8 * orbitU(t), false, [0, -orbitU(t) * 600]);
   const sp = sparkScreen();
   glow(SOFT.clay, sp.x, sp.y, 300 + 400 * orbitU(t), .25 + .4 * orbitU(t), 'lighter');
   vignette(.5);
@@ -56543,6 +56780,17 @@ function fgOrbit(t) {
   const u = orbitU(t);
   rise('Tout ça, dans une seule conversation.', 960, 980, FR(64), BR.cream, spring(t - T_ORBIT - .15, 170, .8), seg(t, SUCK2 - .25, SUCK2), { lh: 80, align: 'center', ls: -1 });
   for (let k = 0; k < 8; k++) shock(t, T_ORBIT + k * BEAT * (k < 4 ? 1 : .5), sp.x, sp.y, { R: 380, w: 1.5, life: .4, a: .2 * u + .1 });
+  if (u > 0) {   // speed lines leaving the centre, denser and faster as the orbit accelerates
+    const r = mulberry32(777);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+    for (let i = 0; i < 70; i++) {
+      const an = r() * TAU, ph = r(), sp_ = .6 + r(), d = fract(ph + t * sp_ * (.4 + 2.2 * u * u)) * 1300, L = (40 + 260 * u * u) * (.4 + r());
+      ctx.strokeStyle = rgb(r() < .5 ? BR.cream : HU.violet, (.08 + .45 * u * u) * Math.min(1, d / 200) * (1 - suck));
+      ctx.lineWidth = 1 + 2 * r();
+      ctx.beginPath(); ctx.moveTo(sp.x + Math.cos(an) * d, sp.y + Math.sin(an) * d); ctx.lineTo(sp.x + Math.cos(an) * (d + L), sp.y + Math.sin(an) * (d + L)); ctx.stroke();
+    }
+    ctx.restore();
+  }
   streaks(sp.x, sp.y, t, SUCK2 - .05, T_DROP2 - SUCK2 + .05, true, { n: 90, R: 1300, L: 320, a: .85, seed: 13, col: HU.violet });
   glow(GLOW.amber, sp.x, sp.y, 40 + 300 * suck, .9 * suck);
   glow(GLOW.white, sp.x, sp.y, 20 + 40 * suck, suck);
@@ -56569,6 +56817,7 @@ const DROPP = new Cloud(1100, DROP2), DROPPP = [];
     DROPPP.push({ vx: s * Math.cos(ph) * sp, vy: u * sp * .6, vz: s * Math.sin(ph) * sp, sz: .02 + r() * .06, c: cols[Math.floor(r() * 5)], ph: r() * TAU, fl: r() });
   }
 })();
+const CONF2 = new Confetti(320, DROP2, 2024, [0xfff4e6, 0xd97757, 0xffc56b, 0x8f6bff, 0xff8fb5, 0x141413]);
 const valIdx = t => t < T_VALUES[1] ? 0 : t < T_VALUES[2] ? 1 : 2;
 function setupDrop2(t) {
   DROP2.visible = true;
@@ -56584,6 +56833,7 @@ function setupDrop2(t) {
     DROPP.set(i, C9[0] + p.vx * f + Math.sin(p.ph + a) * drift, C9[1] + p.vy * f + drift * .5, C9[2] + p.vz * f, p.sz * (1 + 2 * pulse(t, T_DROP2, 1, .3)), p.c, .85 * fl * (1 - .3 * seg(a, 1, 3.5)));
   });
   DROPP.commit();
+  CONF2.burst(t, T_DROP2, [C9[0], C9[1] - .2, C9[2] - .5], 1);
 }
 function camDrop2(t) {
   const a = t - T_DROP2, k = valIdx(t), u = t - T_VALUES[k], kick = 1 - o5(u / .45);
@@ -56594,7 +56844,8 @@ function bgDrop2(t) {
   ground('melt', t);
   const sp = sparkScreen();
   glow(SOFT.white, sp.x, sp.y, 700, .25, 'lighter');
-  godrays(sp.x, sp.y, 1400, .25 * pulse(t, T_DROP2, 1, .6) + .06, t * .15, [255, 236, 210], 22);
+  godrays(sp.x, sp.y, 1400, .25 * pulse(t, T_DROP2, 1, .6) + .08 + .1 * kickEnv(t), t * .15, [255, 236, 210], 22);
+  bokeh(t, ['white', 'amber', 'rose'], 1);
 }
 function fgDrop2(t) {
   const sp = sparkScreen(), k = valIdx(t);
@@ -56602,6 +56853,9 @@ function fgDrop2(t) {
   flare(sp.x, sp.y, 200, 1.0 * pulse(t, T_DROP2, 1, .25), 'amber');
   shock(t, T_DROP2, sp.x, sp.y, { R: 1400, w: 6, life: .9, col: BR.white, col2: BR.cream });
   streaks(sp.x, sp.y, t, T_DROP2, .8, false, { n: 100, R: 1600, L: 360, a: .8, seed: 71, col: BR.white });
+  lasers(t, T_DROP2 + .02, RUSH + .2, [BR.white, HU.amber, HU.rose, HU.violet], { n: 8, a: .6 });
+  lasers(t, T_VALUES[1], RUSH + .2, [HU.amber, BR.white], { n: 6, a: .45, top: true });
+  bokeh(t, ['white', 'amber'], .8, true);
   for (let j = 0; j < 3; j++) shock(t, T_VALUES[j], 960, 560, { R: 760, w: 3, life: .55, a: .4, col: BR.ink, col2: BR.ink });
   // the words: ink on the melted colour, letter by letter, with their line underneath
   for (let j = 0; j < 3; j++) {
@@ -56627,6 +56881,8 @@ SUBS.push([T_DROP2, T_DROP2 + .9, 10], [T_DROP2 + .9, RUSH, 5], [T_VALUES[1] - .
 //  where "Comment puis-je vous aider ?" is typed, a light sweep on the final chord. Nothing freezes.
 // =====================================================================================================
 const C10 = [0, 210, 0];
+const FIN = sceneGroup();
+const CONF3 = new Confetti(140, FIN, 77, [0xd97757, 0xf2b45a, 0xa99bff, 0xf28fae, 0x5fd3a6]);
 const LOCK = { word: 'Claude', font: FR(200), y: 470, r: 96, gap: 44 };
 function lockLayout() {
   const ww = tw(LOCK.word, LOCK.font, -4), total = 2 * LOCK.r + LOCK.gap + ww, x0 = 960 - total / 2;
@@ -56638,6 +56894,9 @@ function camFinale(t) {
 }
 function setupFinale(t) {
   setLook(true);
+  FIN.visible = true;
+  CONF3.fall(t - T_FLOOD + 6, [C10[0], C10[1], C10[2] - 2.5], 16, 9, 3, .5, 1.3);
+  CONF3.mesh.visible = t > T_FLOOD + .2;
   const a = t - T_FLOOD, L = lockLayout(), ppu = pxPerUnit(CAM.position.z - C10[2]);
   const land = spring(a - .05, 70, .8);
   // the spark arrives from the centre of the flood (where the rush left it) to its place in the lockup
@@ -56666,8 +56925,8 @@ function fgFinale(t) {
   flash(.85 * pulse(t, T_FLOOD, 1, .1), BR.white);
   // wordmark
   riseLetters(LOCK.word, L.wx, LOCK.y, LOCK.font, BR.ink, t, T_FLOOD + .28, .045, { lh: 220, ls: -4, align: 'left', k: 170, z: .8, rot: .12 });
-  sheen(LOCK.word, L.wx, LOCK.y, LOCK.font, -4, seg(t, T_FINAL + .02, T_FINAL + .75), [255, 250, 240], .9, 260);
-  sheen(LOCK.word, L.wx, LOCK.y, LOCK.font, -4, seg(t, T_FINAL + .02, T_FINAL + .75), BR.clay, .35, 520);
+  sheen(LOCK.word, L.wx, LOCK.y, LOCK.font, -4, seg(t, T_FINAL + .02, T_FINAL + .75), [255, 250, 240], .5, 260);
+  sheen(LOCK.word, L.wx, LOCK.y, LOCK.font, -4, seg(t, T_FINAL + .02, T_FINAL + .75), BR.clay, .22, 520);
   // prompt box
   const p = spring(t - T_PROMPT, 120, .8), bw = 980, bh = 104, bx = 960 - bw / 2, by = 690 + (1 - p) * 70;
   if (p > .002) {
@@ -56696,6 +56955,7 @@ function fgFinale(t) {
     const an = r() * TAU, d = 120 + r() * 70, t0 = T_FINAL + .05 + r() * .5;
     sparkle(sp.x + Math.cos(an) * d, sp.y + Math.sin(an) * d, 10 + r() * 8, t * 1.2 + i, .9 * Math.sin(Math.PI * seg(t, t0, t0 + .55)), BR.clay);
   }
+  lightLeak(t, T_FINAL - .1, 1.0, [255, 214, 170], 1, .35);
   vignette(.12, [120, 80, 50]);
 }
 SCENES.push({ t0: T_FLOOD, cam: camFinale, setup: setupFinale, bg: bgFinale, fg: fgFinale });
@@ -56712,6 +56972,7 @@ const HALTON = (i, b) => { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i
 function sceneAt(t) { let s = SCENES[0]; for (const S of SCENES) if (t >= S.t0) s = S; return s; }
 
 function draw(t) {
+  CUR_T = t; AURA_A = 1;
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
   for (const g of GROUPS) g.visible = false;
   const S = sceneAt(t), c = S.cam(t);
@@ -56774,13 +57035,13 @@ function grain(f, a) {
   main.restore();
 }
 function composite(ts, alpha) {
-  const { dx, dy } = shake(ts), s = 1 + Math.max(Math.abs(dx) / 960, Math.abs(dy) / 540) * 1.2;
+  const { dx, dy } = shake(ts), s = (1 + Math.max(Math.abs(dx) / 960, Math.abs(dy) / 540) * 1.2) * (1 + kickEnv(ts) * (inDrop(ts) ? .018 : .008));
   main.globalAlpha = alpha; main.globalCompositeOperation = 'source-over';
   main.setTransform(s, 0, 0, s, 960 * (1 - s) + dx, 540 * (1 - s) + dy);
   main.drawImage(scr, 0, 0);
   main.setTransform(1, 0, 0, 1, 0, 0); main.globalAlpha = 1;
 }
-function post(t, f) { bloom(bloomAmt(t)); chroma(caAmt(t)); grain(f, t < T_FLOOD ? .065 : .04); }
+function post(t, f) { zoomBlur(zoomAmt(t)); glitch(glitchAmt(t), f); bloom(bloomAmt(t) + (inDrop(t) ? .18 * kickEnv(t) : 0)); chroma(caAmt(t) + (inDrop(t) ? .002 * kickEnv(t) : 0)); grain(f, t < T_FLOOD ? .065 : .04); }
 
 // motion-blur budget: sub-frames per output frame, more where things move fast; never blur across a hard cut
 function subN(t) { let n = 3; for (const [a, b, k] of SUBS) if (t >= a && t < b) n = Math.max(n, k); return Math.min(n, 9); }

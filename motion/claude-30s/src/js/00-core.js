@@ -182,7 +182,7 @@ function flowField(t, lut, o = {}) {
   return FB.c;
 }
 const FLOWCACHE = {};
-let CUR_F = 0;   // output frame being rendered (per-frame caches: every motion-blur sub-frame reuses them)
+let CUR_F = 0, CUR_T = 0;   // output frame being rendered (per-frame caches: every motion-blur sub-frame reuses them)
 function flowBG(name, lut, o, alpha = 1) {
   let e = FLOWCACHE[name]; if (!e) e = FLOWCACHE[name] = { key: -1, c: mk(FBW, FBH).c };
   if (e.key !== CUR_F) { flowField(CUR_F / FPS, lut, o); e.c.getContext('2d').drawImage(FB.c, 0, 0); e.key = CUR_F; }

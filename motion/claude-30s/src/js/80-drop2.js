@@ -15,6 +15,7 @@ const DROPP = new Cloud(1100, DROP2), DROPPP = [];
     DROPPP.push({ vx: s * Math.cos(ph) * sp, vy: u * sp * .6, vz: s * Math.sin(ph) * sp, sz: .02 + r() * .06, c: cols[Math.floor(r() * 5)], ph: r() * TAU, fl: r() });
   }
 })();
+const CONF2 = new Confetti(320, DROP2, 2024, [0xfff4e6, 0xd97757, 0xffc56b, 0x8f6bff, 0xff8fb5, 0x141413]);
 const valIdx = t => t < T_VALUES[1] ? 0 : t < T_VALUES[2] ? 1 : 2;
 function setupDrop2(t) {
   DROP2.visible = true;
@@ -30,6 +31,7 @@ function setupDrop2(t) {
     DROPP.set(i, C9[0] + p.vx * f + Math.sin(p.ph + a) * drift, C9[1] + p.vy * f + drift * .5, C9[2] + p.vz * f, p.sz * (1 + 2 * pulse(t, T_DROP2, 1, .3)), p.c, .85 * fl * (1 - .3 * seg(a, 1, 3.5)));
   });
   DROPP.commit();
+  CONF2.burst(t, T_DROP2, [C9[0], C9[1] - .2, C9[2] - .5], 1);
 }
 function camDrop2(t) {
   const a = t - T_DROP2, k = valIdx(t), u = t - T_VALUES[k], kick = 1 - o5(u / .45);
@@ -40,7 +42,8 @@ function bgDrop2(t) {
   ground('melt', t);
   const sp = sparkScreen();
   glow(SOFT.white, sp.x, sp.y, 700, .25, 'lighter');
-  godrays(sp.x, sp.y, 1400, .25 * pulse(t, T_DROP2, 1, .6) + .06, t * .15, [255, 236, 210], 22);
+  godrays(sp.x, sp.y, 1400, .25 * pulse(t, T_DROP2, 1, .6) + .08 + .1 * kickEnv(t), t * .15, [255, 236, 210], 22);
+  bokeh(t, ['white', 'amber', 'rose'], 1);
 }
 function fgDrop2(t) {
   const sp = sparkScreen(), k = valIdx(t);
@@ -48,6 +51,9 @@ function fgDrop2(t) {
   flare(sp.x, sp.y, 200, 1.0 * pulse(t, T_DROP2, 1, .25), 'amber');
   shock(t, T_DROP2, sp.x, sp.y, { R: 1400, w: 6, life: .9, col: BR.white, col2: BR.cream });
   streaks(sp.x, sp.y, t, T_DROP2, .8, false, { n: 100, R: 1600, L: 360, a: .8, seed: 71, col: BR.white });
+  lasers(t, T_DROP2 + .02, RUSH + .2, [BR.white, HU.amber, HU.rose, HU.violet], { n: 8, a: .6 });
+  lasers(t, T_VALUES[1], RUSH + .2, [HU.amber, BR.white], { n: 6, a: .45, top: true });
+  bokeh(t, ['white', 'amber'], .8, true);
   for (let j = 0; j < 3; j++) shock(t, T_VALUES[j], 960, 560, { R: 760, w: 3, life: .55, a: .4, col: BR.ink, col2: BR.ink });
   // the words: ink on the melted colour, letter by letter, with their line underneath
   for (let j = 0; j < 3; j++) {

@@ -119,10 +119,12 @@ function bgOpen(t) {
   const pre = ss(t / .4) * (.35 + .3 * pulse(t, bt(1), 1, .2));
   glow(SOFT.clay, sp.x, sp.y, 300 + 500 * ign * spring(t - T_IGN, 40, .9), (pre * (1 - ign) + ign * (.42 + .4 * pulse(t, T_IGN, 1, .35))) * (1 - .4 * seg(t, 2, 3.5)), 'lighter');
   godrays(sp.x, sp.y, 1100, ign * (.5 * pulse(t, T_IGN, 1, .5) + .16) * (1 - .6 * seg(t, 1.9, 3.5)), t * .12);
+  bokeh(t, ['clay', 'amber', 'rose', 'violet'], ss(t / 1.2) * (.6 + .6 * ign));
 }
 function fgOpen(t) {
   const sp = sparkScreen();
-  // ignition: flash, flare, shock rings
+  // the ember's own little flare before the ignition, then the ignition: flash, flare, shock rings
+  if (t < T_IGN) flare(sp.x, sp.y, 70 + 25 * pulse(t, bt(1), 1, .2), .28 * ss(t / .4) + .3 * pulse(t, bt(1), 1, .2), 'amber');
   flare(sp.x, sp.y, 150, 1.25 * pulse(t, T_IGN, 1, .2), 'amber');
   glow(GLOW.white, sp.x, sp.y, 700, .55 * pulse(t, T_IGN, 1, .1));
   shock(t, T_IGN, sp.x, sp.y, { R: 900, w: 4, life: .8 });
@@ -133,6 +135,15 @@ function fgOpen(t) {
     const an = r() * TAU, d = 170 + r() * 230, t0 = T_IGN + .15 + r() * 1.3, a = Math.sin(Math.PI * seg(t, t0, t0 + .45));
     sparkle(sp.x + Math.cos(an) * d, sp.y + Math.sin(an) * d * .8, 9 + r() * 10, t * 1.5 + i, a * .9 * (1 - seg(t, 1.9, 2.1)));
   }
+  // each 3D letter lands with a small shock and two sparkles
+  LETTERS.forEach((L, i) => {
+    const tl = letterT(i) + .1, s = proj(WORD_X0 + L.x, BASE_Y, 0);
+    shock(t, tl, s.x, s.y, { R: 120, w: 2, life: .4, a: .6, col: BR.cream, col2: BR.clay });
+    for (let j = 0; j < 3; j++) { const a = Math.sin(Math.PI * seg(t, tl + j * .05, tl + .4 + j * .05)); sparkle(s.x + (j - 1) * 46, s.y - 20 - j * 34, 8 + 4 * j, t * 2 + i, a * .9, j === 1 ? HU.amber : BR.cream); }
+  });
+  lightLeak(t, T_CLAUDE - .25, 1.3, HU.amber, 1, .35);
+  lightLeak(t, 3.3, .7, BR.clay, 1, .4);
+  bokeh(t, ['amber', 'clay'], .8 * ss(seg(t, .5, 1.5)), true);
   // "Bonjour."
   riseLetters('Bonjour.', 960, 860, FR(124), BR.cream, t, T_HELLO, .042, { lh: 140, ls: -2, te: T_CLAUDE - .14, est: .02, ed: .26 });
   // "Je suis", attached to the 3D word, and the caption
