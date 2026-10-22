@@ -21,16 +21,34 @@
   const EP = root.AZEnvironment && root.AZEnvironment.Environment && root.AZEnvironment.Environment.prototype;
   if (!T || !S || !VP || VP.__gfx94) return;
   VP.__gfx94 = true;
-  const KEY = "azGfx94Off-1";
+  // -2 : la première version pouvait couper le post-traitement à tort (plantage du sol) ; on repart à zéro
+  const KEY = "azGfx94Off-2";
+  try { localStorage.removeItem("azGfx94Off-1"); } catch (e) {}
   const G = (root.AZGfx94 = { on: { post: true, fog: true, sky: true, ibl: true, terrain: true, water: true, grass: true, shadows: true }, time: { value: 0 }, errors: [] });
   try { const k = JSON.parse(localStorage.getItem(KEY) || "{}"); for (const f in k) G.on[f] = false; } catch (e) {}
-  function disable(f, why) {
+  function disable(f, why, session) {
     if (!G.on[f]) return;
     G.on[f] = false;
     G.errors.push(f + ": " + why);
     if (root.console) console.warn("[AZUR graphismes] " + f + " désactivé :", why);
-    try { const k = JSON.parse(localStorage.getItem(KEY) || "{}"); k[f] = 1; localStorage.setItem(KEY, JSON.stringify(k)); } catch (e) {}
+    if (!session) try { const k = JSON.parse(localStorage.getItem(KEY) || "{}"); k[f] = 1; localStorage.setItem(KEY, JSON.stringify(k)); } catch (e) {}
+    recover(f);
   }
+  // remet immédiatement l'élément d'origine quand un effet est coupé (sans attendre la session suivante)
+  function recover(f) {
+    try {
+      const v = root.AZUR && root.AZUR.view, env = v && v.environment, cw = env && env.ch1World;
+      if (f === "terrain" && env && env.terrain) env.terrain.material.needsUpdate = true;
+      if (f === "water" && env && env.water && env.__az94WaterOld) env.water.material = env.__az94WaterOld;
+      if (f === "sky" && cw && cw.sky && cw.sky.__az94Old) { cw.sky.material = cw.sky.__az94Old; if (G.on.ibl) disable("ibl", "ciel coupé", true); }
+      if ((f === "ibl" || f === "sky") && v && v.scene && ENV.cache && Object.values(ENV.cache).indexOf(v.scene.environment) >= 0) v.scene.environment = null;
+      if (f === "grass" && GRASS.mesh) GRASS.mesh.visible = false;
+      if (f === "fog") restoreFog();
+    } catch (e) {}
+  }
+  // une image a planté pendant le rendu : on coupe un effet de plus pour cette session (frame-guard-v94.js)
+  const PANIC = ["terrain", "water", "grass", "post", "sky", "fog", "ibl", "shadows"];
+  G.panic = function (why) { const f = PANIC.find((k) => G.on[k]); if (f) disable(f, "image plantée : " + String(why).slice(0, 160), true); return f || null; };
   const isEvent = () => { const w = root.AZUR && root.AZUR.world; return !!(w && w.mode === "event") || !!(root.AZEvent && root.AZEvent.active); };
   const qual = (v) => (v && v.quality) || "medium";
   const lowQ = (v) => qual(v) === "low";
@@ -47,10 +65,10 @@
       let src = "", log = "";
       try { src = gl.getShaderSource(fs) + gl.getShaderSource(vs); log = (gl.getProgramInfoLog(program) || "") + (gl.getShaderInfoLog(vs) || "") + (gl.getShaderInfoLog(fs) || ""); } catch (e) {}
       if (root.console) console.error("[AZUR graphismes] erreur de shader", log.slice(0, 600));
-      for (const f in MARK) if (src.indexOf(MARK[f]) >= 0) {
-        disable(f, log.slice(0, 200));
-        if (f === "fog") restoreFog();
-      }
+      // le brouillard est dans presque tous les shaders : on ne l'accuse que si aucun autre effet n'y est
+      const hits = Object.keys(MARK).filter((f) => f !== "fog" && G.on[f] && src.indexOf(MARK[f]) >= 0);
+      if (!hits.length && src.indexOf(MARK.fog) >= 0) hits.push("fog");
+      for (const f of hits) disable(f, log.slice(0, 200));
       if (typeof prev === "function") try { prev.apply(this, arguments); } catch (e) {}
     };
   }
@@ -181,7 +199,7 @@ float a=mix(1.,clamp(c4.a,0.,1.),uAlpha);gl_FragColor=vec4(clamp(c,0.,1.)*a,a);}
       if (w !== this.w || h !== this.h) this.resize(w, h);
       const prevTarget = r.getRenderTarget();
       r.setRenderTarget(this.rt);
-      orig(scene, cam);
+      try { orig(scene, cam); } catch (e) { r.setRenderTarget(prevTarget); e.__azScene = true; throw e; } // la scène elle-même, pas le post-traitement
       const bloom = !lowQ(this.v);
       if (bloom) {
         this.mPre.uniforms.tSrc.value = this.rt.texture; this.mPre.uniforms.uTexel.value.set(1 / w, 1 / h);
@@ -204,14 +222,16 @@ float a=mix(1.,clamp(c4.a,0.,1.),uAlpha);gl_FragColor=vec4(clamp(c,0.,1.)*a,a);}
     watchShaders(r);
     const orig = r.render.bind(r);
     r.render = function (scene, cam) {
-      if (G.on.post && !lowQ(view) && r.getRenderTarget() === null && (scene === view.scene || scene === view.menuScene) && cam && cam.isCamera) {
-        try {
-          if (!view.__az94Post) view.__az94Post = new Post(view);
-          const P = view.__az94Post;
-          if (P.ok) return P.render(scene, cam, orig);
-        } catch (e) { disable("post", String(e && e.message || e)); r.setRenderTarget(null); }
-      }
-      return orig(scene, cam);
+      try {
+        if (G.on.post && !lowQ(view) && r.getRenderTarget() === null && (scene === view.scene || scene === view.menuScene) && cam && cam.isCamera) {
+          try {
+            if (!view.__az94Post) view.__az94Post = new Post(view);
+            const P = view.__az94Post;
+            if (P.ok) return P.render(scene, cam, orig);
+          } catch (e) { if (e && e.__azScene) throw e; disable("post", String(e && e.message || e)); r.setRenderTarget(null); }
+        }
+        return orig(scene, cam);
+      } catch (e) { G.renderThrew = true; throw e; }
     };
   }
 
@@ -236,7 +256,10 @@ c=mix(c,vec3(1.7,1.58,1.38),smoothstep(.99962,.99984,sd));
 vec3 dc=mix(vec3(1.,.5,.33),vec3(.36,.27,.6),smoothstep(0.,.55,yy));c=mix(c,dc*(.62+.38*c),dusk*.7);
 vec3 night=vec3(.012,.03,.09)+vec3(.035,.055,.10)*(1.-abs(y));
 vec2 sp=d.xz/(abs(y)+.25)*90.;float st=step(.9968,h21(floor(sp)))*smoothstep(0.,.3,y)*(.5+.5*sin(time*3.+h21(floor(sp)+3.)*30.));
-night+=vec3(st)*1.2;c=mix(night,c,day);gl_FragColor=vec4(c,1.);}`;
+night+=vec3(st)*1.2;c=mix(night,c,day);gl_FragColor=vec4(c,1.);
+#include <tonemapping_fragment>
+#include <colorspace_fragment>
+}`;
   const SKY_VS = "varying vec3 vD;void main(){vD=position;vec4 p=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_Position=p.xyww;}";
   function skyMaterial(src) {
     const u = src && src.uniforms;
@@ -271,14 +294,16 @@ float azFbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*azVn(p);p=p*2.07+v
   function patchTerrain(mat) {
     if (!mat || mat.__az94) return;
     mat.__az94 = true;
-    const prev = mat.onBeforeCompile;
+    // world-split.js fait de onBeforeCompile un accesseur : le lire rend son enveloppe, qui rappelle la
+    // fonction posée ensuite (la nôtre) et tournerait à l'infini. On reprend donc la fonction d'origine.
+    const prev = T.Material.prototype._azSplit ? (Object.prototype.hasOwnProperty.call(mat, "_azUser") ? mat._azUser : null) : mat.onBeforeCompile;
     mat.onBeforeCompile = function (sh, r) {
-      if (prev) prev.call(this, sh, r);
+      if (typeof prev === "function") prev.call(this, sh, r);
       if (!G.on.terrain) return;
       sh.uniforms.uAzT = G.time;
       sh.vertexShader = sh.vertexShader
-        .replace("#include <common>", "#include <common>\nattribute vec4 azZ;\nvarying vec4 vAzZ;\nvarying vec3 vAzW;\nvarying vec3 vAzN;")
-        .replace("#include <project_vertex>", "#include <project_vertex>\n  vAzZ = azZ; vAzW = (modelMatrix * vec4(transformed, 1.0)).xyz; vAzN = normalize(mat3(modelMatrix) * objectNormal);");
+        .replace("#include <common>", "#include <common>\nattribute vec4 azZone;\nvarying vec4 vAzZ;\nvarying vec3 vAzW;\nvarying vec3 vAzN;")
+        .replace("#include <project_vertex>", "#include <project_vertex>\n  vAzZ = azZone; vAzW = (modelMatrix * vec4(transformed, 1.0)).xyz; vAzN = normalize(mat3(modelMatrix) * objectNormal);");
       sh.fragmentShader = MARK.terrain + sh.fragmentShader
         .replace("#include <common>", "#include <common>\nuniform float uAzT;\nvarying vec4 vAzZ;\nvarying vec3 vAzW;\nvarying vec3 vAzN;\n" + TER_NOISE)
         .replace("#include <color_fragment>", `#include <color_fragment>
@@ -321,7 +346,7 @@ float azFbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*azVn(p);p=p*2.07+v
       zt[i * 4] = w.snow || 0; zt[i * 4 + 1] = w.desert || 0; zt[i * 4 + 2] = w.lava || 0; zt[i * 4 + 3] = Math.max(0, Math.min(1, (ff + 1.3) / 3.4));
     }
     geo.computeVertexNormals();
-    geo.setAttribute("azZ", new T.BufferAttribute(zt, 4));
+    geo.setAttribute("azZone", new T.BufferAttribute(zt, 4));
     const old = env.terrain.geometry;
     env.terrain.geometry = geo;
     if (old) old.dispose();
@@ -329,10 +354,10 @@ float azFbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*azVn(p);p=p*2.07+v
   }
   function ensureTerrainZones(env) {
     const geo = env.terrain && env.terrain.geometry;
-    if (!geo || geo.attributes.azZ) return;
+    if (!geo || geo.attributes.azZone) return;
     const pos = geo.attributes.position, zt = new Float32Array(pos.count * 4);
     for (let i = 0; i < pos.count; i++) { const x = pos.getX(i), z = pos.getZ(i), w = S.zoneWeights(x, z); zt[i * 4] = w.snow || 0; zt[i * 4 + 1] = w.desert || 0; zt[i * 4 + 2] = w.lava || 0; zt[i * 4 + 3] = 0; }
-    geo.setAttribute("azZ", new T.BufferAttribute(zt, 4));
+    geo.setAttribute("azZone", new T.BufferAttribute(zt, 4));
   }
   if (EP && EP.ensureCh1World) {
     const prevEnsure = EP.ensureCh1World;
@@ -344,7 +369,7 @@ float azFbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*azVn(p);p=p*2.07+v
       }
       const cw = prevEnsure.apply(this, arguments);
       try { if (this.terrain && !this.terrain.material.__az94) { ensureTerrainZones(this); patchTerrain(this.terrain.material); } } catch (e) {}
-      try { if (cw && cw.sky && !cw.sky.__az94 && G.on.sky) { cw.sky.__az94 = true; const old = cw.sky.material; cw.sky.material = skyMaterial(old); old.dispose(); } } catch (e) {}
+      try { if (cw && cw.sky && !cw.sky.__az94 && G.on.sky) { cw.sky.__az94 = true; const old = cw.sky.material; cw.sky.__az94Old = old; cw.sky.material = skyMaterial(old); } } catch (e) {}
       return cw;
     };
   }
