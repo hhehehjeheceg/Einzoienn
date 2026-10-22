@@ -14,7 +14,7 @@ function mapSample(a,x,z){var n=MAPD.n,c=MAPD.cell,fx=(x+MAPD.half)/c-.5,fz=(z+M
 /* Lieux fixes de l'île v94 : rivière (de Loot Lake à la côte sud), cratère de la météorite près de
  * la Méga Galerie, base de lancement de la fusée, pic enneigé, point de vue de l'événement. */
 var RIVER=[{x:-100,z:-150},{x:-94,z:-106},{x:-133,z:0},{x:-94,z:157},{x:-124,z:263},{x:-115,z:344},{x:-94,z:417},{x:-30,z:492},{x:12,z:543},{x:27,z:643},{x:33,z:760}];
-var METEOR_SITE={x:180,z:44,r:20},LAUNCH_SITE={x:-20,z:108,r:42,h:10},PEAK={x:-400,z:330,r:210,h:95},SPOT_S8={px:60,pz:290};
+var METEOR_SITE={x:180,z:44,r:20},LAUNCH_SITE={x:-20,z:108,r:42,h:10},PEAK={x:-400,z:330,r:210,h:95},SPOT_S8={px:28,pz:212};
 var FORDS=[];
 function riverDist(x,z){if(x<-175||x>75||z<-190||z>800)return 1e9;var m=1e9;for(var i=1;i<RIVER.length;i++){var a=RIVER[i-1],b=RIVER[i],dx=b.x-a.x,dz=b.z-a.z,t=((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz);t=t<0?0:t>1?1:t;var e=Math.hypot(x-a.x-t*dx,z-a.z-t*dz);if(e<m)m=e;}return m;}
 function riverFord(x,z){for(var i=0;i<FORDS.length;i++)if(Math.abs(x-FORDS[i].x)<9&&Math.abs(z-FORDS[i].z)<9)return true;return false;}
@@ -290,7 +290,7 @@ function rawHeightS8(x,z){
  /* coulée de lave : lit légèrement creusé */
  land-=w.lava*1.8;
  /* colline du point de vue de l'événement, au sud de la base de lancement */
- var sp=Math.hypot(x-SPOT_S8.px,z-SPOT_S8.pz);if(sp<80)land+=Math.pow(1-sp/80,2)*11;
+ var sp=Math.hypot(x-SPOT_S8.px,z-SPOT_S8.pz);if(sp<64)land+=Math.pow(1-sp/64,2)*8;
  /* cratère de la météorite */
  var mr=Math.hypot(x-METEOR_SITE.x,z-METEOR_SITE.z);if(mr<METEOR_SITE.r*2){land+=Math.exp(-Math.pow((mr-METEOR_SITE.r)/7,2))*2.4-Math.pow(Math.max(0,1-mr/METEOR_SITE.r),1.6)*6;}
  /* base de lancement : plate-forme plane */
@@ -1315,6 +1315,21 @@ World.prototype.teleport=function(id,x,z){
 };
 
 World.prototype.snapshot=function(){function clean(a){return a.map(function(o){var q={};for(var k in o)if(k.charAt(0)!=='_')q[k]=o[k];return q;});}return {mode:this.mode,seed:this.seed,phase:this.phase,phaseTime:this.phaseTime,elapsed:this.elapsed,tick:this.tick,players:clean(this.players),objects:clean(this.objects),loot:clean(this.loot),builds:clean(this.builds),vehicles:clean(this.vehicles),storm:Object.assign({},this.storm),aircraft:Object.assign({},this.aircraft),results:Object.assign({},this.results),events:this.events.slice()};};
-var api={World:World,MATCH_PARTICIPANTS:MATCH_PARTICIPANTS,FLIGHT:FLIGHT,EMOTE_STYLES:EMOTE_STYLES,MAP:MAP,heightAt:heightAt,biomeAt:biomeAt,zoneAt:zoneAt,zoneWeights:zoneWeights,VOLCANO:VOLCANO,LOBES:LOBES,LAKE:LAKE,isWater:isWater,coastDistance:coastDistance,regions:regions,roads:roads,streets:streets,districts:districtDensity,districtGrid:districtGrid,vehicleSpecs:vehicleSpecs,weapons:weapons,rarities:rarities,BUILD_DURABILITY:BUILD_DURABILITY,buildPlacement:buildPlacement,supportAt:supportAt,buildSurface:buildSurface,roofTriangles:roofTriangles,forestField:forestField,routeDist:routeDist,townPad:townPad,s8:MAPD?{river:RIVER,fords:FORDS,meteor:METEOR_SITE,launch:LAUNCH_SITE,peak:PEAK,spot:SPOT_S8,riverDist:riverDist}:null};
+/* v95 — repère de « La Fin » sur l'île de référence : point de vue P (colline à l'ouest de Sources
+ * Poivrées), base droit devant, cratère de la météorite à 67° à droite comme dans la vidéo. KS met à
+ * l'échelle tout ce qui a été mesuré sur la vidéo (distance du cratère / 500 m). RC = la faille de capture,
+ * 8 m au-dessus du cratère ; la météorite figée attend 100*KS m en amont de sa trajectoire (MDIR). */
+var EVF=null;
+function eventFrame(){
+ if(EVF)return EVF;
+ var Px=SPOT_S8.px,Pz=SPOT_S8.pz,Py=heightAt(Px,Pz),Bx=LAUNCH_SITE.x,Bz=LAUNCH_SITE.z,fl=Math.hypot(Bx-Px,Bz-Pz)||1,Fx=(Bx-Px)/fl,Fz=(Bz-Pz)/fl,Rx=-Fz,Rz=Fx;
+ var KS=clamp(Math.hypot(METEOR_SITE.x-Px,METEOR_SITE.z-Pz)/500,.3,1),my=71*Math.PI/180;
+ var tx=Fx*Math.sin(my)-Rx*Math.cos(my),tz=Fz*Math.sin(my)-Rz*Math.cos(my),dx=Fx*Math.cos(my)+Rx*Math.sin(my),dz=Fz*Math.cos(my)+Rz*Math.sin(my);
+ var mx=tx*.68+dx*.12,my2=-.73,mz=tz*.68+dz*.12,ml=Math.hypot(mx,my2,mz);mx/=ml;my2/=ml;mz/=ml;
+ var RCy=heightAt(METEOR_SITE.x,METEOR_SITE.z)+8,D=100*KS;
+ EVF={P:{x:Px,y:Py,z:Pz},F:{x:Fx,z:Fz},KS:KS,MDIR:{x:mx,y:my2,z:mz},RC:{x:METEOR_SITE.x,y:RCy,z:METEOR_SITE.z},MET:{x:METEOR_SITE.x-mx*D,y:RCy-my2*D,z:METEOR_SITE.z-mz*D},R:26*.8*KS};
+ return EVF;
+}
+var api={World:World,MATCH_PARTICIPANTS:MATCH_PARTICIPANTS,FLIGHT:FLIGHT,EMOTE_STYLES:EMOTE_STYLES,MAP:MAP,heightAt:heightAt,biomeAt:biomeAt,zoneAt:zoneAt,zoneWeights:zoneWeights,VOLCANO:VOLCANO,LOBES:LOBES,LAKE:LAKE,isWater:isWater,coastDistance:coastDistance,regions:regions,roads:roads,streets:streets,districts:districtDensity,districtGrid:districtGrid,vehicleSpecs:vehicleSpecs,weapons:weapons,rarities:rarities,BUILD_DURABILITY:BUILD_DURABILITY,buildPlacement:buildPlacement,supportAt:supportAt,buildSurface:buildSurface,roofTriangles:roofTriangles,forestField:forestField,routeDist:routeDist,townPad:townPad,s8:MAPD?{river:RIVER,fords:FORDS,meteor:METEOR_SITE,launch:LAUNCH_SITE,peak:PEAK,spot:SPOT_S8,riverDist:riverDist,eventFrame:eventFrame}:null};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;root.AZSim=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

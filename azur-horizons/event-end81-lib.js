@@ -409,6 +409,12 @@
         ' float sp=exp(-abs(p.x)*120.)*exp(-abs(p.y)*9.)+exp(-abs(p.y)*120.)*exp(-abs(p.x)*9.);',
         ' vec3 col=lc+vec3(.07,.18,.78)*veil*1.1+vec3(.14,.38,1.)*exp(-r*r*7.)*.42+vec3(.35,.75,1.)*exp(-r*6.)*.4',
         '  +vec3(.9,.97,1.)*(core+sp*.6)+vec3(.75,.92,1.)*spk*cone*1.3*mix(1.,.6,narrow);',
+        /* v95 : la déchirure elle-même — un trou au bord dentelé blanc-violet, qui palpite, avec un tourbillon
+         * violet-bleu à l'intérieur (la fusée passe par là) ; elle s'agrandit d'un coup à chaque éclat */
+        ' float ta=atan(p.y,p.x),rt=(.1+.05*narrow)*open*(1.+.35*flash)*(1.+.32*(fbm3(vec2(ta*1.7+seed,seed*.3))-.5)+.07*sin(ta*9.+time*3.));',
+        ' float tRim=exp(-abs(r-rt)/.007)*(.65+.35*sin(ta*23.+time*11.)),tIn=smoothstep(rt,rt*.55,r);',
+        ' float tSw=fbm3(vec2(ta*1.5+time*.8+r*9.,r*12.-time*1.6));',
+        ' col+=vec3(.86,.74,1.)*tRim*1.5+vec3(.22,.1,.62)*tIn*(.35+.65*tSw)+vec3(.95,.45,1.)*tIn*pow(tSw,3.)*.9;',
         ' col=col*amt+vec3(.9,.97,1.)*flash*exp(-r*5.)*1.6;',
         ' float edge=1.-smoothstep(.84,1.,r);',
         ' gl_FragColor=vec4(col*edge,1.);}'

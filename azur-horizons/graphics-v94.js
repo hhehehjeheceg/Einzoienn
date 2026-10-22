@@ -476,7 +476,7 @@ float wDepth(){vec2 uv=(vAzW.xz+uAzHalf)/(2.*uAzHalf);if(uv.x<0.||uv.y<0.||uv.x>
   }
   const _gd = new T.Object3D(), _gc = new T.Color();
   function grassUpdate(view, p) {
-    if (!G.on.grass || lowQ(view) || !view.scene || !p) { if (GRASS.mesh) GRASS.mesh.visible = false; return; }
+    if (!G.on.grass || lowQ(view) || !view.scene || !p || isEvent()) { if (GRASS.mesh) GRASS.mesh.visible = false; return; } // l'événement a sa propre herbe
     const R = qual(view) === "high" || qual(view) === "ultra" ? 52 : 38, CELL = 8, PER = 26;
     if (!GRASS.mesh || GRASS.r !== R) {
       if (GRASS.mesh) { GRASS.mesh.parent && GRASS.mesh.parent.remove(GRASS.mesh); GRASS.mesh.geometry.dispose(); GRASS.mesh.material.dispose(); }

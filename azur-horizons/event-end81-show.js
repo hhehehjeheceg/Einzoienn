@@ -21,7 +21,7 @@
   var api = null, G = null, view = null, grp = null, X = null, O = {}, on = false, low = false, built = false;
   var P = new T.Vector3(), BASE = new T.Vector3(), F = new T.Vector3(), R = new T.Vector3();
   var ZP = new T.Vector3(), IMPACT = new T.Vector3(), STAR = new T.Vector3(), MOON = new T.Vector3();
-  var MET_A = new T.Vector3(), MET_A2 = new T.Vector3(), MET_B = new T.Vector3(), MDIR = new T.Vector3();
+  var MET_A = new T.Vector3(), MET_A2 = new T.Vector3(), MET_B = new T.Vector3(), MDIR = new T.Vector3(), RC = new T.Vector3();
   var SPOT = { px: -515, pz: -135, bx: -540, bz: -255 };
   /* v85 — disposition mesurée image par image sur la vidéo (caméra Fortnite = 80° horizontal) :
    * depuis la colline, le dépôt est droit devant (lacet 0), la lune 35,8° à droite et 25° de haut,
@@ -31,7 +31,7 @@
   var LAY = { moon: [35.8, 25], met: [71, 6, 560], isl: [92, 8, 760], imp: [67, 500] }; // impact : au sol JUSTE SOUS la météorite (vidéo), visible par-dessus le bord du plateau
   var HEMI_BR = new T.Color(.55, .85, 1);
   var tmp = new T.Vector3(), tmp2 = new T.Vector3(), tmp3 = new T.Vector3(), camPos = new T.Vector3(), camFwd = new T.Vector3();
-  var RIFTS = [], TRAILS = [], FLASHES = [], BOOMS = [], STRIKES = [], frame = 0, lastT = -999;
+  var RIFTS = [], TRAILS = [], FLASHES = [], BOOMS = [], STRIKES = [], WAVES = [], frame = 0, lastT = -999;
   L.S = { P: P, BASE: BASE, F: F, R: R, ZP: ZP, IMPACT: IMPACT, STAR: STAR };
 
   function VT() { return E.filmVideoTime ? E.filmVideoTime() : E.tTotal; }
@@ -40,8 +40,23 @@
     yaw *= D2R; pitch *= D2R; var h = Math.cos(pitch);
     return (out || new T.Vector3()).copy(F).multiplyScalar(Math.cos(yaw) * h).addScaledVector(R, Math.sin(yaw) * h).addScaledVector(UP, Math.sin(pitch));
   }
-  function skyPos(yaw, pitch, dist, out) { out = out || new T.Vector3(); dirYP(yaw, pitch, out).multiplyScalar(dist); out.x += P.x; out.y += P.y + 1.7; out.z += P.z; return out; }
-  function sp(a) { return a.isVector3 ? a.clone() : skyPos(a[0], a[1], a[2]); }
+  /* v95 — tout ce qui a été relevé sur la vidéo (lacet, tangage, distance) est mis à l'échelle KS autour de
+   * l'œil du joueur : vu de la colline c'est exactement la vidéo, et dans le monde les fusées passent bien
+   * contre la météorite posée à sa place sur la carte (près des Entrepôts et de la Méga Galerie).
+   * KS = distance réelle du cratère / distance mesurée sur la vidéo (500 m). Les objets du décor réel
+   * (base, Point Zéro, villes frappées, fin) ne sont pas concernés. */
+  var KS = 1;
+  function skyPos(yaw, pitch, dist, out) { out = out || new T.Vector3(); dirYP(yaw, pitch, out).multiplyScalar(dist * KS); out.x += P.x; out.y += P.y + 1.7; out.z += P.z; return out; }
+  function skyPosR(yaw, pitch, dist, out) { out = out || new T.Vector3(); dirYP(yaw, pitch, out).multiplyScalar(dist); out.x += P.x; out.y += P.y + 1.7; out.z += P.z; return out; }
+  function sp(a, real) { return a.isVector3 ? a.clone() : real ? skyPosR(a[0], a[1], a[2]) : skyPos(a[0], a[1], a[2]); }
+  // tailles d'un objet du « repère vidéo » : chaque taille posée ensuite est multipliée par KS
+  function kz(o) {
+    if (!o || KS === 1 || o.__kz) return o; o.__kz = true;
+    var s = o.scale, k = KS;
+    s.setScalar = function (v) { this.x = this.y = this.z = v * k; return this; };
+    s.set = function (x, y, z) { this.x = x * k; this.y = y * k; this.z = z * k; return this; };
+    s.x *= k; s.y *= k; s.z *= k; return o;
+  }
   L.skyPos = skyPos;
 
   /* =============================================================== construction */
@@ -253,7 +268,7 @@
     O.sky = new T.Mesh(new T.SphereGeometry(3000, 32, 16), L.skyMaterial()); O.sky.renderOrder = -10; O.sky.frustumCulled = false; grp.add(O.sky);
     O.stars = L.starField(low ? 1500 : 2800, 2900, 7); grp.add(O.stars);
     O.stars2 = L.starField(low ? 1200 : 2600, 2900, 19); O.stars2.material.uniforms.amt.value = 0; grp.add(O.stars2); // ciel d'espace
-    skyPos(LAY.moon[0], LAY.moon[1], 2500, MOON);
+    skyPosR(LAY.moon[0], LAY.moon[1], 2500, MOON);
     O.moon = L.sprite(grp, X.moon, 0xffffff, 300, true, 1); O.moonHalo = L.sprite(grp, X.soft, 0x5fc4ff, 1500, true, .55);
     O.sky.material.uniforms.moonDir.value.copy(dirYP(LAY.moon[0], LAY.moon[1]));
   }
@@ -261,6 +276,7 @@
   /* =============================================================== failles */
   function addRift(pos, size, a, b, opts) {
     opts = opts || {};
+    if (!opts.real) size *= KS;
     var sd = opts.seed || (RIFTS.length * 1.73 + .4);
     var m = new T.Mesh(new T.PlaneGeometry(1, 1), opts.wing && L.wingMaterial ? L.wingMaterial(sd, opts.droop || 0, opts.nw || 3) : L.riftMaterial(sd, opts.narrow));
     m.frustumCulled = false; m.visible = false; m.renderOrder = 4; grp.add(m);
@@ -296,20 +312,34 @@
     return 1;
   }
   // v93 : la fin d'une trajectoire est-elle déjà dans la faille de l'île (122° ; 28°) ?
-  function near122(p) { return O.b3p && p.distanceTo(O.b3p) < 60; }
+  function near122(p) { return O.b3p && p.distanceTo(O.b3p) < 60 * KS; }
   function addTrail(spec) {
     if (spec.path) { spec.tp = spec.path.map(function (q) { return q[0]; }); spec.pts = spec.path.map(function (q) { return [q[1], q[2], q[3]]; }); spec.a = spec.tp[0]; spec.b = spec.tp[spec.tp.length - 1]; }
-    var pts = spec.pts.map(sp);
-    var near = pts.some(function (p) { return p.distanceTo(P) < 700; });
-    var tr = new L.Trail(grp, pts, (spec.radius || 3) * 1.45, spec.col || 0x79c4ff, spec.core || 0xffffff, X.star, { headSize: (spec.headSize || 70) * 1.5, headColor: 0xd8f2ff, rocket: near ? (L.models ? L.models.riftRocket(X, 1.5) : L.riftRocket(1.6)) : null, grow: spec.grow, segs: spec.segs || 120 });
+    var real = !!spec.real, k = real ? 1 : KS;
+    var pts = spec.pts.map(function (a) { return sp(a, real); });
+    // v95 : une fusée relevée « droit sur la météorite » la touche vraiment (fin de trajectoire posée sur la roche
+    // ou son panache), quel que soit l'écart entre la vidéo et la place de la météorite sur la carte
+    if (!real && !spec.cap && pts.length > 2 && MET_B.lengthSq() > 0) {
+      var pe = pts[pts.length - 1], ax = tmp3.copy(MDIR).negate(), plen = 245 * MS * PLEN, rel = tmp2.copy(pe).sub(MET_B), u = Math.max(0, Math.min(plen * .6, rel.dot(ax)));
+      var ap = MET_B.clone().addScaledVector(ax, u), dd = pe.distanceTo(ap);
+      if (dd < 100 * KS) {
+        var surf = ap.clone().add(pe.clone().sub(ap).setLength(26 * MS * (u > 1 ? 1.6 : 1.05))), sh = surf.clone().sub(pe);
+        pe.copy(surf); pts[pts.length - 2].addScaledVector(sh, .55); if (pts.length > 3) pts[pts.length - 3].addScaledVector(sh, .2);
+        spec.flashEnd = true; spec.flashSize = spec.flashSize || 200; spec.noBoom = true; spec.entry = false; spec.noEntry = true; spec.hitMeteor = true;
+      }
+    }
+    var near = pts.some(function (p) { return p.distanceTo(P) < 700 * k; });
+    var rkS = Math.max(.9, 1.5 * k) * (spec.rocketScale || 1);
+    var tr = new L.Trail(grp, pts, (spec.radius || 3) * 1.45 * k, spec.col || 0x79c4ff, spec.core || 0xffffff, X.star, { headSize: (spec.headSize || 70) * 1.5 * k, headColor: 0xd8f2ff, rocket: near ? (L.models ? L.models.riftRocket(X, rkS) : L.riftRocket(rkS * 1.07)) : null, grow: spec.grow, segs: spec.segs || 120 });
     tr.spec = spec; TRAILS.push(tr);
     if (spec.tp) tr.fr = arcFracs(tr.curve, pts.length);
     var p0 = pts[0], p1 = pts[pts.length - 1];
-    if (spec.exit) addRift(p0, Math.max(70, p0.distanceTo(P) * .13), spec.a - 1.3, spec.a + 1.4, { fi: .6, fo: 1, flash: [spec.a - .2], curl: 1.4, narrow: true });
+    if (spec.exit) addRift(p0, Math.max(70 * k, p0.distanceTo(P) * .13) / k, spec.a - 1.3, spec.a + 1.4, { fi: .6, fo: 1, flash: [spec.a - .2], curl: 1.4, narrow: true, real: real });
     if (!spec.entry && !spec.flashEnd && !spec.cap && !spec.noEntry && !near122(p1)) spec.entry = true; // v93 : jamais de disparition sans faille
-    if (spec.entry) addRift(p1, Math.max(70, p1.distanceTo(P) * .13), spec.b - 1.5, spec.b + 1.3, { fi: .7, fo: .9, flash: [spec.b - .1], curl: 1.4, narrow: true });
-    if (spec.flashEnd) FLASHES.push({ pos: p1, t: spec.b, size: spec.flashSize || 260 });
-    if ((spec.flashEnd && !spec.cap && !spec.noBoom) || spec.boom) addBoom(p1, spec.b, spec.boomSize || 1, H(p1.x, p1.z) > p1.y - 25);
+    if (spec.entry) addRift(p1, Math.max(70 * k, p1.distanceTo(P) * .13) / k, spec.b - 1.5, spec.b + 1.3, { fi: .7, fo: .9, flash: [spec.b - .1], curl: 1.4, narrow: true, real: real });
+    if (spec.flashEnd) FLASHES.push({ pos: spec.cap ? p1.clone().add(meteorOff(spec.b, new T.Vector3())) : p1, t: spec.b, size: (spec.flashSize || 260) * k });
+    if ((spec.flashEnd && !spec.cap && !spec.noBoom) || spec.boom) addBoom(p1, spec.b, (spec.boomSize || 1) * k, H(p1.x, p1.z) > p1.y - 25);
+    if (!spec.cap && (spec.exit || spec.entry || spec.flashEnd)) WAVES.push({ pos: spec.exit ? p0 : p1, t: spec.exit ? spec.a - .2 : spec.b, size: 40 * k, kind: 'rift' });
     return tr;
   }
   function updateTrails(t) {
@@ -404,7 +434,7 @@
     var TIMES = [97.6, 105.2, 113.9];
     picks.forEach(function (p, i) {
       var tI = TIMES[i], gy = H(p.x, p.z), gp = Math.atan2(gy + 3 - (P.y + 1.7), p.d) / D2R, side = i % 2 ? 1 : -1;
-      addTrail({ path: [[tI - 3.0, p.yaw - 28 * side, 50, 1000], [tI - 1.7, p.yaw - 12 * side, 30, p.d * .95 + 40], [tI - .7, p.yaw - 3 * side, 12, p.d], [tI, p.yaw, gp, p.d]], tail: 1.4, radius: 3.4, exit: true, noEntry: true });
+      addTrail({ path: [[tI - 3.0, p.yaw - 28 * side, 50, 1000], [tI - 1.7, p.yaw - 12 * side, 30, p.d * .95 + 40], [tI - .7, p.yaw - 3 * side, 12, p.d], [tI, p.yaw, gp, p.d]], tail: 1.4, radius: 3.4, exit: true, noEntry: true, real: true });
       var tgt = new T.Vector3(p.x, gy + 3, p.z);
       addBoom(tgt, tI, 2.1, true);
       STRIKES.push({ t: tI, x: p.x, z: p.z, houses: p.houses, done: false, fires: null });
@@ -506,7 +536,7 @@
     // 181 → 183 : la fusée remonte le laser rouge jusqu'à l'étoile du zénith (absolu)
     // v85 : elle descend le laser jusqu'au CONTACT avec le sommet du dôme (183 s) : éclat + onde de choc
     var a1 = STAR.clone().add(new T.Vector3(0, -40, 0)), a2 = ZP.clone().lerp(STAR, .45), a3 = ZP.clone().add(new T.Vector3(0, DOME_TOP, 0));
-    addTrail({ pts: [a1, a2, a3], a: 180.6, b: 183.0, len: .14, radius: 2.4, headSize: 70, flashEnd: true, flashSize: 300, fade: .5, noBoom: true });
+    addTrail({ pts: [a1, a2, a3], a: 180.6, b: 183.0, len: .14, radius: 2.4, headSize: 70, flashEnd: true, flashSize: 300, fade: .5, noBoom: true, real: true, rocketScale: 1.4 });
     buildStrikes();
   }
 
@@ -585,8 +615,8 @@
     [O.b3Bolts, O.b3Core, O.b3Crack].forEach(function (s2) { s2.position.copy(O.b3p); });
     // failles fixes
     addRift(skyPos(46, 59, 1500), 1000, -42, 47.6, { fi: 2.5, fo: 3, seed: 9.9, wing: true, nw: 3, grow: [19.5, 23.5, .45] });
-    addRift(rocketPos(33.3, new T.Vector3()), 70, 32.8, 36.6, { fi: .4, fo: 1.4, flash: [33.3], seed: 8.1 });
-    addRift(O.b1x, 1700, 39.2, 52, { fi: 1.2, fo: 3, seed: 5.7, curl: 1.6 });
+    addRift(rocketPos(33.3, new T.Vector3()), 70, 32.8, 36.6, { fi: .4, fo: 1.4, flash: [33.3], seed: 8.1, real: true });
+    addRift(O.b1x, 1700, 39.2, 52, { fi: 1.2, fo: 3, seed: 5.7, curl: 1.6, real: true });
     addRift(O.r2p, 540, 45.4, 57.6, { fi: 1, fo: 2.4, flash: [48.2], seed: 12.4 });
     // v89 : les quatre failles-méduses, relevées sur la vidéo (63 → 72 s) ; chaque éclat = une fusée qui en sort
     addRift(skyPos(46, 59, 1150), 430, 46.6, 72, { seed: 2.2, wing: true, droop: 1, nw: 3, flash: [66.6, 66.85] });
@@ -595,6 +625,10 @@
     addRift(skyPos(95, 42.2, 1050), 380, 64.2, 71.2, { seed: 14.1, wing: true, droop: .8, nw: 3, flash: [67.55] });
     addRift(O.b3p, 480, 108.4, 117.5, { fi: 1, fo: 3, flash: [110.9, 111.2, 111.45, 111.65], seed: 17.7 }); // v93 : un éclat à chaque fusée de la formation qui s'y engouffre
     addRift(O.b2p, 260, 74.6, 80.4, { fi: .6, fo: 2, flash: [76], seed: 4.4, curl: 1.8 });
+    // v95 : les effets du ciel placés d'après la vidéo prennent l'échelle du repère vidéo
+    [O.darkCloud, O.ringA, O.ringAs, O.ringB, O.r2Glow, O.b2Bolts, O.b2Core, O.b2Crack, O.redSphere, O.redArcs, O.portal, O.portalCrack, O.portalFlash, O.portalBeam,
+      O.portal2, O.portal2Crack, O.b0Bolts, O.b4Bolts, O.b4Core, O.b3Bolts, O.b3Core, O.b3Crack].concat(O.shards).forEach(kz);
+    O.frenzy.forEach(function (f) { kz(f.sp); kz(f.co); });
   }
 
   /* ========================================================== aurores */
@@ -606,7 +640,7 @@
       for (var v = 0; v < pos.count; v++) {
         var u = pos.getX(v) + .5, w = pos.getY(v) + .5, yaw = lerp(d[0], d[1], u);
         var wob = Math.sin(u * 6.5 + d[5]) * 5 + Math.sin(u * 15 + d[5] * 2) * 1.6, dist = d[3] + Math.sin(u * 5 + d[5]) * 220;
-        skyPos(yaw + wob * .25, d[2] + w * d[4] + Math.sin(u * 4.3 + d[5]) * 2.5, dist, tmp);
+        skyPosR(yaw + wob * .25, d[2] + w * d[4] + Math.sin(u * 4.3 + d[5]) * 2.5, dist, tmp);
         pos.setXYZ(v, tmp.x, tmp.y, tmp.z);
       }
       geo.computeBoundingSphere();
@@ -622,7 +656,7 @@
   function buildIsland() {
     if (!L.models || !L.models.floatingIsland) return;
     var g = L.models.floatingIsland(X); g.scale.setScalar(ISL_S);
-    skyPos(LAY.isl[0], LAY.isl[1], LAY.isl[2], g.position);
+    skyPosR(LAY.isl[0], LAY.isl[1], LAY.isl[2], g.position);
     var gy = Math.max(H(g.position.x, g.position.z), 0); g.position.y = Math.max(g.position.y, gy + 1.75 * ISL_S + 55);
     O.isl = g; O.islHome = g.position.clone(); grp.add(g);
     O.islLight = new T.PointLight(0xff4fd8, 0, 260, 1.5); O.islLight.position.copy(g.position).add(new T.Vector3(0, -1.3 * ISL_S, 0)); grp.add(O.islLight);
@@ -682,21 +716,21 @@
     // v81b : les anciennes boucles / rubans sont remplacés par la capture (buildCapture)
     M.loops = []; M.ribbons = [];
     // lueur au sol du point d'impact + lumière cyan
-    O.gGlow = L.sprite(grp, X.soft, 0x5fe4ff, 260, true, 0); O.gGlow.position.copy(IMPACT).add(new T.Vector3(0, 14, 0));
-    O.gGlow2 = L.sprite(grp, X.star, 0xe0fbff, 120, true, 0); O.gGlow2.position.copy(IMPACT).add(new T.Vector3(0, 8, 0));
+    O.gGlow = kz(L.sprite(grp, X.soft, 0x5fe4ff, 260, true, 0)); O.gGlow.position.copy(RC).add(new T.Vector3(0, 4 * KS, 0));
+    O.gGlow2 = kz(L.sprite(grp, X.star, 0xe0fbff, 120, true, 0)); O.gGlow2.position.copy(RC);
     // rayon blanc-cyan du sol vers la météorite (vidéo 140 → 151 s)
-    O.capBeam = laser(0xd8f8ff, 2.2, 13); O.capBeam2 = laser(0x7fe0ff, 6, 26);
-    O.gLight = new T.PointLight(0x7fe6ff, 0, 420, 1.3); O.gLight.position.copy(IMPACT).add(new T.Vector3(0, 25, 0)); grp.add(O.gLight);
+    O.capBeam = laser(0xd8f8ff, 2.2 * KS, 13 * KS); O.capBeam2 = laser(0x7fe0ff, 6 * KS, 26 * KS);
+    O.gLight = new T.PointLight(0x7fe6ff, 0, 420 * Math.max(.6, KS), 1.3); O.gLight.position.copy(RC).add(new T.Vector3(0, 10 * KS, 0)); grp.add(O.gLight);
     // éclairs verticaux à l'impact
     O.vbolts = []; for (var vb = 0; vb < 6; vb++) { var q = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ map: X.boltV[vb % 4], transparent: true, blending: T.AdditiveBlending, depthWrite: false, fog: false, side: T.DoubleSide, opacity: 0 })); q.material.toneMapped = false; q.frustumCulled = false; q.visible = false; grp.add(q); O.vbolts.push(q); }
     // explosion d'impact
-    O.ex1 = L.sprite(grp, X.soft, 0xb8eeff, 600, true, 0); O.ex2 = L.sprite(grp, X.burstBig[1], 0xc0dcff, 700, true, 0); O.ex3 = L.sprite(grp, X.flare, 0xd0f0ff, 900, true, 0);
-    [O.ex1, O.ex2, O.ex3].forEach(function (s2) { s2.position.copy(IMPACT).add(new T.Vector3(0, 22, 0)); });
+    O.ex1 = kz(L.sprite(grp, X.soft, 0xb8eeff, 600, true, 0)); O.ex2 = kz(L.sprite(grp, X.burstBig[1], 0xc0dcff, 700, true, 0)); O.ex3 = kz(L.sprite(grp, X.flare, 0xd0f0ff, 900, true, 0));
+    [O.ex1, O.ex2, O.ex3].forEach(function (s2) { s2.position.copy(RC); });
     O.shock = new T.Mesh(new T.RingGeometry(.86, 1, 96, 1), new T.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, fog: false, side: T.DoubleSide }));
-    O.shock.rotation.x = -Math.PI / 2; O.shock.position.copy(IMPACT).add(new T.Vector3(0, 3, 0)); O.shock.visible = false; grp.add(O.shock);
+    O.shock.rotation.x = -Math.PI / 2; O.shock.position.copy(IMPACT).add(new T.Vector3(0, 3, 0)); O.shock.visible = false; grp.add(O.shock); kz(O.shock);
     // sol brûlé
     O.scorch = [];
-    var sc = [[IMPACT.x, IMPACT.z, 70], [P.x + F.x * 4 + R.x * 3, P.z + F.z * 4 + R.z * 3, 14], [P.x - F.x * 9 - R.x * 6, P.z - F.z * 9 - R.z * 6, 10], [P.x + F.x * 16 - R.x * 10, P.z + F.z * 16 - R.z * 10, 12], [P.x + R.x * 15, P.z + R.z * 15, 9]];
+    var sc = [[IMPACT.x, IMPACT.z, 70 * KS], [P.x + F.x * 4 + R.x * 3, P.z + F.z * 4 + R.z * 3, 14], [P.x - F.x * 9 - R.x * 6, P.z - F.z * 9 - R.z * 6, 10], [P.x + F.x * 16 - R.x * 10, P.z + F.z * 16 - R.z * 10, 12], [P.x + R.x * 15, P.z + R.z * 15, 9]];
     sc.forEach(function (s3, i) {
       var g2 = new T.PlaneGeometry(1, 1, 8, 8), pa = g2.attributes.position, m2 = new T.Mesh(g2, new T.MeshBasicMaterial({ map: X.scorch, transparent: true, depthWrite: false, opacity: 0, polygonOffset: true, polygonOffsetFactor: -4 }));
       m2.rotation.x = -Math.PI / 2; m2.scale.setScalar(s3[2]); m2.position.set(s3[0], 0, s3[1]); m2.rotation.z = hsh(i) * 6;
@@ -706,13 +740,16 @@
     });
   }
   var MOFF = new T.Vector3(), DOME_TOP = 92; // sommet du dôme du Point Zéro au-dessus de ZP (centre −22, rayon 110 × 1,05)
-  function meteorOff(t, out) { return out.copy(IMPACT).sub(MET_B).multiplyScalar(.08 * ramp(t, 125, 150.8)); }
-  function meteorPos(t, out) {
-    // immobile jusqu'à la capture, puis elle descend petit à petit (126 → 151) avant la chute finale
-    // vidéo : elle s'enfonce dans la lumière du sol de 150,6 à ~153,3 (le panache reste en l'air et s'efface)
-    if (t < 150.6) return meteorOff(t, out).add(MET_B);
-    var k = cl((t - 150.6) / 2.7); meteorOff(150.6, out).add(MET_B); return out.lerp(IMPACT, k * k);
+  /* v95 — vidéo 124 → 153 s : la faille de capture (RC) s'ouvre juste devant le nez de la météorite ; les fusées
+   * s'y écrasent à ~20 m de la roche. Libérée, la météorite glisse lentement le long de sa trajectoire vers la
+   * faille (sa tête reste à ~20 m de l'éclat), puis elle y plonge et disparaît (150,6 → 153,3). */
+  function meteorTravel(t) {
+    var a = 35 * KS * U.sm(ramp(t, 124, 150.6));
+    if (t > 150.6) { var k = cl((t - 150.6) / 2.7); a += (100 * KS - a) * k * k; }
+    return a;
   }
+  function meteorOff(t, out) { return out.copy(MDIR).multiplyScalar(meteorTravel(Math.min(t, 150.6))); }
+  function meteorPos(t, out) { return out.copy(MET_B).addScaledVector(MDIR, meteorTravel(t)); }
   function updateMeteor(t, cam) {
     var M = O.met, vis = t < 154.6;
     M.g.visible = vis; if (!vis) { M.ribbons.forEach(function (r) { r.set(0, 0, 0, t); }); return; }
@@ -796,64 +833,70 @@
    * une faille qui s'ouvre devant, près du sol. Puis la suivante, et ainsi de
    * suite, de plus en plus vite : les traînées s'accumulent en cage de lumière. */
   function buildCapture() {
-    /* v85 — LA CAPTURE refaite d'après la vidéo (relevé demi-seconde par demi-seconde, 118 → 151 s) :
-     * une faille à éclairs s'ouvre au bout du panache (121,5) et reste ouverte. Une à une, les fusées
-     * en sortent, décrivent un grand arc autour du panache puis longent son flanc, dépassent la tête
-     * de la météorite et plongent toutes vers LE MÊME point au sol (le futur point d'impact), devant le
-     * joueur, où elles s'engouffrent dans un éclat bleu. Les premières font de grandes boucles
-     * (124-126 : boucle par-dessus ; 128-130 : traversée vers la gauche puis chute verticale ; 130,5-132 :
-     * boucle au-dessus puis plongée), puis elles s'enchaînent de plus en plus vite et leurs traînées,
-     * qui restent, tissent un cocon de lumière autour du panache, jusqu'au sol. */
+    /* v95 — LA CAPTURE (vidéo 121 → 153 s, relue image par image) : une faille à éclairs s'ouvre au bout du
+     * panache (121,5) ; une à une les fusées en sortent, s'enroulent au plus près de la roche (cage de
+     * lumière autour du panache) puis piquent sur LA faille de capture RC, ouverte juste devant le nez de la
+     * météorite (~20 m), où elles s'engouffrent dans un éclat. La météorite glisse vers cette faille pendant la
+     * capture (meteorTravel) : chaque traînée suit la roche (cap) et sa fin tombe pile dans RC à son arrivée. */
     var H0 = MET_B.clone(), back = MDIR.clone().negate(), Tl = MET_B.clone().addScaledVector(back, 245 * MS * PLEN);
     var ax = Tl.clone().sub(H0), Lx = ax.length(); ax.normalize();
     var eye = P.clone(); eye.y += 1.7;
     var v = H0.clone().sub(eye).normalize(), sr = new T.Vector3().crossVectors(v, UP).normalize(), su = new T.Vector3().crossVectors(sr, v).normalize();
     var u1 = new T.Vector3().crossVectors(ax, v).normalize(); if (u1.dot(sr) > 0) u1.negate(); // φ = 0 : flanc gauche (côté joueur / lune)
     var u2 = new T.Vector3().crossVectors(ax, u1).normalize();
-    var G = IMPACT.clone(); G.y += 1.5;
-    var Rm = 62;
+    var Rm = 34 * KS, RR = 26 * MS; // rayon de la cage autour du panache, rayon de la roche
     function C(sAx, phi, r) { return H0.clone().addScaledVector(ax, sAx * Lx).addScaledVector(u1, Math.cos(phi) * r).addScaledVector(u2, Math.sin(phi) * r); }
-    function Tp(a, b, c2) { return Tl.clone().addScaledVector(sr, a).addScaledVector(su, b).addScaledVector(ax, c2 || 0); }
-    function dive(from) { var d = from.clone().lerp(G, .45); d.y += 18; return [d, G.clone().lerp(from, .12), G.clone()]; }
+    function Tp(a, b, c2) { return Tl.clone().addScaledVector(sr, a * KS).addScaledVector(su, b * KS).addScaledVector(ax, (c2 || 0) * KS); }
+    // nez de la roche (repère de départ) et point d'entrée dans la faille, corrigé du glissement de la météorite
+    function Gat(tb) { return RC.clone().sub(meteorOff(tb, new T.Vector3())); }
+    // l'approche finale : elle frôle le nez (contourne la roche par en dessous) et plonge dans la faille
+    function dive(from, G, side) {
+      var nose = H0.clone().addScaledVector(MDIR, RR * 1.25).addScaledVector(u1, side * RR * .9);
+      var mid = nose.clone().lerp(G, .5).addScaledVector(u2, -RR * .45);
+      return [nose, mid, G.clone().lerp(mid, .1), G.clone()];
+    }
     var exits = [], entries = []; O.capture = [];
-    function add(pts, a, b, o) {
+    function add(mk, a, b, o) {
       o = o || {};
-      addTrail({ pts: pts, a: a, b: b, len: 1, fade: o.fade || 4, radius: o.radius || 3.2, headSize: 64, col: 0x8fd0ff, core: 0xeaf8ff, grow: .45, flashEnd: !o.quiet || o.flash > 0, flashSize: (o.quiet ? 38 : (o.flash || 90)) * 1.1, alpha: o.alpha || .8, cap: true, segs: 160 });
+      var G = Gat(b);
+      addTrail({ pts: mk(G), a: a, b: b, len: 1, fade: o.fade || 4, radius: o.radius || 3.2, headSize: 64, col: 0x8fd0ff, core: 0xeaf8ff, grow: .45, flashEnd: !o.quiet || o.flash > 0, flashSize: (o.quiet ? 38 : (o.flash || 90)) * 1.1, alpha: o.alpha || .8, cap: true, segs: 160, noEntry: true });
       exits.push(a - .05); if (!o.quiet) entries.push(b); O.capture.push({ a: a, b: b });
-      if (o.entry) addRift(G, o.entry * 1.3, b - .35, b + .7, { fi: .2, fo: .5, flash: [b], seed: 40 + O.capture.length * 1.3, curl: 1.6, narrow: true });
+      if (!o.quiet) WAVES.push({ pos: RC.clone(), t: b, size: (o.flash || 90) * .55 * KS, kind: 'cap' });
     }
-    // 1) 123,9 → 126,5 : grande boucle par-dessus le bout du panache, puis le long du flanc gauche jusqu'au sol
-    add([Tl.clone(), Tp(110, 25), Tp(165, 55), Tp(140, 95), Tp(40, 100), C(.8, 0, Rm * 1.1), C(.5, 0, Rm * .95), C(.2, 0, Rm * .8)].concat(dive(C(-.06, 0, Rm * .5))), 123.9, 126.5, { alpha: 1, fade: 1.3, flash: 210, entry: 120, radius: 3.6 });
-    // 2) 127,9 → 130,2 : traversée vers la gauche à hauteur du bout du panache, crochet, chute verticale sur le point d'impact
-    var top = G.clone(); top.y = Tl.y - .32 * (Tl.y - H0.y);
-    var t0b = Tl.clone().addScaledVector(UP, -.18 * (Tl.y - top.y));
-    add([Tl.clone(), t0b, t0b.clone().lerp(top, .5), top.clone().addScaledVector(sr, 26), top.clone().addScaledVector(UP, -26), G.clone().addScaledVector(UP, (top.y - G.y) * .4), G.clone()], 127.7, 129.85, { alpha: 1, fade: 1.3, flash: 170, entry: 100, radius: 3.4 });
-    // 3) 130,4 → 132,5 : boucle au-dessus du panache vers la gauche, puis plongée le long du flanc
-    add([Tl.clone(), Tp(45, 60), Tp(0, 95), Tp(-90, 70), Tp(-130, 35, -40), C(.5, .1, Rm * 1.5), C(.2, 0, Rm), ].concat(dive(C(-.06, 0, Rm * .55))), 130.2, 132.2, { alpha: .95, fade: 1.6, flash: 150, entry: 90 });
-    // 4) le cocon : méridiens autour du panache, de plus en plus serrés dans le temps
+    // 1) 123,9 → 126,5 : grande boucle par-dessus le bout du panache, puis le long du flanc gauche jusqu'au nez
+    add(function (G) { return [Tl.clone(), Tp(110, 25), Tp(165, 55), Tp(140, 95), Tp(40, 100), C(.8, 0, Rm * 1.1), C(.5, 0, Rm * .95), C(.2, 0, Rm * .8)].concat(dive(C(-.02, 0, Rm * .6), G, 1)); }, 123.9, 126.5, { alpha: 1, fade: 1.3, flash: 210, radius: 3.6 });
+    // 2) 127,7 → 129,85 : traversée vers la gauche au bout du panache, crochet, et chute le long de la roche
+    add(function (G) { return [Tl.clone(), Tp(-40, -10), Tp(-110, -30), C(.6, 2.2, Rm * 1.4), C(.3, 2.6, Rm * 1.1), C(.08, 3.1, Rm * .8)].concat(dive(C(-.02, 3.1, Rm * .6), G, -1)); }, 127.7, 129.85, { alpha: 1, fade: 1.3, flash: 170, radius: 3.4 });
+    // 3) 130,2 → 132,2 : boucle au-dessus du panache vers la gauche, puis plongée le long du flanc
+    add(function (G) { return [Tl.clone(), Tp(45, 60), Tp(0, 95), Tp(-90, 70), Tp(-130, 35, -40), C(.5, .1, Rm * 1.5), C(.2, 0, Rm)].concat(dive(C(-.02, 0, Rm * .6), G, 1)); }, 130.2, 132.2, { alpha: .95, fade: 1.6, flash: 150 });
+    // 4) le cocon : chaque fusée fait le tour du panache (méridien en hélice) et file dans la faille du nez
     function meridian(phi, k, a, b, alpha, quiet) {
-      var pts = [Tl.clone(), C(.9, phi, Rm * .6 * k), C(.72, phi, Rm * .95 * k), C(.5, phi, Rm * k), C(.28, phi, Rm * .88 * k), C(.1, phi, Rm * .62 * k)];
-      add(pts.concat(dive(C(-.07, phi, Rm * .36 * k))), a, b, { alpha: alpha, fade: 2.4 + 1.2 * hsh(a), flash: quiet ? 0 : 115, radius: quiet ? 2.4 : 2.8, quiet: quiet });
+      add(function (G) {
+        var pts = [Tl.clone()];
+        for (var j = 0; j < 6; j++) { var f = .92 - j * .16, tw = phi + j * .55; pts.push(C(f, tw, Rm * k * (.6 + .45 * Math.sin(Math.PI * (j + 1) / 7)))); }
+        return pts.concat(dive(C(-.02, phi + 3.3, Rm * .5 * k), G, Math.cos(phi) > 0 ? 1 : -1));
+      }, a, b, { alpha: alpha, fade: 2.4 + 1.2 * hsh(a), flash: quiet ? 0 : 115, radius: quiet ? 2.4 : 2.8, quiet: quiet });
     }
-    // v89 : chaque grand éclat au point d'impact tombe sur un flash de la vidéo (= un « boum » de la musique)
+    // chaque grand éclat dans la faille tombe sur un flash de la vidéo (= un « boum » de la musique)
     var HITS = CAPF.filter(function (h) { return h > 132.5; }).concat([147.3, 148.2, 148.9]).sort(function (a, b) { return a - b; });
     HITS.forEach(function (h, j) { var dur = Math.max(1.15, 1.8 - j * .03); meridian(j * 2.39996 + .35, .85 + .35 * hsh(j * 3.7), h - dur, h, Math.max(.55, .88 - j * .01), false); });
     // et entre deux, des fusées plus discrètes tissent le cocon (sans grand éclat)
-    var t0 = 134.0, i = 0, step = .7, dur = 1.7;
-    while (t0 < 149.8 && i < 30) {
+    var t0 = 134.0, i = 0, step = .7, dur = 1.7, nQ = low ? 18 : 30;
+    while (t0 < 149.8 && i < nQ) {
       meridian(i * 2.39996 + 1.6, .78 + .4 * hsh(i * 5.1), t0, t0 + dur, Math.max(.45, .7 - i * .008), true);
-      t0 += step; step = Math.max(.32, step * .95); dur = Math.max(1.05, dur * .975); i++;
+      t0 += step * (low ? 1.5 : 1); step = Math.max(.32, step * .95); dur = Math.max(1.05, dur * .975); i++;
     }
-    // quelques traînées remontent du point d'impact vers le bout du panache (139-142)
+    // quelques traînées remontent de la faille vers le bout du panache (139-142)
     [138.6, 139.5, 140.7].forEach(function (a, j) {
-      var m1 = G.clone().lerp(Tl, .3).addScaledVector(sr, -40 - 25 * j), m2 = G.clone().lerp(Tl, .7).addScaledVector(su, 30 + 15 * j);
-      addTrail({ pts: [G.clone(), m1, m2, Tl.clone()], a: a, b: a + 1.5, len: .6, fade: 1.6, radius: 1.8, headSize: 40, col: 0x8fd0ff, core: 0xeaf8ff, grow: .4, alpha: .7, cap: true });
+      var G = Gat(a), m1 = G.clone().lerp(Tl, .3).addScaledVector(sr, (-40 - 25 * j) * KS), m2 = G.clone().lerp(Tl, .7).addScaledVector(su, (30 + 15 * j) * KS);
+      addTrail({ pts: [G, m1, m2, Tl.clone()], a: a, b: a + 1.5, len: .6, fade: 1.6, radius: 1.8, headSize: 40, col: 0x8fd0ff, core: 0xeaf8ff, grow: .4, alpha: .7, cap: true, noEntry: true });
     });
     // la faille à éclairs au bout du panache, ouverte pendant toute la capture (un éclat à chaque sortie)
     addRift(Tl, 240, 121.4, 151.4, { fi: 1.4, fo: .9, flash: [121.6].concat(exits), seed: 20.5, cap: true, curl: 1.3, op: .8 });
-    // la faille au sol, au point d'impact : des éclairs qui rampent sur le sol (vidéo B), un éclat à chaque fusée qui s'y engouffre
-    addRift(G.clone().add(new T.Vector3(0, 8, 0)), 190, 126.3, 151.8, { fi: .5, fo: .8, flash: entries, seed: 60.6, curl: 1.7 });
-    O.capG = G;
+    // LA faille de capture, juste devant le nez : elle grandit à chaque fusée qui s'y écrase, puis avale la roche
+    addRift(RC.clone(), 230, 124.6, 154.2, { fi: .5, fo: .8, flash: entries.concat([152.9]), seed: 60.6, curl: 1.7, grow: [124.6, 151, .55] });
+    addRift(RC.clone(), 120, 124.8, 154.0, { fi: .4, fo: .7, flash: entries, seed: 61.9, curl: 2.1, narrow: true });
+    O.capG = RC;
   }
   function updateImpact(t) {
     // lueur au sol qui enfle avec l'énergie
@@ -865,14 +908,14 @@
     O.gLight.intensity = ge * 10 + win(t, 152.7, 156, .1, 2.2) * 40;
     // rayon du sol vers la météorite
     var cb = win(t, 140.5, 151.4, 3, .35) * (.45 + .55 * ramp(t, 146.5, 150.6)) * (.8 + .2 * Math.sin(t * 23));
-    if (cb > .004 && O.met) { var ca = O.capA || (O.capA = new T.Vector3()), cbp = O.capB || (O.capB = new T.Vector3()); cbp.copy(O.met.g.position); ca.copy(IMPACT); ca.y += 2; placeBeam(O.capBeam, ca, cbp, cb * .55); placeBeam(O.capBeam2, ca, cbp, cb * .2); }
+    if (cb > .004 && O.met) { var ca = O.capA || (O.capA = new T.Vector3()), cbp = O.capB || (O.capB = new T.Vector3()); cbp.copy(O.met.g.position); ca.copy(RC); placeBeam(O.capBeam, ca, cbp, cb * .55); placeBeam(O.capBeam2, ca, cbp, cb * .2); }
     else { O.capBeam.visible = O.capBeam2.visible = false; }
     // éclairs verticaux
     var bw = win(t, 150.4, 152.9, .15, .3) + win(t, 152.8, 157.6, .1, 1.4) * 1.2 + win(t, 155.42, 156.6, .05, .8) * .8, flick = Math.floor((t + 600) * 14), cam = api.camera();
     for (var i = 0; i < O.vbolts.length; i++) {
       var q = O.vbolts[i], on2 = bw > .01 && (hsh(flick * 3 + i) > .25 || t > 152.8);
       q.visible = on2; if (!on2) continue;
-      var hgt = (t > 152.8 ? 420 : 260) * (.7 + hsh(i * 7) * .6), ox = (hsh(i * 5 + flick) - .5) * 60, oz = (hsh(i * 11 + flick) - .5) * 60;
+      var hgt = (t > 152.8 ? 420 : 260) * (.7 + hsh(i * 7) * .6) * KS, ox = (hsh(i * 5 + flick) - .5) * 60 * KS, oz = (hsh(i * 11 + flick) - .5) * 60 * KS;
       q.position.set(IMPACT.x + ox, IMPACT.y + hgt / 2, IMPACT.z + oz);
       // éventail d'éclairs fins qui partent du point d'impact (vidéo 150,4 → 156)
       var tilt = ((i + .5) / O.vbolts.length - .5) * 1.3 + (hsh(i + flick) - .5) * .25;
@@ -1038,7 +1081,7 @@
     // rayon de la faille R2
     var bk = win(t, 46.3, 51.6, 1, 1.4);
     O.beam.visible = bk > .01; O.beam.material.opacity = bk * (.62 + .08 * Math.sin(t * 6)); O.beam.rotation.y = t * .05;
-    if (O.beam.visible) { var top = O.r2p, bot = tmp.copy(top); bot.y = P.y - 40; O.beam.position.copy(top).lerp(bot, .5); O.beam.scale.set(1, top.y - bot.y, 1); }
+    if (O.beam.visible) { var top = O.r2p, bot = tmp.copy(top); bot.y = P.y - 40; O.beam.position.copy(top).lerp(bot, .5); O.beam.scale.set(KS, top.y - bot.y, KS); }
     L.setOp(O.r2Glow, win(t, 47.6, 52, .8, 2)); O.r2Glow.scale.setScalar(260 + 380 * win(t, 47.6, 51, 1, 1));
     // sphère rouge + gerbe près de la montagne (75,5-80)
     L.setOp(O.redSphere, win(t, 75.2, 76.3, .3, .2)); O.redSphere.scale.setScalar(34 + 14 * Math.sin(t * 20));
@@ -1058,7 +1101,7 @@
     for (var i = 0; i < O.shards.length; i++) {
       var s = O.shards[i]; if (sk2 <= 0 || sk2 >= 1) { L.setOp(s, 0); continue; }
       tmp.set(hsh(i) - .5, hsh(i + 4) - .3, hsh(i + 8) - .5).normalize();
-      s.position.copy(O.portal.position).addScaledVector(tmp, 30 + 140 * sk2); s.position.y += 30 * sk2;
+      s.position.copy(O.portal.position).addScaledVector(tmp, (30 + 140 * sk2) * KS); s.position.y += 30 * sk2 * KS;
       s.material.rotation = t * 3 + i; s.scale.setScalar(7 + hsh(i + 2) * 8); L.setOp(s, (1 - sk2) * .95);
     }
     if (O.frenzy) O.frenzy.forEach(function (f, i) {
@@ -1365,12 +1408,103 @@
     E.anchors = E.anchors || {}; if (!E.anchors.blackhole) E.anchors.blackhole = new T.Vector3(); E.anchors.blackhole.copy(c);
   }
 
+  /* ============================================== v95 : ondes de choc */
+  /* Chaque faille qui s'ouvre ou se referme, chaque fusée qui s'écrase dans la faille de capture et chaque
+   * grande explosion lâche une onde : une coquille de lumière (bord brillant, centre transparent, ondulations)
+   * qui enfle et s'éteint. Les grandes ondes au sol soulèvent un anneau de poussière, secouent la caméra et
+   * bousculent le joueur s'il est tout près. Pool fixe de coquilles : coût constant quel que soit le nombre d'ondes. */
+  var WAVE_FS = [
+    'uniform float amt,time,band;uniform vec3 col;varying vec3 vN;varying vec3 vV;varying vec3 vP;', L.NOISE,
+    'void main(){float f=1.-abs(dot(normalize(vN),normalize(vV)));float rim=pow(f,2.6);',
+    'float rip=.75+.25*sin(vP.y*14.+time*9.)*sin(vP.x*11.-time*7.);float n=.7+.6*vn(vP.xz*3.+time*.6);',
+    'float a=rim*amt*rip*n*(1.+band*smoothstep(.0,.08,abs(vP.y))*0.);',
+    'gl_FragColor=vec4(col*a*1.6,a);}'
+  ].join('\n');
+  var WAVE_VS = 'varying vec3 vN;varying vec3 vV;varying vec3 vP;void main(){vP=position;vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalMatrix*normal;vV=-mv.xyz;gl_Position=projectionMatrix*mv;}';
+  var WKIND = { rift: [.9, .55, 0x9fd8ff, 0], cap: [1.1, .8, 0xbfe8ff, 0], sky: [2.4, .7, 0x8fb8ff, 0], ground: [2.6, 1, 0xc8f2ff, 1], zp: [2.8, 1, 0x9fe8ff, 1], boom: [3.4, 1, 0xe8f4ff, 1], dome: [1.6, .9, 0xffc89a, 1] };
+  function buildWaves() {
+    O.wpool = []; var g = new T.SphereGeometry(1, low ? 24 : 36, low ? 12 : 18), n = low ? 6 : 10;
+    for (var i = 0; i < n; i++) {
+      var m = new T.Mesh(g, new T.ShaderMaterial({ transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide, fog: false,
+        uniforms: { amt: { value: 0 }, time: { value: 0 }, band: { value: 0 }, col: { value: new T.Color(0x9fd8ff) } }, vertexShader: WAVE_VS, fragmentShader: WAVE_FS }));
+      m.material.toneMapped = false; m.frustumCulled = false; m.visible = false; m.renderOrder = 9; grp.add(m); O.wpool.push(m);
+    }
+    // les grandes ondes du film (vidéo) : explosion de foudre, gerbes, capture, Point Zéro, météorite, explosion finale
+    var big = [[38.65, O.b1x, 700, 'sky'], [76.0, O.b2p, 150 * KS, 'cap'], [110.9, O.b3p, 360 * KS, 'sky'], [152.9, RC, 420 * KS, 'ground'], [155.42, RC, 520 * KS, 'ground'],
+      [183.05, ZP.clone().add(new T.Vector3(0, DOME_TOP, 0)), 1500, 'zp'], [216.2, ZP.clone().add(new T.Vector3(0, DOME_TOP, 0)), 220, 'dome'], [223.35, O.fxC || ZP, 1500, 'boom']];
+    big.forEach(function (b) { if (b[1]) WAVES.push({ pos: b[1].clone(), t: b[0], size: b[2], kind: b[3], big: true }); });
+    WAVES.sort(function (a, b) { return a.t - b.t; });
+    E.shake = 0;
+  }
+  function updateWaves(t, cam) {
+    var used = 0, shake = 0, sys = O.smoke;
+    for (var i = 0; i < WAVES.length && used < O.wpool.length; i++) {
+      var w = WAVES[i], K = WKIND[w.kind] || WKIND.rift, life = K[0], age = t - w.t;
+      if (age < 0) break; // triées par instant
+      if (age > life) continue;
+      var k = age / life, m = O.wpool[used++], u = m.material.uniforms, gr = U.easeOut(k);
+      m.visible = true; m.position.copy(w.pos); m.scale.setScalar(w.size * (.08 + gr));
+      if (K[3]) m.scale.y *= .55; // ondes au sol : coquille aplatie qui file sur le relief
+      u.amt.value = (1 - k) * (1 - k) * K[1] * Math.min(1, age * 12); u.time.value = t; u.col.value.setHex(K[2]);
+      if (w.big && cam) {
+        var front = w.size * gr, d = cam.position.distanceTo(w.pos), pass = Math.exp(-Math.pow((d - front) / Math.max(30, w.size * .12), 2));
+        shake = Math.max(shake, pass * (1 - k) * (w.kind === 'boom' || w.kind === 'zp' ? 1.2 : w.kind === 'ground' ? .7 : .35));
+        if (K[3] && sys && k < .7) for (var q = 0; q < (low ? 10 : 18); q++) { // anneau de poussière
+          var a = q / (low ? 10 : 18) * 6.283 + w.t, rr = w.size * gr * .92, x = w.pos.x + Math.cos(a) * rr, z = w.pos.z + Math.sin(a) * rr, gy = Math.max(H(x, z), w.kind === 'boom' ? -1e9 : 0);
+          if (w.kind === 'dome' || w.kind === 'zp' || w.kind === 'boom') gy = Math.max(gy, H(x, z));
+          sys.add(x, gy + 3 + w.size * .01, z, (14 + w.size * .05) * (1 + k), .78, .82, .9, (1 - k) * .55, a + t * .2, q % 4, .2, 0);
+        }
+      }
+    }
+    for (var j = used; j < O.wpool.length; j++) O.wpool[j].visible = false;
+    E.shake = shake;
+  }
+
+  /* ================================================ v95 : trou noir */
+  /* Fond noir, horizon parfaitement noir, anneau de photons très fin, disque d'accrétion incliné qui tourne
+   * (plus lumineux du côté qui vient vers nous), arc du disque arrière courbé par-dessus l'horizon, et des
+   * étincelles qui spiralent vers le centre. Bleu-blanc froid, discret, comme la fin de la vidéo. */
+  var HOLE_FS = [
+    'uniform float time,amt;varying vec2 vUv;', L.NOISE,
+    'void main(){vec2 p=(vUv-.5)*2.;float r=length(p);',
+    'float rh=.2;float hole=smoothstep(rh+.004,rh-.004,r);',
+    // disque incliné (vu presque de profil)
+    'vec2 q=vec2(p.x,p.y*3.4);float rd=length(q);float ad=atan(q.y,q.x);',
+    'float sw=fbm(vec2(ad*2.2-time*.35+rd*5.,rd*7.-time*.12));float sw2=vn(vec2(ad*9.-time*1.1,rd*22.));',
+    'float disk=smoothstep(.98,.42,rd)*smoothstep(.24,.33,rd)*(.45+.75*sw)*(.75+.35*sw2);',
+    'float dop=1.+.65*(-p.x/max(rd,.001));disk*=dop;',
+    'float back=step(0.,p.y)*(1.-hole);float frontK=step(p.y,0.)+step(rh,r)*step(0.,p.y);disk*=mix(1.,frontK,1.);',
+    // arc lentillé du disque arrière, au-dessus et au-dessous de l'horizon
+    'float arc=exp(-pow((r-.255-.03*sw)/.035,2.))*(.55+.45*sw)*(.6+.4*abs(p.y)/max(r,.001));',
+    'float ring=exp(-pow((r-rh-.012)/.006,2.))*1.6;',
+    'float halo=exp(-max(r-rh,0.)*7.)*.22;',
+    'vec3 c=vec3(.55,.75,1.)*disk*.9+vec3(.82,.9,1.)*arc*.8+vec3(.95,.98,1.)*ring+vec3(.15,.3,.9)*halo;',
+    'c*=1.-hole;c*=amt;float a=clamp(max(max(c.r,c.g),c.b),0.,1.);',
+    'gl_FragColor=vec4(c,1.);}'
+  ].join('\n');
+  function buildHole() {
+    O.hole2 = new T.Mesh(new T.PlaneGeometry(1, 1), new T.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: false, blending: T.AdditiveBlending,
+      uniforms: { time: { value: 0 }, amt: { value: 0 } }, vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}', fragmentShader: HOLE_FS }));
+    O.hole2.material.toneMapped = false; O.hole2.frustumCulled = false; O.hole2.position.set(0, 0, -100.05); O.hole2.scale.setScalar(64); O.endScene.add(O.hole2);
+    O.motes = []; for (var i = 0; i < (low ? 14 : 26); i++) O.motes.push(L.sprite(O.endScene, X.star, 0xcfe4ff, 1, true, 0));
+  }
+  function updateHole(t, hk) {
+    var u = O.hole2.material.uniforms; u.time.value = t; u.amt.value = hk; O.hole2.visible = hk > .003;
+    O.hole2.rotation.z = -.08 + .02 * Math.sin(t * .2); O.hole2.scale.setScalar(64 * (1 + .015 * Math.sin(t * .7)));
+    for (var i = 0; i < O.motes.length; i++) {
+      var ph = ((t * (.05 + hsh(i) * .05)) + hsh(i * 7)) % 1, rr = 30 * (1 - ph) + 6.6, a = hsh(i * 3) * 6.283 + ph * (5 + hsh(i) * 4);
+      var s2 = O.motes[i]; s2.position.set(Math.cos(a) * rr, Math.sin(a) * rr * .3, -100.1); s2.scale.setScalar(.35 + 1.1 * (1 - ph));
+      L.setOp(s2, hk * Math.sin(ph * Math.PI) * .7);
+    }
+  }
+
   /* ============================================================ écran noir */
   function buildEnd() {
     O.endScene = new T.Scene(); O.endScene.background = new T.Color(0x000000);
     O.endStar = L.sprite(O.endScene, X.star, 0xe8f6ff, 30, true, 0); O.endFlare = L.sprite(O.endScene, X.flare, 0xcfe8ff, 200, true, 0);
     O.hole = L.sprite(O.endScene, X.hole, 0xffffff, 16, false, 0); O.holeGlow = L.sprite(O.endScene, X.soft, 0x1f3cff, 40, true, 0);
     O.endCam = new T.PerspectiveCamera(60, 1, .1, 1000);
+    try { buildHole(); } catch (e) { O.hole2 = null; }
   }
   function updateEnd(t, aspect) {
     var c = O.endCam; c.aspect = aspect; c.updateProjectionMatrix(); c.position.set(0, 0, 0); c.lookAt(0, 0, -1);
@@ -1382,6 +1516,7 @@
     O.hole.position.set(0, 0, -100); O.holeGlow.position.set(0, 0, -100.2);
     L.setOp(O.hole, hk); O.hole.scale.setScalar(15 + .8 * Math.sin(t * 1.3)); O.hole.material.rotation = -t * .25;
     L.setOp(O.holeGlow, hk * (.22 + .06 * Math.sin(t * 2))); O.holeGlow.scale.setScalar(34 + 3 * Math.sin(t * .9));
+    if (O.hole2) { L.setOp(O.hole, 0); L.setOp(O.holeGlow, 0); updateHole(t, hk); }
   }
 
   /* ===================================================== voile plein écran */
@@ -1429,23 +1564,31 @@
     X = L.makeTextures(low);
     // v94 : île de référence — point de vue sur la colline au sud de la base, base de lancement près de
     // la Citadelle, météorite suspendue au-dessus de son cratère (près de la Méga Galerie), Point Zéro sur Loot Lake
-    var s8 = root.AZSim && root.AZSim.s8, LK = root.AZSim && root.AZSim.LAKE;
+    var s8 = root.AZSim && root.AZSim.s8, LK = root.AZSim && root.AZSim.LAKE, EF = s8 && s8.eventFrame ? s8.eventFrame() : null;
     if (s8) { SPOT.px = s8.spot.px; SPOT.pz = s8.spot.pz; SPOT.bx = s8.launch.x; SPOT.bz = s8.launch.z; }
     P.set(SPOT.px, H(SPOT.px, SPOT.pz), SPOT.pz); BASE.set(SPOT.bx, H(SPOT.bx, SPOT.bz) + .4, SPOT.bz);
     F.set(BASE.x - P.x, 0, BASE.z - P.z).normalize(); R.crossVectors(F, UP).normalize();
     if (s8 && LK) ZP.set(LK.x, H(LK.x, LK.z) + 20, LK.z); else ZP.set(0, H(0, 0) + 20, 0);
-    skyPos(LAY.imp[0], 0, LAY.imp[1], IMPACT); IMPACT.y = H(IMPACT.x, IMPACT.z);
-    if (s8) { IMPACT.set(s8.meteor.x, 0, s8.meteor.z); IMPACT.y = H(IMPACT.x, IMPACT.z); }
     STAR.copy(ZP).add(new T.Vector3(0, 1350, 0));
-    skyPos(LAY.met[0], LAY.met[1], LAY.met[2], MET_B);
-    if (s8) MET_B.set(IMPACT.x, IMPACT.y + 115, IMPACT.z);
-    MET_A.copy(MET_B); MET_A2.copy(MET_B);
     // la météorite file vers le bas-gauche de l'écran (panache vers le haut-droite, ~47°) quand on la regarde
     var my = LAY.met[0] * D2R; tmp.copy(F).multiplyScalar(Math.sin(my)).addScaledVector(R, -Math.cos(my));
     MDIR.copy(tmp).multiplyScalar(.68).addScaledVector(UP, -.73).addScaledVector(dirYP(LAY.met[0], 0, tmp2), .12).normalize();
+    if (EF) {
+      // v95 : même repère que la météorite de la partie normale (sim.js, eventFrame)
+      KS = EF.KS; MS = .8 * KS; MDIR.set(EF.MDIR.x, EF.MDIR.y, EF.MDIR.z);
+      RC.set(EF.RC.x, EF.RC.y, EF.RC.z); MET_B.set(EF.MET.x, EF.MET.y, EF.MET.z);
+      IMPACT.set(RC.x, H(RC.x, RC.z), RC.z);
+    } else {
+      KS = 1; MS = .8;
+      skyPos(LAY.imp[0], 0, LAY.imp[1], IMPACT); IMPACT.y = H(IMPACT.x, IMPACT.z);
+      skyPos(LAY.met[0], LAY.met[1], LAY.met[2], MET_B);
+      RC.copy(IMPACT); RC.y += 8; MET_B.copy(RC).addScaledVector(MDIR, -100);
+    }
+    MET_A.copy(MET_B); MET_A2.copy(MET_B);
+    E.meteorRadius = 26 * MS * .92; E.rc = RC;
     grp = new T.Group(); grp.name = 'end81'; api.scene().add(grp);
     O.smoke = new L.SmokeSystem(low ? 420 : 720, X.smoke); grp.add(O.smoke.mesh);
-    buildSky(); buildBase(); buildFlora(); buildLava(); buildLaunch(); buildBursts(); buildAurora(); buildIsland(); buildMeteor(); buildZenith(); buildMeteor2(); buildFinale(); buildEnd(); buildTrails(); buildCapture();
+    buildSky(); buildBase(); buildFlora(); buildLava(); buildLaunch(); buildBursts(); buildAurora(); buildIsland(); buildMeteor(); buildZenith(); buildMeteor2(); buildFinale(); buildEnd(); buildTrails(); buildCapture(); buildWaves();
     O.hemi = new T.HemisphereLight(0x6f9fff, 0x1d4a2a, 0); grp.add(O.hemi);
     built = true;
   }
@@ -1497,8 +1640,11 @@
         var f0 = cam.fov, pl = null; try { pl = api.player(); } catch (e) {}
         var narrow = !!(pl && pl.deployed);
         if (narrow) { cam.fov = fovFor(f0, cam.aspect); cam.updateProjectionMatrix(); }
+        // v95 : secousse de la caméra quand une onde de choc passe sur le joueur
+        var sh = Math.min(1.4, E.shake || 0), shx = 0, shy = 0, shz = 0;
+        if (sh > .01) { var tq = VT(); shx = (Math.sin(tq * 37.1) + .5 * Math.sin(tq * 71.3)) * sh * .35; shy = (Math.sin(tq * 43.7 + 1) + .5 * Math.sin(tq * 89.1)) * sh * .3; shz = Math.sin(tq * 29.3 + 2) * sh * .35; cam.position.x += shx; cam.position.y += shy; cam.position.z += shz; }
         try { return renderEvent.call(this, scene, cam, arguments); }
-        finally { if (narrow) { cam.fov = f0; cam.updateProjectionMatrix(); } }
+        finally { if (narrow) { cam.fov = f0; cam.updateProjectionMatrix(); } if (sh > .01) { cam.position.x -= shx; cam.position.y -= shy; cam.position.z -= shz; } }
       }
       return inner.apply(this, arguments);
     };
@@ -1566,7 +1712,7 @@
     lightsNight(t, cam);
     O.smoke.begin(); meteorOff(t, MOFF);
     updateLaunch(t); updateBase(t, cam); updateIsland(t); updateSkyShow(t, cam); updateRifts(t, cam); updateTrails(t); updateMeteor(t, cam); updateImpact(t); updateBooms(t);
-    updateZenith(t, cam); updateMeteor2(t); updateFinale(t, cam); updateVeil(t, cam);
+    updateZenith(t, cam); updateMeteor2(t); updateFinale(t, cam); updateVeil(t, cam); updateWaves(t, cam);
     if (t > 153.2 && t < 192.5) E.meteorVisible = false;
     if (t > 216.4) E.meteorVisible = false;
     O.smoke.mat.uniforms.lightCol.value.setRGB(1, 1, 1); O.smoke.mat.uniforms.shadeCol.value.setRGB(.42, .46, .62);
@@ -1577,7 +1723,7 @@
   /* ============================================================ cycle de vie */
   function init(a) {
     api = a; G = api.game(); view = api.view(); on = true; frame = 0; black = false;
-    RIFTS = []; TRAILS = []; FLASHES = []; BOOMS = []; STRIKES = []; O = {};
+    RIFTS = []; TRAILS = []; FLASHES = []; BOOMS = []; STRIKES = []; WAVES = []; O = {};
     try { build(); } catch (e) { console.error('[AZUR end81] build', e); }
     if (G) { O.prevTOD = G.timeOfDay; G.timeOfDay = 'night'; }
     hideWorldSky(true); hookRender();
@@ -1598,7 +1744,7 @@
     if (O.veil && O.veil.parentNode) O.veil.parentNode.removeChild(O.veil);
     if (G && O.prevTOD) G.timeOfDay = O.prevTOD;
     E.meteorVisible = false; E.meteorPos = null; E.zeroPointPos = null; E.end81 = null;
-    O = {}; RIFTS = []; TRAILS = []; FLASHES = []; BOOMS = []; STRIKES = [];
+    O = {}; RIFTS = []; TRAILS = []; FLASHES = []; BOOMS = []; STRIKES = []; WAVES = [];
   }
   root.__end81Seek = function () { return { t: VT(), frame: frame, black: black, post: !!(post && !post.failed) }; };
   E.register('end81', { init: init, update: update, dispose: dispose });

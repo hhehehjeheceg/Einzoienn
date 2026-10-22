@@ -992,7 +992,7 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
   }
 
   const _gm = new T.Matrix4(), _gi = new T.Matrix4(), _yaw = new T.Quaternion(), _pi = new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), Math.PI), _one = new T.Vector3(1, 1, 1), _zero = new T.Vector3();
-  const _tw = new T.Vector3(), _pole = new T.Vector3(), _tm = new T.Matrix4(), _hq = new T.Quaternion();
+  const _tw = new T.Vector3(), _pole = new T.Vector3(), _tm = new T.Matrix4(), _tm2 = new T.Matrix4(), _tm3 = new T.Matrix4(), _hq = new T.Quaternion();
   const _hx = new T.Vector3(), _hy = new T.Vector3(), _hz = new T.Vector3(), _tmpv = new T.Vector3();
   const CARRY_GRIP = 0.6; // la main tient le manche un peu au-dessus du milieu
   const GUN_SCALE = 0.56, TOOL_SCALE = 0.5;
@@ -1024,6 +1024,12 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     _gm.compose(_zero, _yaw, _tw.set(s, s, s)).premultiply(_gi);
     _gm.multiply(_tm.makeRotationFromQuaternion(_pi));
     inst.model.matrix.copy(_gm);
+    // v95 : culbutes dans le tourbillon de « La Fin » (pivot au niveau du bassin)
+    if (root.AZEvent && root.AZEvent.active && root.AZEvent.v95 && root.AZEvent.v95.pose === "tumble" && options.local) {
+      const tt = (root.AZEvent.v95.poseT || 0);
+      _tm.makeTranslation(0, 0.95, 0).multiply(_tm2.makeRotationFromEuler(_e.set(tt * 1.9, tt * .6, tt * 1.2))).multiply(_tm3.makeTranslation(0, -0.95, 0));
+      inst.model.matrix.multiply(_tm);
+    }
     // choix de l'animation
     let base = null, part = null, scale = 1, fade = 0.18, upper = null;
     if (!airborne && an.air) { if (an.airT > 0.35) an.landT = 0.32; }
@@ -1047,10 +1053,13 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     }
     const emote = p.emote > 0 && !p.gliding && !p.falling;
     const ev = root.AZEvent, evFloat = ev && ev.active && ev.v93 && options.local ? ev.v93.floating : 0;
-    if (evFloat > 0.5 && !p.downed) { base = "Swim_Idle_Loop"; scale = 0.6; fade = 0.6; pickLocomotion(an, p, st, false, dt, menu); } // « La Fin » : lévitation bras écartés
+    const evPose = ev && ev.active && ev.v95 && options.local ? ev.v95.pose : null; // v95 : réactions pendant « La Fin »
+    if ((evPose === "fall" || evPose === "tumble") && !p.downed) { base = "LiftAir_Fall_Air_Loop"; scale = evPose === "tumble" ? 1.25 : 1; fade = 0.35; pickLocomotion(an, p, st, false, dt, menu); }
+    else if (evFloat > 0.5 && !p.downed) { base = "Swim_Idle_Loop"; scale = 0.6; fade = 0.6; pickLocomotion(an, p, st, false, dt, menu); } // « La Fin » : lévitation bras écartés
     else if (p.downed) { base = an.speed > 0.3 ? "Crawl_Fwd_Loop" : "Crawl_Idle_Loop"; pickLocomotion(an, p, st, false, dt, menu); }
     else if (p.swimming) { const r = pickLocomotion(an, p, st, false, dt, menu); base = an.speed > 0.4 ? "Swim_Fwd_Loop" : "Swim_Idle_Loop"; scale = an.speed > 0.4 ? Math.min(1.6, Math.max(0.7, an.speed / 2)) : 1; void r; }
     else if (emote) { base = EMOTES[p.emoteStyle] || "Dance_Loop"; fade = 0.25; }
+    else if ((evPose === "surprise" || evPose === "hit") && !airborne) { base = evPose === "hit" ? "Hit_Chest" : "Surprise"; fade = 0.12; scale = evPose === "hit" ? 1.4 : 1; pickLocomotion(an, p, st, false, dt, menu); }
     else if (p.gliding) { base = "Jump_Loop"; scale = 0.5; }
     else if (highAir) { base = "Jump_Loop"; scale = 0.55; fade = 0.3; } // chute libre : bras écartés, corps à plat (inclinaison plus haut)
     else if (airborne) {
@@ -1069,7 +1078,7 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
         else { upper = A0.upper ? A0.still : A0.move; part = "lower"; }
       }
     }
-    if (armed && !emote && !p.downed && !p.swimming && !highAir && evFloat <= 0.5) { upper = upper || (p.aim ? "Pistol_Aim_Neutral" : "Pistol_Idle_Loop"); if (!part) part = "lower"; }
+    if (armed && !emote && !p.downed && !p.swimming && !highAir && evFloat <= 0.5 && !evPose) { upper = upper || (p.aim ? "Pistol_Aim_Neutral" : "Pistol_Idle_Loop"); if (!part) part = "lower"; }
     // coup de pioche : le geste vient de anim-v67 (frappe à deux mains), le buste suit
     const swinging = harvesting && st.swing >= 0;
     if (emote) { upper = null; part = null; }

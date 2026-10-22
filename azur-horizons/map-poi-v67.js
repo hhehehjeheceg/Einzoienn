@@ -17,7 +17,9 @@
 (function (root) {
   'use strict';
   const S = root.AZSim, T = root.THREE, E = root.AZEnvironment?.Environment?.prototype;
-  if (!S || !S.World) return;
+  // v95 : sur l'île de la Saison X (map-s8-data.js) ces dix lieux de l'ancienne île tombaient n'importe où
+  // (« Volcan Cendré » dans la forêt, « Lac des Reflets » dans la neige…) : ils n'existent plus que sur l'ancienne île
+  if (!S || !S.World || S.s8) return;
   const POIS = [
     { id: 'depot', name: 'Dépôt des Conteneurs', x: -160, z: -22, color: '#ff8a3c' },
     { id: 'wind', name: 'Éoliennes du Plateau', x: 178, z: 70, color: '#8fe3ff' },

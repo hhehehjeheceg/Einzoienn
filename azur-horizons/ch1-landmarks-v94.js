@@ -99,6 +99,27 @@
     return grp;
   }
 
+  /* -------------------------------------------------------------- Point Zéro (v95) */
+  // Saison X : le Point Zéro est à nu au milieu de Loot Lake — une sphère d'énergie bleu-violet qui palpite,
+  // deux anneaux qui tournent, des éclairs et une colonne de lumière fine
+  function zeroPoint(Lk) {
+    const grp = new T.Group(), gy = Math.max(S.heightAt(Lk.x, Lk.z), -1);
+    const mat = new T.ShaderMaterial({ transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide, uniforms: { t: { value: 0 } },
+      vertexShader: "varying vec3 vN;varying vec3 vV;varying vec3 vP;void main(){vP=position;vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalMatrix*normal;vV=-mv.xyz;gl_Position=projectionMatrix*mv;}",
+      fragmentShader: "uniform float t;varying vec3 vN;varying vec3 vV;varying vec3 vP;void main(){float f=1.-abs(dot(normalize(vN),normalize(vV)));float sw=.5+.5*sin(vP.y*1.3+t*2.)*sin(vP.x*1.1-t*1.4+vP.z*.9);vec3 c=mix(vec3(.35,.25,1.),vec3(.55,.95,1.),sw)*(pow(f,2.2)*1.4+.12)+vec3(.9,.6,1.)*pow(f,7.)*1.5;gl_FragColor=vec4(c,1.);}" });
+    const orb = new T.Mesh(new T.SphereGeometry(7, 32, 20), mat); orb.position.set(Lk.x, gy + 14, Lk.z); grp.add(orb);
+    const core = new T.Sprite(new T.SpriteMaterial({ map: soft(), color: 0xe8f0ff, transparent: true, depthWrite: false, blending: T.AdditiveBlending, opacity: .95 })); core.scale.set(16, 16, 1); core.position.copy(orb.position); grp.add(core);
+    const halo = new T.Sprite(new T.SpriteMaterial({ map: soft(), color: 0x8a6bff, transparent: true, depthWrite: false, blending: T.AdditiveBlending, opacity: .55 })); halo.scale.set(70, 70, 1); halo.position.copy(orb.position); grp.add(halo);
+    const rm = new T.MeshBasicMaterial({ color: 0xbfa8ff, transparent: true, opacity: .7, blending: T.AdditiveBlending, depthWrite: false });
+    const r1 = new T.Mesh(new T.TorusGeometry(11, .25, 6, 64), rm), r2 = new T.Mesh(new T.TorusGeometry(13.5, .18, 6, 64), rm.clone());
+    r1.position.copy(orb.position); r2.position.copy(orb.position); grp.add(r1, r2);
+    const beam = new T.Mesh(new T.CylinderGeometry(.6, 1.8, 260, 10, 1, true), new T.MeshBasicMaterial({ color: 0x9c84ff, transparent: true, opacity: .16, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide }));
+    beam.position.set(Lk.x, gy + 14 + 130, Lk.z); grp.add(beam);
+    const pl = new T.PointLight(0x9a7bff, 30, 120, 1.3); pl.position.copy(orb.position); grp.add(pl);
+    grp.userData = { mat, orb, core, halo, r1, r2, pl };
+    return grp;
+  }
+
   /* -------------------------------------------------------------- intégration */
   const L = { grp: null, met: null, base: null, vol: null, t: 0 };
   function ensure(view) {
@@ -106,16 +127,35 @@
     const s8 = S.s8;
     L.grp = new T.Group(); L.grp.name = "ch1-landmarks-v94";
     L.met = meteor();
-    const mx = s8.meteor.x, mz = s8.meteor.z, gy = S.heightAt(mx, mz);
-    L.met.position.set(mx, gy + 26, mz); L.met.rotation.set(-.5, .9, .25);
-    L.met.userData.ground = gy;
+    const mx = s8.meteor.x, mz = s8.meteor.z, gy = S.heightAt(mx, mz), EF = s8.eventFrame ? s8.eventFrame() : null;
+    // v95 : figée au même endroit que dans « La Fin » (sim.js, eventFrame), le panache le long de sa trajectoire
+    if (EF) { L.met.position.set(EF.MET.x, EF.MET.y, EF.MET.z); L.met.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), new T.Vector3(-EF.MDIR.x, -EF.MDIR.y, -EF.MDIR.z)); }
+    else { L.met.position.set(mx, gy + 26, mz); L.met.rotation.set(-.5, .9, .25); }
+    L.met.userData.ground = gy; L.col = { x: L.met.position.x, y: L.met.position.y, z: L.met.position.z, Re: 9.2, Hy: 7.6 };
     L.grp.add(L.met);
     const ring = new T.Mesh(new T.RingGeometry(s8.meteor.r * .2, s8.meteor.r * 1.15, 40), new T.MeshBasicMaterial({ color: 0xff6a1a, transparent: true, opacity: .5, blending: T.AdditiveBlending, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2; ring.position.set(mx, gy + .35, mz); L.grp.add(ring); L.ring = ring;
     L.base = launchSite(s8.launch); L.grp.add(L.base);
     L.vol = volcanoFx(S.VOLCANO); L.grp.add(L.vol);
+    if (S.LAKE) { L.zp = zeroPoint(S.LAKE); L.grp.add(L.zp); }
     if (view.quality === "high" || view.quality === "ultra") { const pl = new T.PointLight(0xff7a2a, 40, 160, 1.2); pl.position.set(mx, gy + 18, mz); L.grp.add(pl); L.light = pl; }
     view.scene.add(L.grp);
+    installCollider();
+  }
+  /* v95 — on se pose sur la météorite figée (comme pendant la Saison X) et on ne la traverse pas */
+  function installCollider() {
+    const Wp = S.World && S.World.prototype; if (!Wp || L.hook || !Wp.supportAt || !Wp._blocked) return;
+    const sup = Wp.supportAt, blk = Wp._blocked, on = () => L.col && !isEvent();
+    const mySup = function (x, z, cy) {
+      const best = sup.apply(this, arguments);
+      try { if (!on()) return best; const c = L.col, d = Math.hypot(x - c.x, z - c.z); if (d >= c.Re) return best; const top = c.y + c.Hy * Math.sqrt(1 - (d / c.Re) ** 2); if (top > best && (cy == null || cy > top - 4)) return top; } catch (e) {}
+      return best;
+    };
+    const myBlk = function (x, z, r, y) {
+      if (blk.apply(this, arguments)) return true;
+      try { if (!on() || y == null) return false; const c = L.col, d = Math.hypot(x - c.x, z - c.z); if (d > c.Re + (r || .45)) return false; const dd = Math.min(d, c.Re - 1e-3), h = c.Hy * Math.sqrt(1 - (dd / c.Re) ** 2); return y < c.y + h - .35 && y + 1.7 > c.y - h; } catch (e) { return false; }
+    };
+    Wp.supportAt = mySup; Wp._blocked = myBlk; L.hook = true;
   }
   const prev = VP.update;
   VP.update = function (w, p, dt, opts) {
@@ -136,6 +176,7 @@
             const v = L.vol.userData, V = S.VOLCANO;
             for (const s of v.sm) { const k = (s.userData.k + t * .02) % 1; s.position.set(V.x + Math.sin(k * 5 + s.userData.k * 13) * (6 + k * 50) + k * 60, v.top + 10 + k * 220, V.z + Math.cos(k * 4) * (5 + k * 30)); const sc = 30 + k * 120; s.scale.set(sc, sc, 1); s.material.opacity = .42 * (1 - k) * Math.min(1, k * 5); }
             v.glow.material.opacity = .45 + Math.sin(t * 1.3) * .1;
+            if (L.zp) { const z = L.zp.userData, pul = 1 + .05 * Math.sin(t * 2.3) + .03 * Math.sin(t * 7.1); z.mat.uniforms.t.value = t; z.orb.scale.setScalar(pul); z.r1.rotation.set(t * .5, t * .3, 0); z.r2.rotation.set(-t * .35, 0, t * .45); z.core.material.opacity = .8 + .2 * Math.sin(t * 9); z.halo.material.opacity = .45 + .12 * Math.sin(t * 1.7); z.pl.intensity = 26 + 6 * Math.sin(t * 3); }
           }
         }
       }
