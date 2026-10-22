@@ -790,8 +790,13 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     });
     // tête et mains un peu plus grandes : proportions des personnages de la vidéo
     const head = skel.bones[boneIdx.Head];
+    // repères des os et des mains, pour les retouches procédurales et les prises (pose de liaison)
+    root0.updateMatrixWorld(true);
+    const byName = {};
+    for (const b of skel.bones) byName[b.name] = b;
+    const rig = rigInfo(byName);
     if (head && !S.hideHead) head.scale.setScalar(1.06);
-    return { root: root0, spec: S, L, sex: S.body || "m" };
+    return { root: root0, spec: S, L, sex: S.body || "m", rig };
   }
 
   /* Clone d'un gabarit : os neufs, un squelette par squelette source, géométries et matériaux partagés. */
@@ -813,121 +818,441 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
   }
 
   /* ============================================================ animations */
+  /* Toutes les animations sont des poids lissés, jamais des bascules : la locomotion mélange
+   * repos / marche / course / sprint et 4 à 8 directions selon la vitesse et le sens réel du
+   * déplacement (cycles recalés sur la pose du pied gauche), un état « corps entier » se fond
+   * par-dessus (saut, chute, nage, émote…), puis une couche « haut du corps » (arme, soin, pioche).
+   * Les retouches procédurales (respiration, visée, inclinaisons, IK des mains et des pieds)
+   * se font après le mélange, sans allocation par image. */
   const LOWER = /^(root|pelvis|spine_01|thigh_.|calf_.|foot_.|ball_.|ball_leaf_.)$/;
   const clipCache = {};
-  function clip(name, part) {
-    const key = name + "|" + (part || "full");
+  // part : "lower" | "upper" | null ; tag : copie distincte (deux couches qui jouent le même clip)
+  function clip(name, part, tag) {
+    const key = name + "|" + (part || "full") + "|" + (tag || "");
     if (clipCache[key] !== undefined) return clipCache[key];
     const c = anims && anims.animations.find((a) => a.name === name);
     if (!c) return (clipCache[key] = null);
-    if (!part) return (clipCache[key] = c);
-    const tracks = c.tracks.filter((t) => {
-      const bone = t.name.split(".")[0];
-      return part === "lower" ? LOWER.test(bone) : !LOWER.test(bone);
-    });
-    return (clipCache[key] = new T.AnimationClip(name + "_" + part, c.duration, tracks));
+    if (!part && !tag) return (clipCache[key] = c);
+    const tracks = part ? c.tracks.filter((t) => { const bone = t.name.split(".")[0]; return part === "lower" ? LOWER.test(bone) : !LOWER.test(bone); }) : c.tracks;
+    return (clipCache[key] = new T.AnimationClip(name + "_" + (part || "full") + (tag ? "_" + tag : ""), c.duration, tracks));
   }
-  const ONCE = /^(Jump_Start|Jump_Land|Roll|BackFlip|Celebration|Interact|PickUp_Kneeling|Pistol_Shoot|Pistol_Reload|Sword_Attack|Punch_Jab|Melee_Hook|Chest_Open|Consume|Drink|Surprise|Yes|KipUp|OverhandThrow|Hit_Chest|Death01)/;
-  // vitesse naturelle des cycles (m/s pour le modèle à l'échelle 1)
-  const SPEED = { Walk_Loop: 1.45, Jog_Fwd_Loop: 3.7, Jog_Bwd_Loop: 3.0, Jog_Left_Loop: 3.2, Jog_Right_Loop: 3.2, Jog_Fwd_L_Loop: 3.6, Jog_Fwd_R_Loop: 3.6, Jog_Bwd_L_Loop: 3.0, Jog_Bwd_R_Loop: 3.0, Sprint_Loop: 6.2, Crouch_Fwd_Loop: 1.35, Crouch_Bwd_Loop: 1.2, Crouch_Left_Loop: 1.2, Crouch_Right_Loop: 1.2, Crawl_Fwd_Loop: 0.9, Swim_Fwd_Loop: 1.6 };
-  const EMOTES = { salut: "Idle_Loop", danse: "Dance_Loop", victoire: "Celebration", robot: "Idle_Loop", etoile: "BackFlip", toupie: "KipUp" };
+
+  /* ------------------------------------------------------------ données */
+  const WS = 1.22; // échelle des avatars dans le monde : les vitesses naturelles des cycles sont × WS
+  const LOCO = {
+    walk: { nat: 1.45, dirs: ["Walk_Fwd_Loop", "Walk_R_Loop", "Walk_Bwd_Loop", "Walk_L_Loop"] },
+    jog: { nat: 3.7, dirs: ["Jog_Fwd_Loop", "Jog_Fwd_R_Loop", "Jog_Right_Loop", "Jog_Bwd_R_Loop", "Jog_Bwd_Loop", "Jog_Bwd_L_Loop", "Jog_Left_Loop", "Jog_Fwd_L_Loop"] },
+    sprint: { nat: 6.2, dirs: ["Sprint_Loop"] },
+    crouch: { nat: 1.35, dirs: ["Crouch_Fwd_Loop", "Crouch_Right_Loop", "Crouch_Bwd_Loop", "Crouch_Left_Loop"] },
+  };
+  // seuils de vitesse (m/s monde) : [début, fin] du fondu vers chaque allure
+  const GAIT = { walk: [0.12, 1.25], jog: [1.9, 3.9], sprint: [6.1, 8.2], sprintArc: 0.6, crouch: [0.12, 0.9], rate: [0.6, 1.65], blend: 9 };
+  const IDLE = { stand: "Idle_Loop", crouch: "Crouch_Idle_Loop" };
+  const JUMP = { start: "Jump_Start", startAt: 0.08, startRate: 1.15, loop: "Jump_Loop", loopRate: 0.8, land: "Jump_Land", landAt: 0.05, landOut: 0.42, landOutMoving: 0.16, minAir: 0.22 };
+  // retombée : intensité selon le temps passé en l'air, écrasement bref du corps
+  const LAND = { k: [0.35, 0.6], squash: 0.11, squashT: 0.24 };
+  // émotes : enchaînement de clips (durée en s ; 0 = le dernier, qui boucle) ; ik = geste ajouté pendant ikT s
+  const EMOTES = {
+    salut: { seq: [["Idle_Loop", 2.8], ["Yes", 0]], ik: "wave", ikT: 2.8 },
+    danse: { seq: [["Dance_Loop", 0]], vary: 0.14 },
+    victoire: { seq: [["Celebration", 3.7], ["Yes", 0]] },
+    robot: { seq: [["Idle_Loop", 0]], ik: "robot", ikT: 99 },
+    etoile: { seq: [["BackFlip", 1.85], ["Celebration", 0]] },
+    toupie: { seq: [["KipUp", 1.1], ["Dance_Loop", 0]], vary: 0.1 },
+  };
+  // gestes ponctuels déclenchés par le jeu : [clip, début, fin (s dans le clip), vitesse, couche] à l'arrêt / en mouvement
+  const ACTS = {
+    pickup: { still: ["PickUp_Kneeling", 0.2, 1.5, 1.8, "full"], move: ["Interact", 0.35, 1.25, 1.9, "upper"] },
+    chest: { still: ["Chest_Open", 0.0, 1.3, 1.25, "full"], move: ["Interact", 0.2, 1.4, 1.6, "upper"] },
+    door: { still: ["Interact", 0.2, 1.4, 1.5, "upper"], move: ["Interact", 0.3, 1.3, 1.8, "upper"] },
+    edit: { still: ["Punch_Jab", 0.08, 0.62, 1.3, "upper"], move: ["Punch_Jab", 0.08, 0.62, 1.3, "upper"] },
+    healed: { still: ["Yes", 0.4, 1.5, 1.5, "upper"], move: null },
+    roll: { still: ["Roll", 0.12, 1.3, 1.35, "full"], move: ["Roll", 0.12, 1.3, 1.35, "full"] },
+  };
+  // roulade à la réception d'une grande chute (vitesse verticale m/s, vitesse au sol m/s)
+  const ROLL = { fall: 12, speed: 2.5 };
+  // réanimation d'un coéquipier, soins selon l'objet
+  const REVIVE = "Fixing_Kneeling";
+  const HEALS = [[/shield|potion|bouclier|soda|fizz|fiole/i, "Drink"], [/heal|bandage|medkit|soin/i, "Bandage_Loop"], [/./, "Consume"]];
+  // repos : petites occupations quand on ne fait rien (sans arme), inspection de l'arme (armé)
+  const FIDGET = { clips: ["Idle_LookAround_Loop", "Idle_FoldArms_Loop"], after: 7, every: 15, len: 4.4, gunAfter: 6, gunEvery: 11, gunLen: 2.2 };
+  // pas sur place quand on tourne à l'arrêt (rad/s)
+  const TURN = { min: 0.9, k: 0.32, max: 0.6 };
+  // coup de pioche à une main (clip de bûcheronnage) : progression du geste du jeu → temps du clip (déroulé)
+  const SWING = { clip: "TreeChopping_Loop", map: [[0, 0.5], [0.34, 0.97], [0.56, 1.13], [1, 1.42]], fadeIn: [0, 0.12], fadeOut: [0.78, 1], grip: 0.04, carryGrip: 0.6, toolScale: 0.66 };
+
+  /* Armes tenues. Les modèles d'arme sont dessinés ~1,8× trop grands pour un corps de 1,8 m :
+   * s ramène chaque arme à sa taille réelle de jeu de tir (fusil ~0,9 m, pompe ~1 m, pistolet ~0,28 m…).
+   * Points en coordonnées de l'arme d'origine (avant = -Z) : anchor = point posé sur l'épaule
+   * (crosse), sup = main d'appui, mag = chargeur (rechargement). */
+  const GUNS = {
+    rifle: { s: 0.55, hold: "long", anchor: [0, -0.05, 0.64], sup: [0, -0.03, -0.3], lh: "under", mag: [0, -0.2, -0.12], kick: [0.035, 0.07], rl: "mag", cyc: null, cock: [0, 0.12, 0.1] },
+    burst: { s: 0.55, hold: "long", anchor: [0, -0.05, 0.64], sup: [0, -0.03, -0.3], lh: "under", mag: [0, -0.18, -0.12], kick: [0.035, 0.07], rl: "mag", cyc: null, cock: [0, 0.12, 0.1] },
+    smg: { s: 0.52, hold: "long", anchor: [0, 0.0, 0.55], sup: [0, -0.1, -0.47], lh: "vert", mag: [0, -0.24, -0.15], kick: [0.022, 0.04], rl: "mag", cyc: null, cock: [0, 0.12, 0.05] },
+    shotgun: { s: 0.57, hold: "long", anchor: [0, -0.07, 0.66], sup: [0, -0.05, -0.33], lh: "under", mag: [0, -0.02, -0.15], kick: [0.06, 0.17], rl: "shell", cyc: "pump", cock: [0, -0.06, -0.19] },
+    tactical: { s: 0.58, hold: "long", anchor: [0, -0.03, 0.49], sup: [0, 0.0, -0.4], lh: "under", mag: [0, -0.17, -0.16], kick: [0.05, 0.13], rl: "shell", cyc: "pump", cock: [0, 0.0, -0.26] },
+    sniper: { s: 0.5, hold: "long", anchor: [0, -0.08, 0.86], sup: [0, -0.07, -0.2], lh: "under", mag: [0, -0.1, -0.08], kick: [0.07, 0.2], rl: "bolt", cyc: "bolt", cock: [0.09, 0.1, 0.12] },
+    dmr: { s: 0.55, hold: "long", anchor: [0, -0.05, 0.64], sup: [0, -0.03, -0.35], lh: "under", mag: [0, -0.15, -0.1], kick: [0.045, 0.1], rl: "mag", cyc: null, cock: [0, 0.12, 0.1] },
+    pistol: { s: 0.4, hold: "pistol", anchor: null, sup: [-0.07, -0.17, 0.1], lh: "cup", mag: [0, -0.27, 0.15], kick: [0.03, 0.14], rl: "pistol", cyc: null, cock: [0, 0.16, 0.06] },
+    revolver: { s: 0.4, hold: "pistol", anchor: null, sup: [-0.075, -0.17, 0.11], lh: "cup", mag: [0, 0.05, -0.12], kick: [0.035, 0.2], rl: "revolver", cyc: null, cock: [0, 0.15, 0.05] },
+    launcher: { s: 0.78, hold: "shoulder", anchor: [0, -0.17, 0.06], sup: [0, -0.22, -0.21], lh: "vert", mag: [0, 0.02, 0.3], kick: [0.06, 0.12], rl: "rocket", cyc: null, cock: [0, 0.02, 0.3] },
+  };
+  // poses par type de prise : décalage de la cible (repère du corps : +X droite, +Y haut, -Z avant) depuis l'épaule droite
+  // twist : buste tourné vers la droite (épaule gauche en avant) pour que la main d'appui atteigne l'arme
+  const HOLDS = {
+    long: { ready: [-0.05, -0.15, -0.13], aim: [-0.06, -0.06, -0.2], readyPitch: -0.2, lookReady: 0.65, readyYaw: 0.08, aimYaw: 0.035, orbit: 0, twist: 0.34, protract: 0.3, poleR: [0.4, -0.5, 0.3], poleL: [-0.3, -0.7, 0.1] },
+    pistol: { ready: [-0.1, -0.32, -0.3], aim: [-0.17, -0.07, -0.42], readyPitch: -0.42, lookReady: 0.5, readyYaw: 0.1, aimYaw: 0.06, orbit: 1, twist: 0.12, protract: 0.15, poleR: [0.35, -0.55, 0.15], poleL: [-0.35, -0.55, 0.15] },
+    shoulder: { ready: [0.03, 0.06, 0.03], aim: [0.02, 0.08, 0.0], readyPitch: -0.08, lookReady: 0.8, readyYaw: 0.04, aimYaw: 0.02, orbit: 0, twist: 0.25, protract: 0.2, poleR: [0.35, -0.6, 0.2], poleL: [-0.3, -0.6, 0.0] },
+  };
+  // repères des mains sur l'arme (f = poignet → doigts, s = auriculaire → index), coordonnées de l'arme
+  const GRIPS = {
+    rh: { f: [-0.1, -0.12, -1], s: [0, 1, -0.12] },
+    under: { f: [0.55, 0.3, -0.75], s: [-0.3, 0.1, -0.95] },
+    vert: { f: [0.1, -0.1, -1], s: [0, 1, -0.1] },
+    cup: { f: [0.35, -0.3, -0.9], s: [0, 1, -0.2] },
+  };
+  // rechargement : la main d'appui va au chargeur, le jette à la ceinture, en remet un et claque l'arme
+  // rechargements par famille d'arme : clés [t, cible main gauche] (0 appui, 1 chargeur, 2 poche de ceinture,
+  // 3 culasse / pompe), inclinaison de l'arme, claque finale, geste de la main droite (verrou) [début, fin]
+  const MAGK = [[0, 0], [0.12, 1], [0.3, 1], [0.45, 2], [0.6, 1], [0.74, 1], [0.86, 0], [1, 0]];
+  const RELOADS = {
+    mag: { keys: MAGK, roll: -0.42, pitch: 0.14, lift: 0.025, slap: [0.74, 0.86] },
+    pistol: { keys: [[0, 0], [0.1, 1], [0.26, 1], [0.4, 2], [0.56, 1], [0.68, 1], [0.78, 3], [0.9, 0], [1, 0]], roll: -0.25, pitch: 0.35, lift: 0.04, slap: [0.68, 0.78] },
+    revolver: { keys: [[0, 0], [0.14, 1], [0.34, 1], [0.5, 2], [0.66, 1], [0.8, 1], [0.9, 0], [1, 0]], roll: -0.75, pitch: 0.45, lift: 0.03, slap: [0.8, 0.9] },
+    shell: { keys: [[0, 0], [0.08, 2], [0.2, 1], [0.32, 2], [0.44, 1], [0.56, 2], [0.68, 1], [0.8, 0], [0.88, 3], [0.95, 0], [1, 0]], roll: -0.55, pitch: 0.05, lift: 0.02, slap: null },
+    bolt: { keys: MAGK, roll: -0.35, pitch: 0.1, lift: 0.02, slap: [0.74, 0.86], rh: [0.86, 0.98] },
+    rocket: { keys: [[0, 0], [0.15, 2], [0.42, 2], [0.62, 1], [0.78, 1], [0.9, 0], [1, 0]], roll: 0, pitch: -0.2, lift: -0.04, slap: [0.62, 0.78] },
+  };
+  // pouch : poche de ceinture, décalage depuis la hanche gauche (repère du corps)
+  const RELOAD = { pouch: [-0.05, 0.06, -0.12] };
+  // dégainer : l'arme sort du dos (armes longues) ou de la hanche (armes de poing) ; décalage depuis l'épaule droite
+  const HOLSTER = { long: { off: [0.03, 0.06, 0.24], pitch: 1.15, roll: 0.35 }, pistol: { off: [0.07, -0.58, 0.06], pitch: -1.35, roll: 0 }, shoulder: { off: [0.0, 0.1, 0.28], pitch: 0.9, roll: 0.2 } };
+  // geste après chaque tir : pompe (main gauche) ou verrou (main droite), durée en s
+  const CYCLE = { pump: 0.42, bolt: 0.55 };
+  // lévitation de « La Fin » : paramètres par mode, fondus entre eux
+  const FLOAT = {
+    float: { up: 0.05, fwd: 0.1, spread: 1, knee: 0.35, arch: 0.04, sway: 1, look: 0.15 },
+    drift: { up: 0.0, fwd: 0.2, spread: 0.9, knee: 0.3, arch: 0.0, sway: 0.8, look: 0.05 },
+    zeroshock: { up: 0.45, fwd: -0.1, spread: 1.1, knee: 0.65, arch: 0.22, sway: 1.4, look: 0.3 },
+    blast: { up: 0.3, fwd: -0.3, spread: 1.15, knee: 0.7, arch: 0.3, sway: 1.8, look: 0.25 },
+    suck: { up: 0.15, fwd: 0.55, spread: 0.7, knee: 0.2, arch: -0.1, sway: 0.6, look: -0.1 },
+  };
+  const FLOAT_KEYS = ["up", "fwd", "spread", "knee", "arch", "sway", "look"];
+  const LOD_FAR = 42; // au-delà (m), les avatars des autres joueurs s'animent une image sur deux
+
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const lerp = (a, b, k) => a + (b - a) * k;
+  const smooth = (a, b, v) => { const k = clamp((v - a) / (b - a || 1e-6), 0, 1); return k * k * (3 - 2 * k); };
+  const fin = (v, d) => (Number.isFinite(+v) ? +v : d || 0);
+
+  /* ------------------------------------------------------------ repères du squelette (une fois par gabarit) */
+  const AXB = ["spine_01", "spine_02", "spine_03", "neck_01", "Head", "clavicle_l", "clavicle_r", "upperarm_l", "upperarm_r", "thigh_l", "thigh_r", "calf_l", "calf_r", "foot_l", "foot_r"];
+  function rigInfo(bones) {
+    const R = { ax: {}, hand: {} };
+    const q = new T.Quaternion(), qi = new T.Quaternion(), m = new T.Matrix4();
+    for (const n of AXB) {
+      const b = bones[n];
+      if (!b) continue;
+      b.getWorldQuaternion(q); qi.copy(q).invert();
+      R.ax[n] = { x: new T.Vector3(1, 0, 0).applyQuaternion(qi), y: new T.Vector3(0, 1, 0).applyQuaternion(qi), z: new T.Vector3(0, 0, 1).applyQuaternion(qi) };
+    }
+    for (const s of ["l", "r"]) {
+      const h = bones["hand_" + s], mid = bones["middle_01_" + s], ix = bones["index_01_" + s], pk = bones["pinky_01_" + s];
+      if (!h || !mid || !ix || !pk) continue;
+      const hp = h.getWorldPosition(new T.Vector3());
+      const md = mid.getWorldPosition(new T.Vector3()).sub(hp);
+      const ac = ix.getWorldPosition(new T.Vector3()).sub(pk.getWorldPosition(new T.Vector3()));
+      h.getWorldQuaternion(q); qi.copy(q).invert();
+      const f = md.clone().normalize(), sv = ac.clone().addScaledVector(f, -ac.dot(f)).normalize();
+      const palm = s === "r" ? new T.Vector3().crossVectors(sv, f) : new T.Vector3().crossVectors(f, sv);
+      const fist = md.clone().multiplyScalar(0.75).addScaledVector(palm, 0.03).applyQuaternion(qi);
+      const fL = f.applyQuaternion(qi), sL = sv.applyQuaternion(qi);
+      const QL = new T.Quaternion().setFromRotationMatrix(m.makeBasis(fL, sL, new T.Vector3().crossVectors(fL, sL)));
+      // repère « outil dans le poing » : manche (Y) vers l'index, tête (Z) dans l'axe des doigts
+      const QHT = new T.Quaternion().setFromRotationMatrix(m.makeBasis(new T.Vector3().crossVectors(sL, fL), sL, fL));
+      R.hand[s] = { QLinv: QL.invert(), fist, QHT, QHTinv: QHT.clone().invert() };
+    }
+    return R;
+  }
+
+  /* ------------------------------------------------------------ calage des cycles sur le pied gauche */
+  const PHASE = {};
+  function measurePhase(inst, name, dirA) {
+    if (PHASE[name] != null) return PHASE[name];
+    const c = clip(name), B = inst.bones;
+    if (!c || !B.foot_l || !B.foot_r) return (PHASE[name] = 0);
+    const mx = new T.AnimationMixer(inst.model), a = mx.clipAction(c);
+    a.play();
+    const dx = -Math.sin(dirA), dz = Math.cos(dirA), N = 20; // repère du modèle : avant +Z, droite -X
+    let best = -1e9, bk = 0;
+    for (let k = 0; k < N; k++) {
+      a.time = (k / N) * c.duration;
+      mx.update(0);
+      B.foot_l.updateWorldMatrix(true, false); B.foot_r.updateWorldMatrix(true, false);
+      _A.setFromMatrixPosition(B.foot_l.matrixWorld); _B.setFromMatrixPosition(B.foot_r.matrixWorld);
+      const v = (_A.x - _B.x) * dx + (_A.z - _B.z) * dz;
+      if (v > best) { best = v; bk = k; }
+    }
+    a.stop(); mx.uncacheRoot(inst.model);
+    return (PHASE[name] = bk / N);
+  }
+  function measureAll(inst) {
+    if (measureAll.done) return;
+    measureAll.done = true;
+    const saved = [];
+    for (const n in inst.bones) { const b = inst.bones[n]; saved.push([b, b.position.clone(), b.quaternion.clone(), b.scale.clone()]); }
+    for (const k in LOCO) {
+      const dirs = LOCO[k].dirs;
+      dirs.forEach((n, i) => measurePhase(inst, n, (i / dirs.length) * Math.PI * 2));
+    }
+    for (const [b, p0, q0, s0] of saved) { b.position.copy(p0); b.quaternion.copy(q0); b.scale.copy(s0); }
+  }
+
+  /* ------------------------------------------------------------ couches */
+  // une entrée = un clip joué dans une couche (bas du corps + haut du corps), poids et temps pilotés à la main
+  class Entry {
+    constructor(an, name, tag) {
+      this.name = name; this.tag = tag; this.c = clip(name);
+      this.dur = this.c ? this.c.duration : 0; this.phase = PHASE[name] || 0;
+      this.lo = null; this.up = null; this.w = 0; this.goal = 0; this.rate = 6; this.time = 0; this.ts = 1;
+      this.once = false; this.manual = false; this.an = an;
+    }
+    act(part, w) {
+      let a = part ? this.up : this.lo;
+      if (w <= 1e-3 || !this.c) { if (a && a.enabled && a.isScheduled()) a.stop(); return; }
+      if (!a) {
+        a = this.an.mixer.clipAction(clip(this.name, part ? "upper" : "lower", this.tag));
+        a.setLoop(T.LoopRepeat, Infinity);
+        a.timeScale = 0;
+        if (part) this.up = a; else this.lo = a;
+      }
+      if (!a.isScheduled()) a.play();
+      a.time = this.time;
+      a.weight = w;
+    }
+  }
+  // couche à fondus enchaînés : chaque image, on « veut » un ou plusieurs clips, les autres s'effacent
+  class Layer {
+    constructor(an, tag, norm) { this.an = an; this.tag = tag; this.norm = !!norm; this.list = []; this.map = {}; this.sum = 0; }
+    get(name) {
+      let e = this.map[name];
+      if (!e) { e = this.map[name] = new Entry(this.an, name, this.tag); this.list.push(e); }
+      return e;
+    }
+    begin() { for (let i = 0; i < this.list.length; i++) this.list[i].goal = 0; }
+    want(name, goal, fade, opts) {
+      const e = this.get(name);
+      if (!e.c) return e;
+      if (e.w <= 1e-3 && e.goal <= 0) {
+        // (re)départ : les clips joués une fois repartent de leur début
+        e.time = opts && opts.at != null ? opts.at : e.once ? 0 : e.time;
+      }
+      e.goal = goal; e.rate = 1 / Math.max(0.04, fade || 0.2);
+      e.ts = opts && opts.ts != null ? opts.ts : 1;
+      e.once = !!(opts && opts.once); e.manual = !!(opts && opts.manual);
+      if (opts && opts.time != null) e.time = opts.time;
+      return e;
+    }
+    step(dt) {
+      let sum = 0;
+      for (let i = 0; i < this.list.length; i++) {
+        const e = this.list[i];
+        if (e.goal <= 0 && e.w <= 0) continue;
+        const d = e.goal - e.w, s = e.rate * dt;
+        e.w = Math.abs(d) <= s ? e.goal : e.w + Math.sign(d) * s;
+        if (!e.manual && e.dur > 0) {
+          e.time += dt * e.ts;
+          if (e.once) e.time = Math.min(e.time, e.dur - 1e-3);
+          else e.time = ((e.time % e.dur) + e.dur) % e.dur;
+        }
+        sum += e.w;
+      }
+      // jamais plus de 1 : le reste revient à la couche du dessous
+      // la couche de base (locomotion) vaut toujours 1 : jamais de retour à la pose de liaison
+      if (sum > 1 || (this.norm && sum > 1e-4)) { for (let i = 0; i < this.list.length; i++) this.list[i].w /= sum; sum = 1; }
+      this.sum = sum;
+    }
+    weightOf(name) { const e = this.map[name]; return e ? e.w : 0; }
+  }
 
   class Animator {
     constructor(inst) {
       this.inst = inst;
       this.mixer = new T.AnimationMixer(inst.model);
-      this.layers = { base: null, upper: null };
-      this.lastX = null; this.lastZ = null; this.speed = 0; this.dirA = 0; this.air = false; this.airT = 0; this.landT = 0; this.swingT = 0; this.prevHarvest = 0;
+      this.loco = new Layer(this, "", true);
+      this.full = new Layer(this, "F");
+      this.upper = new Layer(this, "U");
+      this.lastX = null; this.lastZ = null; this.speed = 0; this.dirA = 0; this.phase = 0; this.moveW = 0; this.crouch = 0;
+      this.air = false; this.airT = 0; this.landT = 0; this.landK = 0; this.squash = 0; this.jumpT = 0;
+      this.idleT = 0; this.clock = Math.random() * 10; this.seed = Math.random() * 6.283;
+      this.pitchS = 0; this.leanP = 0; this.roll = 0; this.yawPrev = null; this.yawRate = 0; this.speedPrev = 0; this.accel = 0;
+      this.hpPrev = null; this.hitT = 0; this.swingW = 0; this.floatW = 0; this.floatLeanP = 0; this.floatLeanR = 0;
+      this.fp = {}; for (const k of FLOAT_KEYS) this.fp[k] = FLOAT.float[k];
+      this.actName = null; this.actFull = false; this.actT0 = 0; this.actT1 = 0; this.actTs = 1; this.actTime = 0; this.actSeq = -1;
+      this.yPrev = null; this.fallV = 0; this.cdip = 0; this.crouchPrev = false; this.glideT = 0; this.skyW = 0; this.toolDraw = 0; this.toolPrev = false;
+      this.recPrev = 0; this.cycT = 0; this.inspW = 0; this.healing = false; this.dt = 0; this.ws = 1;
+      this.skip = false; this.gunL = new T.Matrix4(); this.gunSaved = false; this.toolL = new T.Matrix4(); this.toolSaved = false;
       this.pelvisDelta = new T.Vector3();
+      this.bodyK = clamp((inst.tpl.L.wristA || 0.494) / 0.494, 0.82, 1.12); // longueur de bras relative au corps masculin
       const ualPelvis = anims.scene.getObjectByName("pelvis");
       if (ualPelvis && inst.bones.pelvis) this.pelvisDelta.copy(inst.tpl.L.pelvisRest).sub(ualPelvis.position);
     }
-    action(name, part) {
-      const c = clip(name, part);
-      if (!c) return null;
-      const a = this.mixer.clipAction(c);
-      if (ONCE.test(name)) { a.setLoop(T.LoopOnce, 1); a.clampWhenFinished = true; }
-      return a;
+    // poids finaux des actions : bas = locomotion sous l'état plein ; haut = (locomotion + état) sous la couche haute
+    apply() {
+      const F = this.full.sum, U = this.upper.sum, kL = 1 - F, kU = 1 - U;
+      const Ll = this.loco.list, Fl = this.full.list, Ul = this.upper.list;
+      for (let i = 0; i < Ll.length; i++) { const e = Ll[i]; e.act(0, e.w * kL); e.act(1, e.w * kL * kU); }
+      for (let i = 0; i < Fl.length; i++) { const e = Fl[i]; e.act(0, e.w); e.act(1, e.w * kU); }
+      for (let i = 0; i < Ul.length; i++) Ul[i].act(1, Ul[i].w);
     }
-    set(layer, name, part, fade, scale) {
-      const cur = this.layers[layer];
-      const key = name ? name + "|" + (part || "") : null;
-      if (cur && cur.key === key) { if (scale != null) cur.action.timeScale = scale; return cur.action; }
-      if (cur) cur.action.fadeOut(fade);
-      if (!key) { this.layers[layer] = null; return null; }
-      const a = this.action(name, part);
-      if (!a) { this.layers[layer] = null; return null; }
-      a.reset().setEffectiveTimeScale(scale != null ? scale : 1).setEffectiveWeight(1).fadeIn(fade).play();
-      this.layers[layer] = { key, action: a };
-      return a;
-    }
-    playing(layer) { const l = this.layers[layer]; return l ? l.key.split("|")[0] : null; }
-    finished(layer) { const l = this.layers[layer]; if (!l) return true; const a = l.action; return a.loop === T.LoopOnce && a.time >= a.getClip().duration - 0.02; }
   }
 
-  function pickLocomotion(an, p, st, armed, dt, menu) {
+  /* ------------------------------------------------------------ locomotion */
+  function locomotion(an, p, dt, menu, allowSprint, fidget) {
     const x = +p.x || 0, z = +p.z || 0, yaw = +p.yaw || 0;
     const dx = an.lastX === null || menu ? 0 : x - an.lastX, dz = an.lastZ === null || menu ? 0 : z - an.lastZ;
     an.lastX = x; an.lastZ = z;
-    const raw = dt > 0 ? Math.min(16, Math.hypot(dx, dz) / dt) : 0;
+    let raw = dt > 0 ? Math.hypot(dx, dz) / dt : 0;
+    if (raw > 30) raw = 0; // téléportation
     an.speed += (raw - an.speed) * (1 - Math.exp(-dt * 10));
     if (raw > 0.4) {
       const fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
-      const fwd = dx * fx + dz * fz, right = dx * rx + dz * rz;
-      let ang = Math.atan2(right, fwd);
+      const ang = Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz);
       let d = ang - an.dirA; d = Math.atan2(Math.sin(d), Math.cos(d));
       an.dirA += d * (1 - Math.exp(-dt * 12));
     }
-    const sp = an.speed, scaleW = 1.22;
-    const part = armed ? "lower" : null;
-    const crouch = !!p.crouching;
-    if (sp < 0.45) return [crouch ? "Crouch_Idle_Loop" : armed ? "Idle_Loop" : "Idle_Loop", part, 1];
-    const a = an.dirA, ad = Math.abs(a);
-    let name;
-    if (crouch) name = ad < 0.8 ? "Crouch_Fwd_Loop" : ad > 2.35 ? "Crouch_Bwd_Loop" : a > 0 ? "Crouch_Right_Loop" : "Crouch_Left_Loop";
-    else if (sp > 7.1 && ad < 0.5) name = "Sprint_Loop";
-    else if (sp < 2.4) name = ad > 2.35 ? "Jog_Bwd_Loop" : "Walk_Loop";
-    else if (ad < 0.39) name = "Jog_Fwd_Loop";
-    else if (ad < 1.18) name = a > 0 ? "Jog_Fwd_R_Loop" : "Jog_Fwd_L_Loop";
-    else if (ad < 1.96) name = a > 0 ? "Jog_Right_Loop" : "Jog_Left_Loop";
-    else if (ad < 2.75) name = a > 0 ? "Jog_Bwd_R_Loop" : "Jog_Bwd_L_Loop";
-    else name = "Jog_Bwd_Loop";
-    const nat = (SPEED[name] || 3.5) * scaleW;
-    return [name, part, Math.max(0.65, Math.min(1.7, sp / nat))];
+    const sp = an.speed, a = an.dirA, L = an.loco;
+    an.crouch += ((p.crouching ? 1 : 0) - an.crouch) * (1 - Math.exp(-dt * 8));
+    const c = an.crouch, st = 1 - c;
+    const mv = smooth(GAIT.walk[0], GAIT.walk[1], sp);
+    const jog = smooth(GAIT.jog[0], GAIT.jog[1], sp);
+    let spr = allowSprint ? smooth(GAIT.sprint[0], GAIT.sprint[1], sp) * (1 - smooth(GAIT.sprintArc * 0.6, GAIT.sprintArc, Math.abs(a))) : 0;
+    const cmv = smooth(GAIT.crouch[0], GAIT.crouch[1], sp);
+    an.moveW = st * mv + c * cmv;
+    // poids des allures
+    const wIdle = st * (1 - mv), wWalk = st * mv * (1 - jog), wJog = st * mv * jog * (1 - spr), wSpr = st * mv * jog * spr;
+    const wCIdle = c * (1 - cmv), wCMove = c * cmv;
+    L.begin();
+    // repos : petites occupations de temps en temps quand on ne fait rien (regarder autour, croiser les bras)
+    an.idleT = sp < 0.2 && !p.crouching && Math.abs(an.yawRate) < TURN.min ? an.idleT + dt : 0;
+    const fz = an.idleT - FIDGET.after, cyc = fz > 0 ? Math.floor(fz / FIDGET.every) : -1, inF = fz > 0 ? fz % FIDGET.every : 0;
+    const alt = fidget && cyc >= 0 && inF < FIDGET.len ? 1 : 0, altName = FIDGET.clips[(cyc + (an.seed > 3 ? 1 : 0)) % FIDGET.clips.length] || FIDGET.clips[0];
+    // pas sur place quand le corps pivote à l'arrêt
+    const turn = sp < 0.35 && !p.crouching ? clamp((Math.abs(an.yawRate) - TURN.min) * TURN.k, 0, TURN.max) : 0;
+    const idleE = L.want(IDLE.stand, wIdle * (1 - alt) * (1 - turn), 0.4, { manual: true });
+    idleE.time = an.clock % (idleE.dur || 1);
+    for (let i = 0; i < FIDGET.clips.length; i++) {
+      const n = FIDGET.clips[i], on = alt && n === altName;
+      if (on || L.weightOf(n) > 0) { const e = L.want(n, on ? wIdle * (1 - turn) : 0, 0.6, { manual: true }); if (on) e.time = Math.min(inF, (e.dur || 1) * 4) % (e.dur || 1); }
+    }
+    const ci = L.want(IDLE.crouch, wCIdle, 0.3, { manual: true }); ci.time = an.clock % (ci.dur || 1);
+    // cadence : fréquence de pas mélangée, toutes les allures partagent la même phase
+    _fq[0] = 0; _fq[1] = 0;
+    tierRate(LOCO.walk, wWalk, sp); tierRate(LOCO.jog, wJog, sp); tierRate(LOCO.sprint, wSpr, sp); tierRate(LOCO.crouch, wCMove, sp);
+    const wTurn = wIdle * turn;
+    if (wTurn > 0) { const d = clip(LOCO.walk.dirs[0]); _fq[0] += wTurn * 0.8 / (d ? d.duration : 1); _fq[1] += wTurn; }
+    if (_fq[1] > 0) an.phase = (an.phase + dt * _fq[0] / _fq[1]) % 1;
+    // pas latéraux du pivot : vers la gauche quand le lacet augmente
+    if (wTurn > 0 || L.weightOf(LOCO.walk.dirs[1]) > 0 || L.weightOf(LOCO.walk.dirs[3]) > 0) {
+      setLoco(L, LOCO.walk.dirs[an.yawRate > 0 ? 3 : 1], wTurn, an.phase);
+    }
+    dirTier(L, LOCO.walk, wWalk, a, an.phase);
+    dirTier(L, LOCO.jog, wJog, a, an.phase);
+    dirTier(L, LOCO.sprint, wSpr, a, an.phase);
+    dirTier(L, LOCO.crouch, wCMove, a, an.phase);
+    // les directions inutilisées s'éteignent ; les poids voulus sont déjà normalisés à 1
+    for (let i = 0; i < L.list.length; i++) L.list[i].rate = GAIT.blend;
+  }
+  const _fq = [0, 0];
+  function tierRate(T0, w, sp) {
+    if (w <= 1e-3) return;
+    const r = clamp(sp / (T0.nat * WS), GAIT.rate[0], GAIT.rate[1]), d = clip(T0.dirs[0]);
+    _fq[0] += (w * r) / (d ? d.duration : 1); _fq[1] += w;
+  }
+  function dirTier(L, T0, w, a, phase) {
+    const n = T0.dirs.length;
+    let f = (a / (Math.PI * 2)) * n; f = ((f % n) + n) % n;
+    const i0 = Math.floor(f) % n, i1 = (i0 + 1) % n, fr = n === 1 ? 0 : f - Math.floor(f);
+    setLoco(L, T0.dirs[i0], w * (1 - fr), phase);
+    if (n > 1) setLoco(L, T0.dirs[i1], w * fr, phase);
+  }
+  function setLoco(L, name, w, phase) {
+    if (w <= 1e-3 && L.weightOf(name) <= 0) return;
+    const e = L.get(name);
+    if (!e.c) return;
+    e.goal += w; e.manual = true; e.once = false;
+    e.time = ((phase + e.phase) % 1) * e.dur;
   }
 
-  /* ------------------------------------------------------------ IK bras (espace monde) */
+  /* ------------------------------------------------------------ IK à deux os (sans allocation) */
   const _A = new T.Vector3(), _B = new T.Vector3(), _C = new T.Vector3(), _D = new T.Vector3(), _E = new T.Vector3(), _P = new T.Vector3();
+  const _G = new T.Vector3(), _dir = new T.Vector3(), _bend = new T.Vector3(), _elb = new T.Vector3();
   const _qa = new T.Quaternion(), _qb = new T.Quaternion(), _qc = new T.Quaternion();
-  function aim(bone, childPos, want) {
+  function aimBone(bone, childPos, want) {
     bone.getWorldPosition(_P);
-    const v1 = _D.copy(childPos).sub(_P), v2 = _E.copy(want).sub(_P);
-    if (v1.lengthSq() < 1e-8 || v2.lengthSq() < 1e-8) return;
-    _qa.setFromUnitVectors(v1.normalize(), v2.normalize());
+    _D.copy(childPos).sub(_P); _E.copy(want).sub(_P);
+    if (_D.lengthSq() < 1e-10 || _E.lengthSq() < 1e-10) return;
+    _qa.setFromUnitVectors(_D.normalize(), _E.normalize());
     bone.getWorldQuaternion(_qb);
     bone.parent.getWorldQuaternion(_qc);
     bone.quaternion.copy(_qc.invert().multiply(_qa).multiply(_qb));
     bone.updateMatrixWorld(true);
   }
-  function solveArm(up, lo, hand, target, pole, weight) {
-    if (!up || !lo || !hand) return;
-    up.getWorldPosition(_A); lo.getWorldPosition(_B); hand.getWorldPosition(_C);
+  function solveLimb(up, lo, end, target, pole, weight) {
+    if (!up || !lo || !end || weight <= 1e-3) return;
+    up.getWorldPosition(_A); lo.getWorldPosition(_B); end.getWorldPosition(_C);
     const l1 = _A.distanceTo(_B), l2 = _B.distanceTo(_C);
-    const goal = new T.Vector3().copy(_C).lerp(target, weight == null ? 1 : weight);
-    const dir = goal.clone().sub(_A);
-    let d = dir.length();
+    _G.copy(_C).lerp(target, weight > 1 ? 1 : weight);
+    _dir.subVectors(_G, _A);
+    let d = _dir.length();
     if (d < 1e-4) return;
-    dir.divideScalar(d);
-    d = Math.min(d, (l1 + l2) * 0.999);
+    _dir.divideScalar(d);
+    d = clamp(d, Math.abs(l1 - l2) + 1e-3, (l1 + l2) * 0.999);
     const x = (l1 * l1 - l2 * l2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, l1 * l1 - x * x));
-    const bend = pole.clone().sub(_A);
-    bend.sub(dir.clone().multiplyScalar(bend.dot(dir)));
-    if (bend.lengthSq() < 1e-8) bend.set(0, -1, 0);
-    bend.normalize();
-    const elbow = _A.clone().add(dir.clone().multiplyScalar(x)).add(bend.multiplyScalar(h));
-    aim(up, _B, elbow);
-    lo.getWorldPosition(_B); hand.getWorldPosition(_C);
-    aim(lo, _C, _A.clone().add(dir.multiplyScalar(d)));
+    _bend.subVectors(pole, _A);
+    _bend.addScaledVector(_dir, -_bend.dot(_dir));
+    if (_bend.lengthSq() < 1e-8) _bend.set(0, -1, 0);
+    _bend.normalize();
+    _elb.copy(_A).addScaledVector(_dir, x).addScaledVector(_bend, h);
+    aimBone(up, _B, _elb);
+    lo.getWorldPosition(_B); end.getWorldPosition(_C);
+    _G.copy(_A).addScaledVector(_dir, d);
+    aimBone(lo, _C, _G);
+  }
+  // orientation d'une main : f = poignet → doigts, s = auriculaire → index (monde)
+  const _F = new T.Vector3(), _S = new T.Vector3(), _N = new T.Vector3(), _m3 = new T.Matrix4(), _qh = new T.Quaternion(), _ql = new T.Quaternion();
+  function handQuat(H, f, s, out) {
+    _F.copy(f).normalize();
+    _S.copy(s).addScaledVector(_F, -s.dot(_F)).normalize();
+    _N.crossVectors(_F, _S);
+    out.setFromRotationMatrix(_m3.makeBasis(_F, _S, _N)).multiply(H.QLinv);
+    return out;
+  }
+  function setWorldQuat(bone, qw, w) {
+    bone.parent.getWorldQuaternion(_ql);
+    _ql.invert().multiply(qw);
+    if (w >= 0.999) bone.quaternion.copy(_ql); else bone.quaternion.slerp(_ql, w);
+    bone.updateMatrixWorld(true);
+  }
+  // amène le poing (centre de la prise) sur target, main orientée selon (f, s)
+  const _wt = new T.Vector3();
+  function handTo(an, side, target, f, s, pole, w, orient) {
+    const B = an.inst.bones, H = an.inst.tpl.rig.hand[side];
+    if (!H) return;
+    const up = B["upperarm_" + side], lo = B["lowerarm_" + side], hand = B["hand_" + side];
+    if (!up || !lo || !hand) return;
+    handQuat(H, f, s, _qh);
+    _wt.copy(H.fist).multiplyScalar(an.ws).applyQuaternion(_qh);
+    _wt.subVectors(target, _wt);
+    solveLimb(up, lo, hand, _wt, pole, w);
+    if (orient !== false) setWorldQuat(hand, _qh, w);
+  }
+  // rotation additive autour d'un axe du corps (repère de liaison) exprimé dans l'os
+  function addRot(an, name, axis, angle) {
+    if (!angle) return;
+    const b = an.inst.bones[name], ax = an.inst.tpl.rig.ax[name];
+    if (!b || !ax) return;
+    b.quaternion.multiply(_qa.setFromAxisAngle(ax[axis], angle));
   }
 
   /* ============================================================ branchement sur l'avatar du jeu */
@@ -942,12 +1267,15 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     return { id: LOOKS[id] ? id : "char-kai", variant: null };
   }
 
+  function hideN(u, n) { if (n && n !== u.ch1) n.visible = false; }
   function hideOld(u) {
-    const hide = (n) => { if (n && n !== u.ch1) n.visible = false; };
-    hide(u.torso);
-    if (u.limbs) { hide(u.limbs[0]); hide(u.limbs[2]); }
-    if (u.pelvis) hide(u.pelvis);
-    if (u.limbs && u.torso) for (const i of [1, 3]) if (u.limbs[i] && u.limbs[i].parent !== u.torso) hide(u.limbs[i]);
+    hideN(u, u.torso);
+    if (u.limbs) { hideN(u, u.limbs[0]); hideN(u, u.limbs[2]); }
+    if (u.pelvis) hideN(u, u.pelvis);
+    if (u.limbs && u.torso) {
+      if (u.limbs[1] && u.limbs[1].parent !== u.torso) hideN(u, u.limbs[1]);
+      if (u.limbs[3] && u.limbs[3].parent !== u.torso) hideN(u, u.limbs[3]);
+    }
   }
 
   function attach(group) {
@@ -958,6 +1286,7 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     if (!tp || !tp.ready) return false;
     const inst = instantiate(tp.ready);
     inst.model.matrixAutoUpdate = false;
+    measureAll(inst); // une fois pour toute la partie, avant de lier le modèle à la scène
     group.add(inst.model);
     u.ch1 = inst;
     inst.anim = new Animator(inst);
@@ -969,17 +1298,249 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     if (!u || !u.torso) return;
     const r = resolveEq(eq || {});
     u.ch1Req = r;
-    const key = templateKey(r.id, r.variant);
     const p = getTemplate(r.id, r.variant);
     if (!p.ready) p.then((t) => { p.ready = t; }).catch(() => {});
     attach(group);
-    void key;
   }
 
-  const _gm = new T.Matrix4(), _gi = new T.Matrix4(), _yaw = new T.Quaternion(), _pi = new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), Math.PI), _one = new T.Vector3(1, 1, 1), _zero = new T.Vector3();
-  const _tw = new T.Vector3(), _pole = new T.Vector3(), _tm = new T.Matrix4(), _hq = new T.Quaternion();
-  const _hx = new T.Vector3(), _hy = new T.Vector3(), _hz = new T.Vector3(), _tmpv = new T.Vector3();
-  const CARRY_GRIP = 0.6; // la main tient le manche un peu au-dessus du milieu
+  /* ------------------------------------------------------------ temporaires */
+  const _gm = new T.Matrix4(), _gi = new T.Matrix4(), _ginv = new T.Matrix4(), _yaw = new T.Quaternion(), _pi = new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), Math.PI), _zero = new T.Vector3();
+  const _tw = new T.Vector3(), _tm = new T.Matrix4(), _gq = new T.Quaternion(), _gw = new T.Vector3(), _gsc = new T.Vector3();
+  const _hx = new T.Vector3(), _hy = new T.Vector3(), _hz = new T.Vector3(), _tmpv = new T.Vector3(), _sh = new T.Vector3(), _off = new T.Vector3();
+  const _tR = new T.Vector3(), _tL = new T.Vector3(), _pR = new T.Vector3(), _pL = new T.Vector3(), _f1 = new T.Vector3(), _s1 = new T.Vector3(), _f2 = new T.Vector3(), _s2 = new T.Vector3();
+  const _r0 = new T.Vector3(), _r1 = new T.Vector3(), _r2 = new T.Vector3(), _r3 = new T.Vector3(), _qt = new T.Quaternion(), _qw = new T.Quaternion(), _qclip = new T.Quaternion();
+  const _X = new T.Vector3(1, 0, 0), _ev = new T.Vector3();
+  const V3 = (a) => new T.Vector3(a[0], a[1], a[2]);
+  for (const k in GRIPS) { GRIPS[k].F = V3(GRIPS[k].f).normalize(); GRIPS[k].S = V3(GRIPS[k].s).normalize(); }
+  for (const k in GUNS) { const g = GUNS[k]; g.A = g.anchor ? V3(g.anchor) : null; g.SUP = V3(g.sup); g.MAG = V3(g.mag); g.COCK = V3(g.cock); }
+  for (const k in HOLSTER) HOLSTER[k].O = V3(HOLSTER[k].off);
+  for (const k in HOLDS) { const h = HOLDS[k]; h.R = V3(h.ready); h.M = V3(h.aim); h.PR = V3(h.poleR); h.PL = V3(h.poleL); }
+  const POUCH = V3(RELOAD.pouch), GRIP0 = [0, -0.13, 0.12];
+
+  // point du repère du groupe (avatar) → monde ; point du repère du modèle (liaison : avant +Z, gauche +X) → monde
+  const gToW = (v, out) => out.copy(v).applyMatrix4(_gmw);
+  // repère du corps : position et lacet du modèle (inclinaisons comprises), échelle uniforme ; avant = -Z, droite = +X.
+  // Les anciennes couches penchent et écrasent le groupe de l'avatar : l'arme et l'outil sont placés dans ce repère
+  // propre (matrice locale écrite directement), jamais dans celui du groupe.
+  const _bm = new T.Matrix4(), _binv = new T.Matrix4(), _bq = new T.Quaternion(), _bp = new T.Vector3(), _bs = new T.Vector3(), _gbm = new T.Matrix4(), _gl = new T.Matrix4();
+  const bToW = (v, out) => out.copy(v).applyMatrix4(_bm);
+  // pose un objet enfant du groupe à la matrice monde W (sans cisaillement hérité du groupe)
+  function setWorldMatrix(obj, W) {
+    obj.matrixAutoUpdate = false;
+    obj.matrix.multiplyMatrices(_ginv, W);
+    obj.matrixWorldNeedsUpdate = true;
+  }
+  let _gmw = null;
+  const mToW = (inst, x, y, z, out) => out.set(x, y, z).applyMatrix4(inst.model.matrixWorld);
+
+  /* ------------------------------------------------------------ arme en main */
+  function keyPoint(i) { return i === 0 ? _r0 : i === 1 ? _r1 : i === 2 ? _r2 : _r3; }
+  function placeGun(an, u, p, t) {
+    const gun = u.gun, B = an.inst.bones;
+    const key = (gun.userData && gun.userData.weapon) || u.gunKey || "rifle";
+    const G = GUNS[key] || GUNS.rifle, H = HOLDS[G.hold], RL = RELOADS[G.rl] || RELOADS.mag;
+    const bk = an.bodyK; // bras plus courts (corps féminin) : arme et prise rapprochées d'autant
+    const present = clamp(fin(u.presentationBlend), 0, 1), look = clamp(fin(p.pitch), -1.15, 1.15);
+    B.upperarm_r.getWorldPosition(_sh).applyMatrix4(_binv);
+    let pitch = lerp(H.readyPitch + look * H.lookReady, look, present), yaw = lerp(H.readyYaw, H.aimYaw, present), roll = 0, lift = 0;
+    _off.copy(H.R).lerp(H.M, present).multiplyScalar(bk);
+    if (H.orbit) _off.applyAxisAngle(_X, look * H.orbit * present);
+    // recul ; geste de pompe / verrou après le tir
+    const rec = clamp(fin(u.recoil), 0, 1), kick = rec * rec;
+    if (rec > an.recPrev + 0.04 && G.cyc) an.cycT = 1;
+    an.recPrev = rec;
+    pitch += kick * G.kick[1];
+    // dégainer (l'arme sort du dos ou de la hanche) et changer d'arme (plongeon + roulis)
+    const swapEnv = fin(u.swapT) > 0 ? Math.sin(Math.PI * Math.min(1, fin(u.swapT))) : 0;
+    const dT = clamp(fin(u.drawT), 0, 1), drawEnv = dT * dT * (3 - 2 * dT);
+    const HS = HOLSTER[G.hold] || HOLSTER.long;
+    if (drawEnv > 0.001) { _off.lerp(_ev.copy(HS.O).multiplyScalar(bk), drawEnv); pitch = lerp(pitch, HS.pitch, drawEnv); roll += HS.roll * drawEnv; }
+    pitch -= swapEnv * 0.25; roll += swapEnv * 0.45; lift -= swapEnv * 0.1;
+    // rechargement propre à l'arme
+    let rk = -1;
+    if (p.reload > 0 && fin(u.reloadTotal) > 0) {
+      rk = clamp(1 - p.reload / u.reloadTotal, 0, 1);
+      const env = smooth(0, 0.15, rk) * (1 - smooth(0.82, 1, rk));
+      roll += RL.roll * env; pitch += RL.pitch * env; lift += RL.lift * env;
+    }
+    // inspection de l'arme quand on attend sans rien faire
+    const ia = an.idleT - FIDGET.gunAfter, insp = ia > 0 && rk < 0 && present < 0.05 ? (ia % FIDGET.gunEvery) / FIDGET.gunLen : 2;
+    const inspW = insp < 1 ? Math.sin(Math.PI * insp) : 0;
+    an.inspW = inspW;
+    roll -= 0.75 * inspW; pitch += 0.25 * inspW; yaw += 0.35 * inspW; lift += 0.05 * inspW;
+    // balancement de la marche et respiration
+    const mv = an.moveW * (1 - present * 0.6), ph = an.phase * Math.PI * 2;
+    lift += Math.sin(ph * 2) * 0.009 * mv + Math.sin(t * 1.7 + an.seed) * 0.003;
+    yaw += Math.sin(ph) * 0.03 * mv; roll += Math.sin(ph) * 0.035 * mv;
+    const gs = G.s * bk;
+    gun.scale.setScalar(gs);
+    gun.quaternion.setFromEuler(_e.set(pitch, yaw, roll, "YXZ"));
+    _tw.copy(_sh).add(_off); _tw.y += lift;
+    if (G.A) _tmpv.copy(G.A); else _tmpv.fromArray(gun.userData.grip || GRIP0);
+    _tmpv.multiplyScalar(gs).applyQuaternion(gun.quaternion);
+    gun.position.copy(_tw).sub(_tmpv);
+    gun.position.add(_tmpv.set(0, 0, kick * G.kick[0]).applyQuaternion(gun.quaternion));
+    // position/quaternion = repère du corps ; matrice monde = corps × arme
+    _gbm.multiplyMatrices(_bm, _gl.compose(gun.position, gun.quaternion, gun.scale));
+    setWorldMatrix(gun, _gbm);
+    an.gunL.copy(_gl);
+    // mains : poignée, appui (ou chargeur / ceinture / culasse pendant le rechargement)
+    _gq.multiplyQuaternions(_bq, gun.quaternion);
+    const grip = gun.userData.grip || GRIP0;
+    _tR.set(grip[0], grip[1], grip[2] + (G.hold === "long" ? 0.025 : 0.01)).applyMatrix4(_gbm);
+    _tL.copy(G.SUP).applyMatrix4(_gbm);
+    _f1.copy(GRIPS.rh.F).applyQuaternion(_gq); _s1.copy(GRIPS.rh.S).applyQuaternion(_gq);
+    const LG = GRIPS[G.lh] || GRIPS.under;
+    _f2.copy(LG.F).applyQuaternion(_gq); _s2.copy(LG.S).applyQuaternion(_gq);
+    _r3.copy(G.COCK).applyMatrix4(_gbm);
+    let wOrient = 1, wR = 1;
+    if (rk >= 0) {
+      _r0.copy(_tL); _r1.copy(G.MAG).applyMatrix4(_gbm);
+      B.thigh_l.getWorldPosition(_r2).applyMatrix4(_binv).add(POUCH); bToW(_r2, _r2);
+      const K = RL.keys;
+      let i = 0; while (i < K.length - 2 && rk > K[i + 1][0]) i++;
+      const a = K[i], b = K[i + 1], k = smooth(a[0], b[0], rk);
+      _tL.copy(keyPoint(a[1])).lerp(keyPoint(b[1]), k);
+      if (RL.slap && rk > RL.slap[0] && rk < RL.slap[1]) _tL.y += Math.sin(((rk - RL.slap[0]) / (RL.slap[1] - RL.slap[0])) * Math.PI) * 0.04 * an.ws;
+      const away = lerp(a[1] ? 1 : 0, b[1] ? 1 : 0, k); // main loin de l'appui : on garde le geste du clip
+      wOrient = 1 - 0.85 * away;
+      // verrou : la main droite quitte la poignée, tire la culasse et revient
+      if (RL.rh && rk > RL.rh[0] && rk < RL.rh[1]) { const e = Math.sin(((rk - RL.rh[0]) / (RL.rh[1] - RL.rh[0])) * Math.PI); _tR.lerp(_r3, e); wR = 1 - 0.7 * e; }
+    } else if (an.cycT > 0) {
+      // pompe (main gauche) ou verrou (main droite) après le tir
+      const dur = CYCLE[G.cyc] || 0.45, e = Math.sin(Math.PI * clamp(1 - an.cycT, 0, 1));
+      if (G.cyc === "pump") _tL.lerp(_r3, e);
+      else { _tR.lerp(_r3, e); wR = 1 - 0.7 * e; }
+      an.cycT = Math.max(0, an.cycT - an.dt / dur);
+    }
+    bToW(_pR.copy(_sh).add(H.PR), _pR); bToW(_pL.copy(_sh).add(H.PL), _pL);
+    handTo(an, "r", _tR, _f1, _s1, _pR, 1, false);
+    const Hr = an.inst.tpl.rig.hand.r, Hl = an.inst.tpl.rig.hand.l;
+    if (Hr && wR > 0.01) setWorldQuat(B.hand_r, handQuat(Hr, _f1, _s1, _qw), wR);
+    handTo(an, "l", _tL, _f2, _s2, _pL, 1, false);
+    if (Hl && wOrient > 0.01) setWorldQuat(B.hand_l, handQuat(Hl, _f2, _s2, _qw), wOrient);
+    if (root.__ch1Debug) {
+      const fe = (side, tg) => { const Hh = an.inst.tpl.rig.hand[side], hb = B["hand_" + side]; hb.getWorldQuaternion(_qa); hb.getWorldPosition(_D).add(_E.copy(Hh.fist).multiplyScalar(an.ws).applyQuaternion(_qa)); return +_D.distanceTo(tg).toFixed(3); };
+      const r3 = (v) => v.toArray().map((x) => +x.toFixed(3));
+      an.dbg = { key, eR: fe("r", _tR), eL: fe("l", _tL), present, drawT: fin(u.drawT), swapT: fin(u.swapT), insp: +inspW.toFixed(2), pitch: +pitch.toFixed(2), rk, sh: r3(_sh), off: r3(_off), gp: r3(gun.position), bk, gs, sex: an.inst.tpl.sex, ws: an.ws };
+    }
+    an.gunSaved = true;
+  }
+
+  /* ------------------------------------------------------------ pioche */
+  function swingTime(s) {
+    const M = SWING.map;
+    let i = 0; while (i < M.length - 2 && s > M[i + 1][0]) i++;
+    const a = M[i], b = M[i + 1], k = clamp((s - a[0]) / (b[0] - a[0]), 0, 1);
+    return lerp(a[1], b[1], k);
+  }
+  function placeTool(an, u, p, st, t) {
+    const tool = u.tool, B = an.inst.bones, rig = an.inst.tpl.rig, Hr = rig.hand.r;
+    if (!Hr || !B.hand_r) return;
+    const ts = SWING.toolScale, sw = an.swingW;
+    // portée : main droite devant l'épaule, manche presque vertical (vidéo), rebond au rythme des pas
+    const run = Math.min(1, an.speed / 6.2), ph = an.phase * Math.PI * 2;
+    B.upperarm_r.getWorldPosition(_sh).applyMatrix4(_binv);
+    _tw.set(_sh.x + 0.05, _sh.y - 0.3 + Math.abs(Math.sin(ph)) * 0.03 * run, _sh.z - 0.25 + Math.sin(ph) * 0.03 * run);
+    _hy.set(0.28 + Math.sin(ph) * 0.05 * run, 1, -0.36);
+    // sortie de la pioche : la main la décroche du dos par-dessus l'épaule
+    const dr = an.toolDraw, de = dr * dr * (3 - 2 * dr);
+    if (de > 0.001) { _tw.lerp(_ev.set(_sh.x + 0.02, _sh.y + 0.1, _sh.z + 0.2), de); _hy.lerp(_ev.set(0.2, 0.4, 0.9), de); }
+    _hy.normalize();
+    _hz.set(0, 0, -1); _hz.addScaledVector(_hy, -_hz.dot(_hy)).normalize();
+    _hx.crossVectors(_hy, _hz);
+    _qt.setFromRotationMatrix(_tm.makeBasis(_hx, _hy, _hz)); // repère de la pioche portée (groupe)
+    _qw.multiplyQuaternions(_bq, _qt).multiply(Hr.QHTinv);        // main voulue (monde)
+    // le poing tient le manche à carryGrip : centre du poing = origine + Y·carryGrip
+    bToW(_tw, _tR);
+    bToW(_pR.copy(_sh).add(_ev.set(0.45, -0.75, 0.3)), _pR);
+    B.hand_r.getWorldQuaternion(_qclip);
+    // portée (IK) fondue avec le geste capturé du coup de pioche
+    _wt.copy(Hr.fist).multiplyScalar(an.ws).applyQuaternion(_qw);
+    _wt.subVectors(_tR, _wt);
+    solveLimb(B.upperarm_r, B.lowerarm_r, B.hand_r, _wt, _pR, 1 - sw);
+    _qclip.slerp(_qw, 1 - sw);
+    setWorldQuat(B.hand_r, _qclip, 1);
+    // la pioche suit le poing
+    B.hand_r.getWorldQuaternion(_qh);
+    B.hand_r.getWorldPosition(_tL);
+    _tL.add(_wt.copy(Hr.fist).multiplyScalar(an.ws).applyQuaternion(_qh));
+    _qt.multiplyQuaternions(_qh, Hr.QHT);
+    const gy = lerp(SWING.carryGrip, SWING.grip, sw) * ts * an.ws;
+    _tL.sub(_tmpv.set(0, gy, 0).applyQuaternion(_qt));
+    _gbm.compose(_tL, _qt, _tmpv.setScalar(ts * an.ws));
+    setWorldMatrix(tool, _gbm);
+    an.toolL.multiplyMatrices(_binv, _gbm); an.toolSaved = true;
+    if (u.v67Trail) u.v67Trail.visible = false; // l'ancienne traînée suit l'ancien bras
+  }
+
+  /* ------------------------------------------------------------ poses de vol : chute libre, planeur, lévitation */
+  function limbsModel(an, wA, wL, arms, legs) {
+    // arms/legs : [lx, ly, lz, rx, ry, rz] cibles en repère du modèle, pôles idem
+    const B = an.inst.bones, inst = an.inst;
+    if (wA > 0.01 && arms) {
+      mToW(inst, arms[0], arms[1], arms[2], _tL); mToW(inst, arms[6], arms[7], arms[8], _pL);
+      solveLimb(B.upperarm_l, B.lowerarm_l, B.hand_l, _tL, _pL, wA);
+      mToW(inst, arms[3], arms[4], arms[5], _tR); mToW(inst, arms[9], arms[10], arms[11], _pR);
+      solveLimb(B.upperarm_r, B.lowerarm_r, B.hand_r, _tR, _pR, wA);
+    }
+    if (wL > 0.01 && legs) {
+      mToW(inst, legs[0], legs[1], legs[2], _tL); mToW(inst, legs[6], legs[7], legs[8], _pL);
+      solveLimb(B.thigh_l, B.calf_l, B.foot_l, _tL, _pL, wL);
+      mToW(inst, legs[3], legs[4], legs[5], _tR); mToW(inst, legs[9], legs[10], legs[11], _pR);
+      solveLimb(B.thigh_r, B.calf_r, B.foot_r, _tR, _pR, wL);
+    }
+  }
+  const _arms = new Array(12).fill(0), _legs = new Array(12).fill(0);
+  function setLimbs(arr, lx, ly, lz, rx, ry, rz, plx, ply, plz, prx, pry, prz) {
+    arr[0] = lx; arr[1] = ly; arr[2] = lz; arr[3] = rx; arr[4] = ry; arr[5] = rz;
+    arr[6] = plx; arr[7] = ply; arr[8] = plz; arr[9] = prx; arr[10] = pry; arr[11] = prz;
+    return arr;
+  }
+
+  const _gqw = new T.Quaternion(), _gqi = new T.Quaternion();
+  // repères de l'image : groupe (monde ↔ local) et corps (modèle sans le demi-tour, échelle uniforme)
+  function frames(group, inst) {
+    group.updateWorldMatrix(true, false);
+    inst.model.updateMatrixWorld(true);
+    _gmw = group.matrixWorld;
+    _ginv.copy(_gmw).invert();
+    _gmw.decompose(_gw, _gqw, _gsc);
+    _gqi.copy(_gqw).invert();
+    inst.model.matrixWorld.decompose(_bp, _bq, _bs);
+    _bq.multiply(_pi);
+    const sc = (_bs.x + _bs.y + _bs.z) / 3;
+    _bs.set(sc, sc, sc);
+    _bm.compose(_bp, _bq, _bs);
+    _binv.copy(_bm).invert();
+  }
+
+  /* ------------------------------------------------------------ gestes ponctuels */
+  const ACTQ = {}; // dernier geste demandé par joueur : { kind, seq }
+  let actSeq = 0;
+  function markAct(id, kind) { if (id == null || !ACTS[kind]) return; const q = ACTQ[id] || (ACTQ[id] = { seq: 0, kind: "" }); q.kind = kind; q.seq = ++actSeq; }
+  function startAct(an, kind, moving) {
+    const A = ACTS[kind];
+    if (!A) return;
+    const d = (moving ? A.move : A.still) || null;
+    if (!d || !clip(d[0])) return;
+    an.actName = d[0]; an.actT0 = d[1]; an.actT1 = d[2]; an.actTs = d[3]; an.actFull = d[4] === "full"; an.actTime = d[1];
+  }
+  function playAct(an, dt, F, U) {
+    if (!an.actName) return;
+    an.actTime += dt * an.actTs;
+    if (an.actTime >= an.actT1) { an.actName = null; return; }
+    const span = (an.actT1 - an.actT0) / an.actTs, el = (an.actTime - an.actT0) / an.actTs;
+    const w = clamp(Math.min(el / 0.12, (span - el) / 0.2), 0, 1);
+    const e = (an.actFull ? F : U).want(an.actName, w, 0.05, { manual: true });
+    e.w = w; e.goal = w; e.time = Math.min(an.actTime, e.dur - 1e-3);
+  }
+  // pôle de coude : décalage (repère du corps) depuis l'épaule du côté voulu, résultat dans _pR / _pL
+  function pole(B, side, x, y, z) {
+    const out = side > 0 ? _pR : _pL;
+    B[side > 0 ? "upperarm_r" : "upperarm_l"].getWorldPosition(_tmpv).applyMatrix4(_binv);
+    return bToW(_ev.set(side * x, y, z).add(_tmpv), out);
+  }
 
   function drive(view, group, p, dt, options) {
     const u = group.userData, inst = u.ch1;
@@ -992,126 +1553,309 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     hideOld(u);
     const an = inst.anim, B = inst.bones, st = u.v67 || {};
     dt = Math.min(0.1, Math.max(0, +dt || 0));
-    const menu = !!options.menu;
+    an.dt = dt;
+    an.clock += dt;
+    const t = an.clock;
+    const menu = !!options.menu, local = !!options.local;
     const armed = !!(u.gun && u.gun.visible);
     const harvesting = !!(u.tool && u.tool.visible);
-    const highAir = !!(p.gliding || p.flying || (p.falling && p.airborneFromBus));
+    const ev = root.AZEvent, evOn = !!(ev && ev.active && ev.v93 && local);
+    const evFloat = evOn ? clamp(fin(ev.v93.floating), 0, 1) : 0;
+    const busFall = !!(p.falling && p.airborneFromBus && !p.gliding) && evFloat < 0.5;
+    const highAir = !!(p.gliding || p.flying || busFall);
     const airborne = !!(p.jumping || p.falling || p.gliding || p.flying);
-    // compense les inclinaisons/écrasements appliqués à l'ancien groupe (accroupi, nage, à terre)
-    let pitch = 0;
-    if (p.falling && p.airborneFromBus && !p.gliding) pitch = -1.3;
-    else if (p.gliding) pitch = -0.18;
-    _yaw.setFromAxisAngle(_tw.set(0, 1, 0), 0);
+    const emote = p.emote > 0 && !p.gliding && !p.falling;
+    const evMode = evOn && ev.playerInfo ? ev.playerInfo.mode : "";
+    const input = p._input || {};
+    // niveau de détail : les avatars lointains des autres joueurs s'animent une image sur deux
+    let far = false;
+    const cam = view && view.camera;
+    if (!local && !menu && cam && group.matrixWorld) {
+      const me = group.matrixWorld.elements;
+      far = Math.hypot(me[12] - cam.position.x, me[13] - cam.position.y, me[14] - cam.position.z) > LOD_FAR;
+    }
+    an.skip = far ? !an.skip : false;
+
+    /* ---------- orientation du corps : compense le groupe de l'ancien rig, ajoute inclinaisons et écrasement */
+    let pitchT = 0;
+    if (busFall) pitchT = -1.3 - clamp(fin(input.moveZ), -1, 1) * 0.22;
+    else if (p.gliding) pitchT = -0.18;
+    an.pitchS += (pitchT - an.pitchS) * (1 - Math.exp(-dt * 6));
+    const yawNow = group.rotation.y;
+    if (an.yawPrev === null || menu) an.yawPrev = yawNow;
+    let dy = yawNow - an.yawPrev; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); an.yawPrev = yawNow;
+    an.yawRate += ((dt > 0 ? dy / dt : 0) - an.yawRate) * (1 - Math.exp(-dt * 8));
+    an.accel += ((dt > 0 ? (an.speed - an.speedPrev) / dt : 0) - an.accel) * (1 - Math.exp(-dt * 6)); an.speedPrev = an.speed;
+    const grounded = !airborne && !p.swimming && !p.downed && !menu;
+    const vRight = Math.sin(an.dirA) * an.speed, vFwd = Math.cos(an.dirA) * an.speed;
+    let rollT = 0, leanT = 0;
+    if (grounded) {
+      rollT = clamp(an.yawRate * an.speed * 0.012, -0.14, 0.14) - clamp(vRight * 0.012, -0.08, 0.08);
+      leanT = -clamp(an.accel * 0.012, -0.06, 0.08) - clamp(vFwd * 0.004, -0.02, 0.03) * (1 - an.crouch);
+    } else if (busFall) rollT = -clamp(fin(input.moveX), -1, 1) * 0.35 + Math.sin(t * 2.3 + an.seed) * 0.03;
+    else if (p.gliding) rollT = -clamp(fin(u.steer), -1, 1) * 0.22 + Math.sin(t * 1.3) * 0.02;
+    // lévitation : balancement et inclinaison dans le sens du déplacement voulu
+    an.floatW += (evFloat - an.floatW) * (1 - Math.exp(-dt * 4));
+    if (an.floatW > 0.01) {
+      const want = FLOAT[evMode] || FLOAT.float;
+      const kf = 1 - Math.exp(-dt * 2.5);
+      for (let i = 0; i < FLOAT_KEYS.length; i++) { const k = FLOAT_KEYS[i]; an.fp[k] += (want[k] - an.fp[k]) * kf; }
+      const mx = clamp(fin(input.moveX), -1, 1), mz = clamp(fin(input.moveZ), -1, 1);
+      an.floatLeanP += (-mz * 0.38 - (evMode === "suck" ? 0.35 : 0) - an.floatLeanP) * (1 - Math.exp(-dt * 2.2));
+      an.floatLeanR += (-mx * 0.32 - an.floatLeanR) * (1 - Math.exp(-dt * 2.2));
+      const sw = an.fp.sway, f = an.floatW;
+      leanT = lerp(leanT, an.floatLeanP + an.fp.arch * 0.5 + Math.sin(t * 0.47 + an.seed) * 0.05 * sw, f);
+      rollT = lerp(rollT, an.floatLeanR + Math.sin(t * 0.61 + an.seed) * 0.06 * sw, f);
+    }
+    an.leanP += (leanT - an.leanP) * (1 - Math.exp(-dt * 5));
+    an.roll += (rollT - an.roll) * (1 - Math.exp(-dt * 5));
+    // retombée : écrasement bref (volume conservé)
+    an.squash = Math.max(0, an.squash - dt / LAND.squashT);
+    const sx = 1 - an.squash;
+    let sq = an.squash > 0 ? an.landK * LAND.squash * (sx < 0.25 ? sx / 0.25 : (1 - (sx - 0.25) / 0.75) * (1 - (sx - 0.25) / 0.75)) : 0;
+    if (an.cdip > 0) sq += Math.sin(Math.PI * (1 - an.cdip)) * 0.035;
     _gi.compose(_zero, group.quaternion, group.scale).invert();
     const s = group.scale.x;
-    _yaw.setFromEuler(_e.set(pitch, group.rotation.y, 0, "YXZ"));
-    _gm.compose(_zero, _yaw, _tw.set(s, s, s)).premultiply(_gi);
+    _yaw.setFromEuler(_e.set(an.pitchS + an.leanP, group.rotation.y, an.roll, "YXZ"));
+    _gm.compose(_zero, _yaw, _tw.set(s * (1 + sq * 0.5), s * (1 - sq), s * (1 + sq * 0.5))).premultiply(_gi);
     _gm.multiply(_tm.makeRotationFromQuaternion(_pi));
     inst.model.matrix.copy(_gm);
-    // choix de l'animation
-    let base = null, part = null, scale = 1, fade = 0.18, upper = null;
-    if (!airborne && an.air) { if (an.airT > 0.35) an.landT = 0.32; }
-    if (airborne) an.airT += dt; else an.airT = 0;
-    an.air = airborne;
-    an.landT = Math.max(0, an.landT - dt);
-    const emote = p.emote > 0 && !p.gliding && !p.falling;
-    const ev = root.AZEvent, evFloat = ev && ev.active && ev.v93 && options.local ? ev.v93.floating : 0;
-    if (evFloat > 0.5 && !p.downed) { base = "Swim_Idle_Loop"; scale = 0.6; fade = 0.6; pickLocomotion(an, p, st, false, dt, menu); } // « La Fin » : lévitation bras écartés
-    else if (p.downed) { base = an.speed > 0.3 ? "Crawl_Fwd_Loop" : "Crawl_Idle_Loop"; pickLocomotion(an, p, st, false, dt, menu); }
-    else if (p.swimming) { const r = pickLocomotion(an, p, st, false, dt, menu); base = an.speed > 0.4 ? "Swim_Fwd_Loop" : "Swim_Idle_Loop"; scale = an.speed > 0.4 ? Math.min(1.6, Math.max(0.7, an.speed / 2)) : 1; void r; }
-    else if (emote) { base = EMOTES[p.emoteStyle] || "Dance_Loop"; fade = 0.25; }
-    else if (p.gliding) { base = "Jump_Loop"; scale = 0.5; }
-    else if (highAir) { base = "Jump_Loop"; scale = 0.55; fade = 0.3; } // chute libre : bras écartés, corps à plat (inclinaison plus haut)
-    else if (airborne) {
-      base = an.airT < 0.22 && an.playing("base") !== "Jump_Loop" ? "Jump_Start" : "Jump_Loop"; fade = 0.1;
-      if (an.playing("base") === "Jump_Start" && !an.finished("base")) base = "Jump_Start";
-      part = armed ? "lower" : null;
-      pickLocomotion(an, p, st, armed, dt, menu);
-    } else if (an.landT > 0) { base = "Jump_Land"; fade = 0.06; part = armed ? "lower" : null; pickLocomotion(an, p, st, armed, dt, menu); if (an.speed > 2) an.landT = 0; }
-    else {
-      const r = pickLocomotion(an, p, st, armed, dt, menu);
-      base = r[0]; part = r[1]; scale = r[2];
-      if (p.useTime > 0) { const it = (p.inventory || [])[p.selected] || {}; upper = /shield|potion|bouclier|soda|fizz|fiole/i.test(it.item || it.id || it.kind || "") ? "Drink" : "Bandage_Loop"; part = "lower"; }
+    if (an.skip) {
+      // image sautée : on remet l'arme et l'outil où on les avait posés
+      if ((armed && an.gunSaved) || (harvesting && an.toolSaved)) {
+        frames(group, inst);
+        if (armed && an.gunSaved) setWorldMatrix(u.gun, _gbm.multiplyMatrices(_bm, an.gunL));
+        if (harvesting && an.toolSaved) setWorldMatrix(u.tool, _gbm.multiplyMatrices(_bm, an.toolL));
+      }
+      return;
     }
-    if (armed && !emote && !p.downed && !p.swimming && !highAir && evFloat <= 0.5) { upper = upper || (p.aim ? "Pistol_Aim_Neutral" : "Pistol_Idle_Loop"); if (!part) part = "lower"; }
-    // coup de pioche : le geste vient de anim-v67 (frappe à deux mains), le buste suit
-    const swinging = harvesting && st.swing >= 0;
-    if (emote) { upper = null; part = null; }
-    an.set("base", base, part, fade, scale);
-    an.set("upper", upper, upper ? "upper" : null, 0.12, 1);
-    // pose
-    if (B.pelvis) B.pelvis.position.copy(B.pelvis.position);
+    if (far) { dt *= 2; an.dt = dt; }
+
+    /* ---------- états */
+    const y = fin(p.y);
+    if (an.yPrev !== null && dt > 0 && airborne) an.fallV = Math.max(an.fallV, (an.yPrev - y) / dt);
+    an.yPrev = y;
+    const landing = !airborne && an.air && an.airT > JUMP.minAir;
+    if (landing) {
+      an.landT = 1; an.landK = clamp(LAND.k[0] + an.airT * LAND.k[1], LAND.k[0], 1); an.squash = 1;
+      // grande chute : roulade si l'on court, réception lourde sinon
+      if (an.fallV > ROLL.fall && an.fallV < 60) {
+        an.landK = 1;
+        if (an.speed > ROLL.speed && !armed) { startAct(an, "roll", false); an.landT = 0; }
+      }
+    }
+    if (!airborne) an.fallV = 0;
+    // gestes déclenchés par le jeu (ramasser, coffre, modification…)
+    const q = ACTQ[p.id];
+    if (q && q.seq !== an.actSeq) { if (an.actSeq >= 0 && !menu) startAct(an, q.kind, an.speed > 1.2); an.actSeq = q.seq; }
+    else if (an.actSeq < 0) an.actSeq = q ? q.seq : 0;
+    // accroupi : petite flexion au changement
+    if (!!p.crouching !== an.crouchPrev) { an.crouchPrev = !!p.crouching; an.cdip = 1; }
+    an.cdip = Math.max(0, an.cdip - dt * 4);
+    // planeur ouvert / refermé, pioche dégainée
+    an.glideT = p.gliding ? an.glideT + dt : 0;
+    an.skyW += ((busFall ? 1 : 0) - an.skyW) * (1 - Math.exp(-dt * 5));
+    if (harvesting && !an.toolPrev) an.toolDraw = 1;
+    an.toolPrev = harvesting;
+    an.toolDraw = Math.max(0, an.toolDraw - dt * 3.2);
+    if (airborne) an.airT += dt; else an.airT = 0;
+    if (airborne && !an.air) an.jumpT = 0;
+    an.jumpT += dt;
+    an.air = airborne;
+    const F = an.full, U = an.upper;
+    F.begin(); U.begin();
+    const swimming = !!p.swimming && !highAir;
+    const building = !!(u.blueprint && u.blueprint.visible);
+    locomotion(an, p, dt, menu, fin(u.presentationBlend) < 0.3, !armed && !harvesting && !building);
+    if (evFloat > 0.02 && !p.downed) F.want(IDLE.stand, evFloat, 0.7, { ts: 0.7 });
+    else if (p.downed) F.want(an.speed > 0.3 ? "Crawl_Fwd_Loop" : "Crawl_Idle_Loop", 1, 0.35, { ts: an.speed > 0.3 ? clamp(an.speed / (0.9 * WS), 0.6, 1.6) : 1 });
+    else if (swimming) {
+      if (an.speed > 0.6) F.want("Swim_Fwd_Loop", 1, 0.4, { ts: clamp(an.speed / (1.6 * WS * 1.6), 0.7, 1.5) });
+      else F.want("Swim_Idle_Loop", 1, 0.5);
+    } else if (emote) {
+      const E = EMOTES[p.emoteStyle] || EMOTES.danse, et = Math.max(0, fin(p.emoteDuration, 6) - fin(p.emote));
+      let acc = 0, i = 0;
+      while (i < E.seq.length - 1 && et >= acc + E.seq[i][1]) { acc += E.seq[i][1]; i++; }
+      const last = i === E.seq.length - 1, e = F.want(E.seq[i][0], 1, 0.3, { manual: true });
+      const lt = (et - acc) * (E.vary ? 1 - E.vary * 0.5 + (an.seed / 6.283) * E.vary : 1);
+      if (e.dur > 0) e.time = last ? lt % e.dur : Math.min(lt, e.dur - 1e-3);
+    } else if (p.revivingId && !airborne) F.want(REVIVE, 1, 0.35);
+    else if (p.gliding) F.want(IDLE.stand, 1, 0.35, { ts: 0.6 });
+    else if (highAir) F.want(JUMP.loop, 1, 0.4, { ts: 0.45 });
+    else if (airborne) {
+      if (p.jumping && an.airT < 0.5) F.want(JUMP.start, 1, 0.08, { once: true, at: JUMP.startAt, ts: JUMP.startRate });
+      else F.want(JUMP.loop, 1, 0.3, { ts: JUMP.loopRate });
+    } else if (an.landT > 0) {
+      const e = F.get(JUMP.land);
+      const out = an.speed > 2.2 ? JUMP.landOutMoving : JUMP.landOut;
+      if (e.w <= 0 || e.time < out + JUMP.landAt) F.want(JUMP.land, an.landK, 0.05, { once: true, at: JUMP.landAt });
+      if (e.time >= out + JUMP.landAt && e.w > 0) { an.landT = 0; e.rate = 4; }
+    }
+    if (an.landT > 0 && airborne) an.landT = 0;
+    // couche haute : arme, soins, coup de pioche, recul de touche
+    let swingS = -1;
+    if (!emote && !p.downed && !swimming && !highAir && evFloat <= 0.5) {
+      if (p.useTime > 0) {
+        const it = (p.inventory || [])[p.selected] || {}, tag = String(it.item || it.id || it.kind || "");
+        let hc = HEALS[HEALS.length - 1][1];
+        for (let i = 0; i < HEALS.length; i++) if (HEALS[i][0].test(tag)) { hc = HEALS[i][1]; break; }
+        U.want(hc, 1, 0.25);
+        an.healing = true;
+      } else if (armed) {
+        const pr = clamp(fin(u.presentationBlend), 0, 1);
+        U.want("Pistol_Idle_Loop", 1 - pr, 0.2);
+        U.want("Pistol_Aim_Neutral", pr, 0.15, { manual: true, time: 0 });
+      } else if (harvesting) {
+        swingS = st.swing >= 0 ? clamp(st.swing, 0, 1) : -1;
+        const target = swingS >= 0 ? smooth(SWING.fadeIn[0], SWING.fadeIn[1], swingS) * (1 - smooth(SWING.fadeOut[0], SWING.fadeOut[1], swingS)) : 0;
+        an.swingW += (target - an.swingW) * (1 - Math.exp(-dt * 30));
+        if (an.swingW > 0.005 || swingS >= 0) {
+          const e = U.want(SWING.clip, an.swingW, 0.05, { manual: true });
+          e.goal = an.swingW; e.w = an.swingW; // poids piloté par le geste
+          if (swingS >= 0) e.time = swingTime(swingS) % (e.dur || 1);
+        }
+      }
+      // touché : petit recul du buste
+      const hp = fin(p.hp, 100);
+      if (an.hpPrev !== null && hp < an.hpPrev - 0.5) an.hitT = 1;
+      an.hpPrev = hp;
+      an.hitT = Math.max(0, an.hitT - dt * 2.6);
+      if (an.hitT > 0) U.want("Hit_Chest", 0.55 * an.hitT, 0.06, { once: true, at: 0 });
+    }
+    if (!harvesting) an.swingW = 0;
+    // soin terminé : petit hochement satisfait
+    if (an.healing && !(p.useTime > 0)) { an.healing = false; if (fin(p.hp, 100) > 0 && !p.downed) startAct(an, "healed", an.speed > 1.2); }
+    playAct(an, dt, F, U);
+    an.loco.step(dt); F.step(dt); U.step(dt);
+    an.apply();
     an.mixer.update(dt);
     if (B.pelvis) B.pelvis.position.add(an.pelvisDelta);
-    // la tête suit la visée
-    const look = Math.max(-0.9, Math.min(0.9, +p.pitch || 0));
-    if (!emote && !p.downed && !p.swimming && !highAir && (armed || options.local)) {
-      if (B.spine_03) B.spine_03.rotateX(-look * 0.35);
-      if (B.neck_01) B.neck_01.rotateX(-look * 0.25);
+
+    /* ---------- retouches procédurales */
+    const look = clamp(fin(p.pitch), -0.9, 0.9);
+    const idleW = an.loco.weightOf(IDLE.stand) * (1 - F.sum);
+    // respiration et report du poids (déphasés par avatar)
+    if (idleW > 0.01) {
+      addRot(an, "spine_03", "x", Math.sin(t * 1.75 + an.seed) * 0.018 * idleW);
+      addRot(an, "spine_01", "z", Math.sin(t * 0.52 + an.seed) * 0.03 * idleW);
+      addRot(an, "neck_01", "z", -Math.sin(t * 0.52 + an.seed) * 0.02 * idleW);
+      addRot(an, "Head", "y", Math.sin(t * 0.31 + an.seed * 2) * 0.12 * idleW * (armed ? 0.3 : 1));
     }
-    group.updateMatrixWorld(true);
-    // mains sur l'arme / le planeur / le plan de construction
-    const right = [B.upperarm_r, B.lowerarm_r, B.hand_r], left = [B.upperarm_l, B.lowerarm_l, B.hand_l];
-    const toWorld = (arr) => group.localToWorld(_tw.fromArray(arr)).clone();
-    const poleFor = (sideSign) => {
-      group.localToWorld(_pole.set(sideSign * 0.55, 0.4, 0.35));
-      return _pole.clone();
-    };
-    if (armed && u.handTargets && !emote) {
-      solveArm(...right, toWorld(u.handTargets.weaponPrimary), poleFor(1), 1);
-      solveArm(...left, toWorld(u.handTargets.weaponSupport), poleFor(-1), 1);
-    } else if (p.gliding && u.glider && u.glider.visible && u.handTargets) {
-      solveArm(...left, toWorld(u.handTargets.gliderLeft), poleFor(-1).add(_tw.set(0, 0.4, 0)), 1);
-      solveArm(...right, toWorld(u.handTargets.gliderRight), poleFor(1).add(_tw.set(0, 0.4, 0)), 1);
-    } else if (u.blueprint && u.blueprint.visible) {
+    // la tête et le buste suivent la visée
+    if (!emote && !p.downed && !swimming && !highAir && (armed || local)) {
+      const k = armed ? 1 : 0.5;
+      addRot(an, "spine_02", "x", -look * 0.14 * k);
+      addRot(an, "spine_03", "x", -look * 0.22 * k);
+      addRot(an, "neck_01", "x", -look * 0.2);
+      addRot(an, "Head", "x", -look * 0.16);
+      if (armed && fin(u.presentationBlend) > 0) { // joue contre la crosse
+        const pr = fin(u.presentationBlend) * (u.gun && GUNS[u.gunKey] && GUNS[u.gunKey].hold === "long" ? 1 : 0.3);
+        addRot(an, "neck_01", "z", -0.12 * pr); addRot(an, "Head", "x", 0.1 * pr);
+      }
+    }
+    // recul de l'arme dans les épaules ; buste de profil et épaule gauche avancée pour tenir l'arme
+    if (armed) {
+      const r = clamp(fin(u.recoil), 0, 1), G = GUNS[(u.gun.userData && u.gun.userData.weapon) || u.gunKey] || GUNS.rifle, H = HOLDS[G.hold];
+      addRot(an, "spine_03", "x", -r * r * 0.06);
+      addRot(an, "spine_02", "y", -H.twist * 0.45); addRot(an, "spine_03", "y", -H.twist * 0.55); // pas de torsion à la taille (peau pincée)
+      addRot(an, "neck_01", "y", H.twist * 0.5); addRot(an, "Head", "y", H.twist * 0.45);
+      addRot(an, "clavicle_l", "y", -H.protract); addRot(an, "clavicle_r", "y", H.protract * 0.3);
+      if (an.inspW > 0.01) { addRot(an, "Head", "y", -0.35 * an.inspW); addRot(an, "Head", "x", 0.25 * an.inspW); }
+    }
+    // construction : buste penché vers la pièce
+    if (building) addRot(an, "spine_02", "x", 0.08 * clamp(fin(u.buildBlend, 1), 0, 1));
+    // planeur : jambes pendantes qui se balancent (repliées à l'ouverture)
+    if (p.gliding) {
+      const sw = Math.sin(t * 1.4 + an.seed), tuck = Math.max(0, 1 - an.glideT / 0.6);
+      addRot(an, "thigh_l", "x", -0.5 * tuck); addRot(an, "thigh_r", "x", -0.45 * tuck);
+      addRot(an, "calf_l", "x", 0.8 * tuck); addRot(an, "calf_r", "x", 0.75 * tuck);
+      addRot(an, "thigh_l", "x", -0.22 - sw * 0.06); addRot(an, "thigh_r", "x", -0.16 + sw * 0.06);
+      addRot(an, "calf_l", "x", 0.3 + sw * 0.05); addRot(an, "calf_r", "x", 0.38 - sw * 0.05);
+      addRot(an, "spine_03", "x", -0.1);
+      addRot(an, "Head", "x", -0.15);
+    }
+    // lévitation : dos cambré, tête levée
+    if (an.floatW > 0.01) {
+      const f = an.floatW, fp = an.fp;
+      addRot(an, "spine_02", "x", -fp.arch * 0.6 * f);
+      addRot(an, "spine_03", "x", -fp.arch * 0.4 * f + Math.sin(t * 0.9) * 0.03 * f);
+      addRot(an, "neck_01", "x", -fp.look * f);
+      addRot(an, "Head", "y", Math.sin(t * 0.37 + an.seed) * 0.25 * f);
+    }
+    // corps entier à jour (sans parcourir l'ancien rig)
+    frames(group, inst);
+    an.ws = _bs.x;
+
+    /* ---------- mains et pieds */
+    if (armed && !emote) placeGun(an, u, p, t);
+    else if (p.gliding && u.glider && u.glider.visible && u.handTargets) {
+      const g = an.inst.tpl.rig.hand;
+      gToW(_tw.fromArray(u.handTargets.gliderLeft), _tL); gToW(_tmpv.fromArray(u.handTargets.gliderRight), _tR);
+      _f1.set(0, 1, 0).applyQuaternion(_bq); _s1.set(-1, 0, 0).applyQuaternion(_bq); _s2.set(1, 0, 0).applyQuaternion(_bq);
+      pole(B, -1, 0.55, 0.0, 0.25); pole(B, 1, 0.55, 0.0, 0.25);
+      // ouverture : les bras montent attraper les poignées (léger dépassement)
+      const go = clamp(an.glideT / 0.32, 0, 1), gw = go < 1 ? 1 - Math.pow(1 - go, 3) * (1 - 2.2 * go * (1 - go)) : 1;
+      if (g.l) handTo(an, "l", _tL, _f1, _s2, _pL, clamp(gw, 0, 1));
+      if (g.r) handTo(an, "r", _tR, _f1, _s1, _pR, clamp(gw, 0, 1));
+    } else if (building) {
       u.blueprint.updateMatrix();
-      const t = _tw.set(-0.16, -0.05, 0).applyMatrix4(u.blueprint.matrix);
-      solveArm(...left, group.localToWorld(t).clone(), poleFor(-1), 1);
-    } else if (emote && (p.emoteStyle === "salut" || p.emoteStyle === "robot")) {
+      gToW(_tw.set(-0.16, -0.05, 0).applyMatrix4(u.blueprint.matrix), _tL);
+      pole(B, -1, 0.4, -0.5, 0.25);
+      solveLimb(B.upperarm_l, B.lowerarm_l, B.hand_l, _tL, _pL, 1);
+      // main droite : prête, puis pousse la pièce en place à chaque pose
+      const pp = clamp(fin(u.placePulse), 0, 1), punch = pp > 0 ? Math.sin(Math.PI * (1 - pp)) : 0;
+      B.upperarm_r.getWorldPosition(_sh).applyMatrix4(_binv);
+      bToW(_tw.set(_sh.x - 0.05 - punch * 0.08, _sh.y - 0.22 + punch * 0.12, _sh.z - 0.3 - punch * 0.3), _tR);
+      pole(B, 1, 0.4, -0.5, 0.3);
+      solveLimb(B.upperarm_r, B.lowerarm_r, B.hand_r, _tR, _pR, clamp(fin(u.buildBlend, 1), 0, 1));
+    } else if (emote && EMOTES[p.emoteStyle] && EMOTES[p.emoteStyle].ik) {
       // gestes absents de la bibliothèque : salut de la main et danse du robot
-      const et = Math.max(0, (+p.emoteDuration || 6) - (+p.emote || 0));
-      const w = Math.min(1, et * 6);
-      if (p.emoteStyle === "salut") {
-        solveArm(...right, group.localToWorld(_tw.set(0.3 + Math.sin(et * 9) * 0.13, 1.98, -0.1)).clone(), poleFor(1).add(_tw.set(0.3, -0.6, 0)), w);
+      const E = EMOTES[p.emoteStyle], et = Math.max(0, (+p.emoteDuration || 6) - (+p.emote || 0));
+      const w = Math.min(1, et * 6, Math.max(0, (E.ikT - et) * 4));
+      if (E.ik === "wave") {
+        bToW(_tw.set(0.3 + Math.sin(et * 9) * 0.13, 1.98, -0.1), _tR);
+        pole(B, 1, 0.6, -1.0, 0.35);
+        solveLimb(B.upperarm_r, B.lowerarm_r, B.hand_r, _tR, _pR, w);
       } else {
-        const beat = Math.floor(et * 2.4) % 4, lift = (k) => (beat === k ? 0.22 : 0);
-        solveArm(...right, group.localToWorld(_tw.set(0.24, 1.12 + lift(0) + lift(2), -0.36)).clone(), poleFor(1), w);
-        solveArm(...left, group.localToWorld(_tw.set(-0.24, 1.12 + lift(1) + lift(3), -0.36)).clone(), poleFor(-1), w);
+        const beat = Math.floor(et * 2.4) % 4, upR = beat === 0 || beat === 2 ? 0.22 : 0, upL = beat === 1 || beat === 3 ? 0.22 : 0;
+        bToW(_tw.set(0.24, 1.12 + upR, -0.36), _tR); pole(B, 1, 0.55, -0.6, 0.35);
+        solveLimb(B.upperarm_r, B.lowerarm_r, B.hand_r, _tR, _pR, w);
+        bToW(_tw.set(-0.24, 1.12 + upL, -0.36), _tL); pole(B, -1, 0.55, -0.6, 0.35);
+        solveLimb(B.upperarm_l, B.lowerarm_l, B.hand_l, _tL, _pL, w);
         if (B.spine_03) { B.spine_03.rotateY((beat < 2 ? 1 : -1) * 0.22 * w); B.spine_03.updateMatrixWorld(true); }
-        if (B.Head) { B.Head.rotateY((beat % 2 ? -1 : 1) * 0.35 * w); }
+        if (B.Head) { B.Head.rotateY((beat % 2 ? -1 : 1) * 0.35 * w); B.Head.updateMatrixWorld(true); }
       }
     }
-    // pioche : portée droite devant l'épaule comme dans la vidéo (main droite à hauteur de poitrine,
-    // manche presque vertical, tête au-dessus de l'épaule) ; pendant la frappe, le geste de anim-v67.
-    if (harvesting && u.tool) {
-      const tool = u.tool;
-      if (!swinging) {
-        const run = Math.min(1, an.speed / 6.2), ph = st.phase || 0;
-        _tw.set(0.27, 1.13 + Math.abs(Math.sin(ph)) * 0.035 * run, -0.2 + Math.sin(ph) * 0.03 * run);
-        _hy.set(0.3 + Math.sin(ph) * 0.05 * run, 1, -0.34).normalize();
-        _hz.set(0, 0, -1);
-        _hz.sub(_tmpv.copy(_hy).multiplyScalar(_hz.dot(_hy))).normalize();
-        _hx.crossVectors(_hy, _hz);
-        _tm.makeBasis(_hx, _hy, _hz);
-        tool.quaternion.setFromRotationMatrix(_tm);
-        tool.position.copy(_tw).sub(_tmpv.set(0, CARRY_GRIP, 0).applyQuaternion(tool.quaternion).multiply(tool.scale));
-        tool.updateMatrix();
-        solveArm(...right, group.localToWorld(_tw.clone()), poleFor(1).add(_tmpv.set(0, -0.3, 0)), 1);
-      } else {
-        tool.updateMatrix();
-        const g = (tool.userData.grips && tool.userData.grips.primary) || [0, 0, 0], sp = (tool.userData.grips && tool.userData.grips.support) || [0, 0.4, 0];
-        solveArm(...right, group.localToWorld(_tw.fromArray(g).applyMatrix4(tool.matrix)).clone(), poleFor(1), 1);
-        solveArm(...left, group.localToWorld(_tw.fromArray(sp).applyMatrix4(tool.matrix)).clone(), poleFor(-1), 1);
-        if (B.spine_02) B.spine_02.rotateY(Math.sin(st.swing * Math.PI * 2) * 0.25);
-      }
+    if (harvesting && u.tool && !emote) placeTool(an, u, p, st, t);
+    // chute libre : position cambrée bras en W ; piqué = bras le long du corps, freinage = bras en avant,
+    // virage = un bras plus bas ; flottement du vent sur les membres
+    if (an.skyW > 0.01 && !p.gliding) {
+      const fl = Math.sin(t * 9 + an.seed) * 0.015, fl2 = Math.sin(t * 7.3 + an.seed * 2) * 0.012;
+      const mx = clamp(fin(input.moveX), -1, 1), mz = clamp(fin(input.moveZ), -1, 1), kd = Math.max(0, mz), kb = Math.max(0, -mz);
+      const L = an.inst.tpl.L, sy = L.shoulderY;
+      const ax = lerp(lerp(0.52, 0.3, kd), 0.45, kb), ay = sy + lerp(lerp(0.12, -0.55, kd), 0.3, kb), az = lerp(lerp(-0.16, -0.12, kd), 0.08, kb);
+      limbsModel(an, an.skyW, an.skyW,
+        setLimbs(_arms, ax, ay + fl + mx * 0.12, az, -ax, ay - fl - mx * 0.12, az, 0.7, sy - 0.25, -0.25, -0.7, sy - 0.25, -0.25),
+        setLimbs(_legs, lerp(0.2, 0.13, kd), lerp(lerp(0.42, 0.14, kd), 0.5, kb) + fl2, lerp(lerp(-0.4, -0.18, kd), -0.45, kb), -lerp(0.2, 0.13, kd), lerp(lerp(0.42, 0.14, kd), 0.5, kb) - fl2, lerp(lerp(-0.4, -0.18, kd), -0.45, kb), 0.25, 0.55, 0.6, -0.25, 0.55, 0.6));
+      addRot(an, "Head", "x", -0.35 * an.skyW); addRot(an, "neck_01", "x", -0.25 * an.skyW);
+    }
+    // lévitation : bras écartés qui ondulent, jambes pendantes
+    if (an.floatW > 0.01) {
+      const f = an.floatW, fp = an.fp, L = an.inst.tpl.L, sy = L.shoulderY, sp = fp.spread;
+      const wl = Math.sin(t * 0.9 + an.seed) * 0.05, wr = Math.sin(t * 0.9 + an.seed + 1.7) * 0.05;
+      const ly = sy - 0.08 + fp.up * 0.35, lz = 0.08 + fp.fwd * 0.4;
+      limbsModel(an, f, f,
+        setLimbs(_arms, 0.6 * sp, ly + wl, lz + wr * 0.6, -0.6 * sp, ly + wr, lz + wl * 0.6, 0.55, sy - 0.45, -0.3, -0.55, sy - 0.45, -0.3),
+        setLimbs(_legs,
+          0.15 + 0.03 * sp, 0.1 + fp.knee * 0.22 + Math.sin(t * 0.7 + an.seed) * 0.04, -0.06 - fp.knee * 0.12 + Math.sin(t * 0.8 + an.seed) * 0.07,
+          -0.15 - 0.03 * sp, 0.16 + fp.knee * 0.28 + Math.sin(t * 0.7 + an.seed + 2) * 0.04, -0.1 - fp.knee * 0.14 + Math.sin(t * 0.8 + an.seed + 2.4) * 0.07,
+          0.2, 0.55, 0.7, -0.2, 0.55, 0.7));
     }
   }
-  // repère « poing fermé » de la main droite : manche vers le haut du poing, tête vers l'avant
-  const TOOL_OFFSET = new T.Matrix4().compose(new T.Vector3(-0.03, 0.085, 0.0), new T.Quaternion().setFromEuler(new T.Euler(-Math.PI / 2 - 0.7, 0, 0)), new T.Vector3(1, 1, 1));
 
   const API = (root.AZCh1Models = {
     LOOKS, RECRUITS, load, bodyInfo, getTemplate, instantiate, Animator, clip, lookSpec, resolveEq, request, attach, drive, templates,
-    TOOL_OFFSET, preload() {
+    GUNS, HOLDS, LOCO, GAIT, SWING, FLOAT, PHASE, ACTS, EMOTES, RELOADS, preload() {
       return Promise.all([load("anims"), bodyInfo("m"), bodyInfo("f")]).then(() => {
         getTemplate("char-kai").then((t) => (templates["char-kai"].ready = t));
         for (let i = 0; i < RECRUITS.length; i++) getTemplate("char-kai", i).then((t) => (templates[templateKey("char-kai", i)].ready = t));
@@ -1119,7 +1863,28 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     },
   });
 
+  API.gesture = markAct; // ex. AZCh1Models.gesture(joueur.id, "door") pour une porte ouverte par un autre module
+
   /* ------------------------------------------------------------ crochets dans le jeu */
+  // les événements du jeu déclenchent les gestes : objet ramassé, coffre ouvert, construction modifiée
+  const ZS = root.AZSim, WP = ZS && ZS.World && ZS.World.prototype;
+  if (WP && typeof WP._emit === "function" && !WP.__ch1Acts) {
+    WP.__ch1Acts = true;
+    const prevEmit = WP._emit;
+    WP._emit = function (type, x, y, z, more) {
+      const r = prevEmit.apply(this, arguments);
+      if (more && more.playerId != null && (type === "loot" || type === "edit")) {
+        let kind = type;
+        if (type === "loot") {
+          kind = "pickup";
+          const o = this.objects || [];
+          for (let i = 0; i < o.length; i++) if (o[i].type === "chest" && o[i].opened && Math.abs(o[i].x - x) < 0.01 && Math.abs(o[i].z - z) < 0.01) { kind = "chest"; break; }
+        }
+        markAct(more.playerId, kind);
+      }
+      return r;
+    };
+  }
   const A = root.AZArt, V = root.AZView && root.AZView.View;
   if (A && typeof A.avatar === "function" && !A.__ch1Models) {
     A.__ch1Models = true;

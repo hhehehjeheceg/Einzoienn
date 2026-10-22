@@ -52,18 +52,86 @@
     if (gone.size) w.objects = w.objects.filter((o) => !gone.has(o));
     return gone.size;
   }
+  /* v94 — types d'architecture : chaque bâtiment reçoit un modèle propre (forme, toit, matériaux,
+   * façades, intérieur), pas seulement une autre couleur. Inspirés des lieux du Chapitre 1 (ville de
+   * tours en brique avec une tour de l'horloge, banlieue de maisons à pignon, ferme et granges, port
+   * et entrepôts, village en adobe, villas de bord de mer, chalets, pagodes), dessins originaux.
+   * roof.t : flat (terrasse), gz (pignon, faîtage nord-sud), gx (faîtage est-ouest), hip (croupe),
+   * gam (toit de grange) ; s = pente. Le toit est une vraie surface de marche (supportAt). */
+  const ARCH = {
+    tower: { floors: [6, 10], roof: { t: "flat" }, inside: "home" },
+    office: { floors: [8, 13], roof: { t: "flat" }, inside: "office" },
+    apart: { floors: [4, 7], roof: { t: "flat" }, inside: "home" },
+    shops: { floors: [2, 3], roof: { t: "flat" }, inside: "shop" },
+    clock: { floors: [12, 14], roof: { t: "hip", s: 1.05 }, inside: "office" },
+    harbor: { floors: [3, 5], roof: { t: "gz", s: .95 }, inside: "home" },
+    depot: { floors: [2, 3], roof: { t: "gz", s: .2 }, inside: "depot" },
+    suburb: { floors: [3, 3], roof: { t: "gz", s: .55 }, inside: "home" },
+    brick: { floors: [2, 3], roof: { t: "hip", s: .5 }, inside: "home" },
+    cabin: { floors: [2, 3], roof: { t: "gx", s: .62 }, inside: "home" },
+    chalet: { floors: [3, 4], roof: { t: "gz", s: .9 }, inside: "home" },
+    farm: { floors: [3, 3], roof: { t: "gx", s: .6 }, inside: "home" },
+    barn: { floors: [2, 3], roof: { t: "gam" }, inside: "barn" },
+    adobe: { floors: [2, 4], roof: { t: "flat" }, inside: "home" },
+    diner: { floors: [2, 2], roof: { t: "flat" }, inside: "diner" },
+    motel: { floors: [2, 3], roof: { t: "flat" }, inside: "home" },
+    villa: { floors: [3, 4], roof: { t: "flat" }, inside: "home" },
+    deco: { floors: [4, 6], roof: { t: "flat" }, inside: "home" },
+    lab: { floors: [3, 5], roof: { t: "flat" }, inside: "lab" },
+    pagoda: { floors: [3, 5], roof: { t: "hip", s: .62 }, inside: "pagoda" },
+  };
+  const MIX = {
+    citadel: [["tower", 3], ["office", 2], ["apart", 2.5], ["shops", 2.5]],
+    port: [["harbor", 3.5], ["depot", 2.5], ["tower", 1.5], ["apart", 2]],
+    forest: [["suburb", 5], ["brick", 3], ["cabin", 2]],
+    farm: [["farm", 4], ["barn", 4], ["brick", 2]],
+    desert: [["adobe", 5], ["diner", 1.5], ["motel", 2.5], ["shops", 1]],
+    lagoon: [["villa", 5], ["deco", 4], ["suburb", 1]],
+    cliff: [["chalet", 6], ["cabin", 4]],
+    observatory: [["lab", 6], ["chalet", 2], ["office", 2]],
+  };
+  const LONG = { citadel: [["shops", 5], ["tower", 3], ["apart", 2]], port: [["depot", 6], ["apart", 4]], desert: [["motel", 7], ["shops", 3]], lagoon: [["villa", 7], ["deco", 3]], farm: [["barn", 8], ["farm", 2]] };
+  function pick(list, k) { let t = 0; for (const e of list) t += e[1]; let a = k * t; for (const e of list) { a -= e[1]; if (a <= 0) return e[0]; } return list[list.length - 1][0]; }
+  function assignArch(w, o, clockIds) {
+    const style = o.style || "", reg = S.regions[o.region] || {}, k = hash((o.seed || 1) * 7 + 5);
+    let arch;
+    if (clockIds.has(o)) arch = "clock";
+    else if (/Sources Turquoise/.test(reg.name || "")) arch = "pagoda";
+    else if (o._merged && LONG[style]) arch = pick(LONG[style], k);
+    else arch = pick(MIX[style] || MIX.forest, k);
+    const A0 = ARCH[arch], lo = A0.floors[0], hi = A0.floors[1];
+    let floors = lo + Math.floor(hash((o.seed || 1) * 13 + 2) * (hi - lo + .999));
+    if (o._merged && arch !== "shops" && arch !== "motel" && arch !== "barn") floors += 1;
+    if (reg.layout === "hamlet") floors = Math.max(2, floors - 1);
+    o._arch = arch; o._roof = A0.roof; o._inside = A0.inside;
+    return Math.min(14, Math.max(2, floors));
+  }
+  // hauteur du dessus du toit au-dessus de o.y + o.h, en coordonnées locales
+  const RB = .45;
+  function roofTop(o, lx, lz) {
+    const r = o._roof || { t: "flat" }, w = o.w, d = o.d, ex = Math.max(0, w - Math.abs(lx)), ez = Math.max(0, d - Math.abs(lz));
+    if (r.t === "gz") return RB + ex * r.s;
+    if (r.t === "gx") return RB + ez * r.s;
+    if (r.t === "hip") return RB + Math.min(ex, ez) * r.s;
+    if (r.t === "gam") { const a = w * .5; return RB + (ex < a ? ex * 1.5 : a * 1.5 + (ex - a) * .42); }
+    return .24;
+  }
+  P.__ch1RoofTop = roofTop;
   function upgradeTowns(w) {
     const W = S.MAP.waiting, added = [];
     w._ch1Merged = mergeLots(w);
+    // une tour de l'horloge au cœur de chaque grande ville
+    const clockIds = new Set();
+    S.regions.forEach((reg, ri) => {
+      if (reg.style !== "citadel" || reg.layout) return;
+      let best = null, bd = 1e9;
+      for (const o of w.objects) if (o.type === "house" && !o.dead && o.region === ri && !o._merged) { const dd = Math.hypot(o.x - reg.x, o.z - reg.z); if (dd < bd) { bd = dd; best = o; } }
+      if (best) clockIds.add(best);
+    });
     for (const o of w.objects) {
       if (o.type !== "house" || o.dead || Math.hypot(o.x - W.x, o.z - W.z) < (W.radius || 82) + 60) continue;
-      const k = hash(o.seed || o.x * 7 + o.z), k2 = hash((o.seed || 1) * 3 + 11), style = o.style || "";
-      let floors = o.floors || 1;
-      if (style === "citadel") floors = Math.max(floors, 6 + Math.floor(k * 6.99));
-      else if (style === "port") floors = Math.max(floors, 5 + Math.floor(k * 4.99));
-      else if (style === "hamlet" || style === "farm") floors = Math.max(floors, 2 + (k < .45 ? 1 : 0));
-      else floors = Math.max(floors, 3 + Math.floor(k * 2.99));
-      floors = Math.min(o._merged ? 14 : 12, floors + (o._merged ? 1 : 0));
+      const k2 = hash((o.seed || 1) * 3 + 11);
+      const floors = assignArch(w, o, clockIds);
       if (!o._merged) {
         o.w = Math.min(6.6, Math.max(o.w || 5, 5.5 + k2 * 1.1));
         o.d = Math.min(6.4, Math.max(o.d || o.w, 5.5 + hash(k2 * 977) * .9));
@@ -98,25 +166,45 @@
   };
 
   /* ------------------------------------------------------ surfaces de marche */
+  /* Les bâtiments typés (o._arch) sont entièrement traités ici : planchers, volées d'escalier et toit
+   * propre au modèle. Pour la requête d'origine (terrain, constructions, rochers), ils sont
+   * momentanément ignorés (drapeau dead posé puis rendu dans le même appel). */
   const prevSupport = P.supportAt;
+  const _hid = [];
   P.supportAt = function (x, z, currentY) {
-    let best = prevSupport.call(this, x, z, currentY);
     const near = this._objectsAt ? this._objectsAt(x, z) : [];
     const limit = currentY == null ? Infinity : currentY + .8;
-    for (let i = 0; i < near.length; i++) {
-      const o = near[i];
-      if (o.dead || o.type !== "house" || !o._stair || (o.floors || 1) < 2) continue;
-      const st = o._stair, q = toLocal(o, x, z);
-      if (q.x < st.x0 || q.x > st.x1 || q.z < st.z0 - .3 || q.z > st.z1 + .3) continue;
-      // dans la cage d'escalier : pas de plancher au-dessus du rez-de-chaussée, seulement les volées
-      let b = Math.max(S.heightAt(x, z), o.y);
-      for (let f = 0; f < o.floors - 1; f++) { const h = flightHeight(o, st, f, q.z); if (h <= limit && h > b) b = h; }
-      const flat = ["citadel", "port", "desert", "observatory"].indexOf(o.style) >= 0;
-      const roof = o.y + o.h + (flat ? .24 : 1.27 + (o.w / 2 - Math.abs(q.x)) * Math.tan(.28));
+    let n = 0;
+    for (let i = 0; i < near.length; i++) { const o = near[i]; if (!o.dead && o.type === "house" && o._arch) { o.dead = true; _hid[n++] = o; } }
+    let best;
+    try { best = prevSupport.call(this, x, z, currentY); } finally { for (let i = 0; i < n; i++) _hid[i].dead = false; }
+    for (let i = 0; i < n; i++) {
+      const o = _hid[i], q = toLocal(o, x, z);
+      _hid[i] = null;
+      if (Math.abs(q.x) >= o.w - .25 || Math.abs(q.z) >= o.d - .25) continue;
+      const st = o._stair, floors = o.floors || 1;
+      let b = -Infinity;
+      if (st && floors >= 2 && q.x >= st.x0 && q.x <= st.x1 && q.z >= st.z0 - .3 && q.z <= st.z1 + .3) {
+        // dans la cage d'escalier : pas de plancher au-dessus du rez-de-chaussée, seulement les volées
+        b = o.y;
+        for (let f = 0; f < floors - 1; f++) { const h = flightHeight(o, st, f, q.z); if (h <= limit && h > b) b = h; }
+      } else {
+        const deck = o.y + Math.max(0, Math.min(floors - 1, Math.floor((limit - o.y) / FLOOR))) * FLOOR;
+        if (deck <= limit) b = deck;
+      }
+      const roof = o.y + o.h + roofTop(o, q.x, q.z);
       if (roof <= limit && roof > b) b = roof;
-      best = b; // la cage remplace les planchers de ce bâtiment à cet endroit
+      if (b > best) best = b;
     }
     return best;
+  };
+  /* Au-dessus du rez-de-chaussée, la façade nord est pleine (la porte ne fait qu'un étage). */
+  const prevBlocked = P._houseBlocked;
+  if (prevBlocked) P._houseBlocked = function (o, x, z, r, y) {
+    if (prevBlocked.call(this, o, x, z, r, y)) return true;
+    if (!o._arch || y == null || y < o.y + 3.1 || y >= o.y + o.h - .05) return false;
+    const q = toLocal(o, x, z);
+    return Math.abs(q.z + o.d) < .42 + r && Math.abs(q.x) <= 1.8 + r;
   };
 
   /* ------------------------------------------------------------- dessin */
