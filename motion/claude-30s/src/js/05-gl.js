@@ -5,7 +5,9 @@
 const GLC = document.getElementById('gl') || document.createElement('canvas');
 GLC.width = W; GLC.height = H;
 const R3 = new THREE.WebGLRenderer({ canvas: GLC, antialias: !new URLSearchParams(location.search).has('noaa'), alpha: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
-R3.setPixelRatio(1); R3.setSize(W, H, false);
+// ?lowres=480: the 3D is rendered at that height and scaled into the 1080 frame (the 3D is most of the render time)
+const GL_RATIO = (+new URLSearchParams(location.search).get('lowres') || H) / H;
+R3.setPixelRatio(GL_RATIO); R3.setSize(W, H, false);
 R3.outputColorSpace = THREE.SRGBColorSpace;
 R3.toneMapping = THREE.NeutralToneMapping; R3.toneMappingExposure = 1.0;
 R3.setClearColor(0x000000, 1);
@@ -122,7 +124,7 @@ class Cloud {
   }
   commit(count = this.n) {
     for (let i = count; i < this.n; i++) this.size[i] = 0, this.col[i * 4 + 3] = 0;
-    this.mat.uniforms.uScale.value = H / (2 * Math.tan(CAM.fov * Math.PI / 360));
+    this.mat.uniforms.uScale.value = H * GL_RATIO / (2 * Math.tan(CAM.fov * Math.PI / 360));
     for (const k of ['position', 'size', 'col']) this.geo.attributes[k].needsUpdate = true;
   }
 }
@@ -133,5 +135,5 @@ function sceneGroup() { const g = group(); GROUPS.push(g); return g; }
 function render3D() {
   BGT.needsUpdate = true;
   R3.render(S3, CAM);
-  ctx.drawImage(GLC, 0, 0);
+  ctx.drawImage(GLC, 0, 0, W, H);
 }

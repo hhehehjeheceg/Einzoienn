@@ -14,7 +14,8 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, 'out');
-const URL_ = 'file://' + path.join(HERE, 'claude-30s.html') + '?render=1&noaa';
+const OUTH = +(process.env.OUTH || 1080), OUTW = Math.round(OUTH * 16 / 9 / 2) * 2;   // OUTH=480 -> 854x480
+const URL_ = 'file://' + path.join(HERE, 'claude-30s.html') + '?render=1&noaa' + (OUTH < 1080 ? `&lowres=${OUTH}&submin=2&submax=5` : '');
 const FPS = 60, TOTAL = 30 * FPS;
 const ARGS = ['--run-all-compositor-stages-before-draw', '--disable-threaded-animation', '--disable-checker-imaging',
   '--font-render-hinting=none', '--force-color-profile=srgb', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
@@ -30,7 +31,14 @@ async function open() {
 }
 // read the canvas pixels directly (lossless PNG)
 async function grab(page, f) {
-  const url = await page.evaluate(f => { window.renderFrame(f); return document.getElementById('c').toDataURL('image/png'); }, f);
+  const url = await page.evaluate(([f, w, h]) => {
+    window.renderFrame(f);
+    const c = document.getElementById('c');
+    if (w >= 1920) return c.toDataURL('image/png');
+    const o = window.__small || (window.__small = Object.assign(document.createElement('canvas'), { width: w, height: h }));
+    const g = o.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(c, 0, 0, w, h);
+    return o.toDataURL('image/png');
+  }, [f, OUTW, OUTH]);
   return Buffer.from(url.slice(url.indexOf(',') + 1), 'base64');
 }
 

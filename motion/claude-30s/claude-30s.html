@@ -55305,7 +55305,9 @@ const INITS = [];    // set-up that needs the fonts loaded (textures with text),
 const GLC = document.getElementById('gl') || document.createElement('canvas');
 GLC.width = W; GLC.height = H;
 const R3 = new THREE.WebGLRenderer({ canvas: GLC, antialias: !new URLSearchParams(location.search).has('noaa'), alpha: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
-R3.setPixelRatio(1); R3.setSize(W, H, false);
+// ?lowres=480: the 3D is rendered at that height and scaled into the 1080 frame (the 3D is most of the render time)
+const GL_RATIO = (+new URLSearchParams(location.search).get('lowres') || H) / H;
+R3.setPixelRatio(GL_RATIO); R3.setSize(W, H, false);
 R3.outputColorSpace = THREE.SRGBColorSpace;
 R3.toneMapping = THREE.NeutralToneMapping; R3.toneMappingExposure = 1.0;
 R3.setClearColor(0x000000, 1);
@@ -55422,7 +55424,7 @@ class Cloud {
   }
   commit(count = this.n) {
     for (let i = count; i < this.n; i++) this.size[i] = 0, this.col[i * 4 + 3] = 0;
-    this.mat.uniforms.uScale.value = H / (2 * Math.tan(CAM.fov * Math.PI / 360));
+    this.mat.uniforms.uScale.value = H * GL_RATIO / (2 * Math.tan(CAM.fov * Math.PI / 360));
     for (const k of ['position', 'size', 'col']) this.geo.attributes[k].needsUpdate = true;
   }
 }
@@ -55433,7 +55435,7 @@ function sceneGroup() { const g = group(); GROUPS.push(g); return g; }
 function render3D() {
   BGT.needsUpdate = true;
   R3.render(S3, CAM);
-  ctx.drawImage(GLC, 0, 0);
+  ctx.drawImage(GLC, 0, 0, W, H);
 }
 
 // ===== 10-fx.js =====
@@ -57044,7 +57046,8 @@ function composite(ts, alpha) {
 function post(t, f) { zoomBlur(zoomAmt(t)); glitch(glitchAmt(t), f); bloom(bloomAmt(t) + (inDrop(t) ? .18 * kickEnv(t) : 0)); chroma(caAmt(t) + (inDrop(t) ? .002 * kickEnv(t) : 0)); grain(f, t < T_FLOOD ? .065 : .04); }
 
 // motion-blur budget: sub-frames per output frame, more where things move fast; never blur across a hard cut
-function subN(t) { let n = 3; for (const [a, b, k] of SUBS) if (t >= a && t < b) n = Math.max(n, k); return Math.min(n, 9); }
+const SUBQ = new URLSearchParams(location.search), SUB_MIN = +(SUBQ.get('submin') || 3), SUB_MAX = +(SUBQ.get('submax') || 9);   // small renders need fewer samples
+function subN(t) { let n = SUB_MIN; for (const [a, b, k] of SUBS) if (t >= a && t < b) n = Math.max(n, k); return Math.min(n, SUB_MAX); }
 window.renderFrame = f => {
   CUR_F = f; const t0 = f / FPS, N = subN(t0);
   let lo = 0, hi = T - 1e-6;

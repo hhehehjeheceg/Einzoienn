@@ -79,7 +79,8 @@ function composite(ts, alpha) {
 function post(t, f) { zoomBlur(zoomAmt(t)); glitch(glitchAmt(t), f); bloom(bloomAmt(t) + (inDrop(t) ? .18 * kickEnv(t) : 0)); chroma(caAmt(t) + (inDrop(t) ? .002 * kickEnv(t) : 0)); grain(f, t < T_FLOOD ? .065 : .04); }
 
 // motion-blur budget: sub-frames per output frame, more where things move fast; never blur across a hard cut
-function subN(t) { let n = 3; for (const [a, b, k] of SUBS) if (t >= a && t < b) n = Math.max(n, k); return Math.min(n, 9); }
+const SUBQ = new URLSearchParams(location.search), SUB_MIN = +(SUBQ.get('submin') || 3), SUB_MAX = +(SUBQ.get('submax') || 9);   // small renders need fewer samples
+function subN(t) { let n = SUB_MIN; for (const [a, b, k] of SUBS) if (t >= a && t < b) n = Math.max(n, k); return Math.min(n, SUB_MAX); }
 window.renderFrame = f => {
   CUR_F = f; const t0 = f / FPS, N = subN(t0);
   let lo = 0, hi = T - 1e-6;
