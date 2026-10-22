@@ -1,0 +1,71 @@
+/* AZUR v94 — barres de vie et de bouclier façon Chapitre 1 (voir ch1-vitals-v94.js) */
+body.ch1-hud #ui .hud .v67-vitals { display: none !important; }
+.ch1-vitals {
+  position: absolute;
+  left: 41vw;
+  width: 19vw;
+  min-width: 220px;
+  bottom: 8.4vh;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+  z-index: 5;
+  font-family: var(--ch1h-font, "Luckiest Guy", "Arial Black", sans-serif);
+}
+.ch1v-row { position: relative; height: clamp(12px, 2.2vh, 17px); }
+.ch1v-ico {
+  position: absolute;
+  right: calc(100% + 6px);
+  top: 50%;
+  width: clamp(11px, 1.9vh, 15px);
+  height: clamp(11px, 1.9vh, 15px);
+  transform: translateY(-50%);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .55));
+}
+.ch1v-ico svg { width: 100%; height: 100%; fill: #fff; display: block; }
+.ch1v-bar {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: rgba(12, 16, 32, .7);
+}
+.ch1v-fill, .ch1v-trail { position: absolute; left: 0; top: 0; bottom: 0; width: 0; }
+.ch1v-trail { background: rgba(255, 255, 255, .85); z-index: 1; }
+.ch1v-fill { transition: width .12s linear; z-index: 2; }
+.ch1v-row.hp .ch1v-fill { background: linear-gradient(#5be03f, #43c62b); }
+.ch1v-row.sh .ch1v-fill { background: linear-gradient(#4fb3ff, #2f8fe8); }
+.ch1v-txt {
+  position: absolute;
+  left: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: clamp(10px, 1.75vh, 14px);
+  line-height: 1;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  z-index: 3;
+}
+.ch1v-txt b { color: #fff; font-weight: 400; text-shadow: 0 1px 1px rgba(0, 0, 0, .45); }
+.ch1v-txt s { width: 1px; height: 1em; background: rgba(255, 255, 255, .35); }
+.ch1v-row.hp .ch1v-txt em { color: #c6f7b4; font-style: normal; }
+.ch1v-row.sh .ch1v-txt em { color: #63b8ff; font-style: normal; }
+.ch1-vitals.down .ch1v-row.hp .ch1v-fill { background: linear-gradient(#ff6a5a, #e0412f); }
+
+/* chargeur / réserve juste au-dessus des barres */
+body.ch1-hud #ui .hud #ammo.ammo-readout { bottom: calc(8.4vh + 2 * clamp(12px, 2.2vh, 17px) + 14px) !important; }
+
+/* téléphone : centrées au-dessus de la barre d'objets */
+body.ch1-hud.touch-ui .ch1-vitals {
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(260px, 38vw);
+  min-width: 0;
+  bottom: 60px;
+}
+body.ch1-hud.touch-ui .ch1v-row { height: 13px; }
+body.ch1-hud.touch-ui .ch1v-txt { font-size: 11px; }
+body.ch1-hud.touch-ui #ui .hud #ammo.ammo-readout { bottom: 98px !important; }
