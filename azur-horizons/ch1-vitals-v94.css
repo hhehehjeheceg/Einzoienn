@@ -69,3 +69,6 @@ body.ch1-hud.touch-ui .ch1-vitals {
 body.ch1-hud.touch-ui .ch1v-row { height: 13px; }
 body.ch1-hud.touch-ui .ch1v-txt { font-size: 11px; }
 body.ch1-hud.touch-ui #ui .hud #ammo.ammo-readout { bottom: 98px !important; }
+
+/* v95 : pas de minuteur pendant une émote (comme dans le jeu d’origine, on bouge pour l’arrêter) */
+#emote-status,.v8-emote-status{display:none!important}
