@@ -90,15 +90,24 @@
     cliff: [["chalet", 6], ["cabin", 4]],
     observatory: [["lab", 6], ["chalet", 2], ["office", 2]],
   };
+  // v94 : mélanges propres à certains lieux (region.mix)
+  const MIXR = {
+    depot: [["depot", 6], ["shops", 1], ["brick", 1]], suburb: [["suburb", 5], ["brick", 3], ["farm", 1]],
+    palms: [["deco", 4], ["villa", 3], ["motel", 2], ["adobe", 1]], villa: [["villa", 7], ["deco", 3]],
+    mall: [["shops", 5], ["office", 2], ["apart", 2]], haunted: [["brick", 4], ["cabin", 3], ["chalet", 1]],
+    block: [["office", 3], ["deco", 3], ["villa", 2], ["lab", 2]], harbor: [["harbor", 6], ["depot", 2], ["cabin", 1]],
+    sunny: [["adobe", 5], ["deco", 3], ["villa", 2]], cabin: [["cabin", 6], ["chalet", 3]], pagoda: [["pagoda", 10]],
+  };
+  const LONGR = { mall: [["shops", 7], ["office", 3]], depot: [["depot", 8], ["shops", 2]], suburb: [["apart", 4], ["shops", 3], ["brick", 3]] };
   const LONG = { citadel: [["shops", 5], ["tower", 3], ["apart", 2]], port: [["depot", 6], ["apart", 4]], desert: [["motel", 7], ["shops", 3]], lagoon: [["villa", 7], ["deco", 3]], farm: [["barn", 8], ["farm", 2]] };
   function pick(list, k) { let t = 0; for (const e of list) t += e[1]; let a = k * t; for (const e of list) { a -= e[1]; if (a <= 0) return e[0]; } return list[list.length - 1][0]; }
   function assignArch(w, o, clockIds) {
     const style = o.style || "", reg = S.regions[o.region] || {}, k = hash((o.seed || 1) * 7 + 5);
     let arch;
     if (clockIds.has(o)) arch = "clock";
-    else if (/Sources Turquoise/.test(reg.name || "")) arch = "pagoda";
-    else if (o._merged && LONG[style]) arch = pick(LONG[style], k);
-    else arch = pick(MIX[style] || MIX.forest, k);
+    else if (reg.mix === "pagoda" || /Sources Turquoise/.test(reg.name || "")) arch = "pagoda";
+    else if (o._merged && (LONGR[reg.mix] || LONG[style])) arch = pick(LONGR[reg.mix] || LONG[style], k);
+    else arch = pick(MIXR[reg.mix] || MIX[style] || MIX.forest, k);
     const A0 = ARCH[arch], lo = A0.floors[0], hi = A0.floors[1];
     let floors = lo + Math.floor(hash((o.seed || 1) * 13 + 2) * (hi - lo + .999));
     if (o._merged && arch !== "shops" && arch !== "motel" && arch !== "barn") floors += 1;

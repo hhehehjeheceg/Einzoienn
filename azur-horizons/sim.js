@@ -2,6 +2,22 @@
 (function(root){
 'use strict';
 var TAU=Math.PI*2, SEA=-2;
+/* v94 — île « saison 8/9 » : si map-s8-data.js est chargé (navigateur), le contour, la neige,
+ * le désert, les forêts et la lave viennent des masques tirés de la carte de référence
+ * (tools/azur/map-s8.py). Sinon (test Node), l'ancienne île procédurale reste en place. */
+var MAPD=null;
+(function(){var D=root.AZMapS8;if(!D||!D.sdf)return;try{
+ var dec=function(t){if(typeof atob==='function'){var b=atob(t),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}return new Uint8Array(Buffer.from(t,'base64'));};
+ var sd=dec(D.sdf);MAPD={n:D.n,cell:D.cell,half:D.half,sdf:new Int8Array(sd.buffer,sd.byteOffset,sd.length),snow:dec(D.snow),desert:dec(D.desert),forest:dec(D.forest),lava:dec(D.lava)};
+}catch(e){MAPD=null;}})();
+function mapSample(a,x,z){var n=MAPD.n,c=MAPD.cell,fx=(x+MAPD.half)/c-.5,fz=(z+MAPD.half)/c-.5;if(fx<0)fx=0;else if(fx>n-1.001)fx=n-1.001;if(fz<0)fz=0;else if(fz>n-1.001)fz=n-1.001;var ix=fx|0,iz=fz|0,tx=fx-ix,tz=fz-iz,i=iz*n+ix;return (a[i]*(1-tx)+a[i+1]*tx)*(1-tz)+(a[i+n]*(1-tx)+a[i+n+1]*tx)*tz;}
+/* Lieux fixes de l'île v94 : rivière (de Loot Lake à la côte sud), cratère de la météorite près de
+ * la Méga Galerie, base de lancement de la fusée, pic enneigé, point de vue de l'événement. */
+var RIVER=[{x:-100,z:-150},{x:-94,z:-106},{x:-133,z:0},{x:-94,z:157},{x:-124,z:263},{x:-115,z:344},{x:-94,z:417},{x:-30,z:492},{x:12,z:543},{x:27,z:643},{x:33,z:760}];
+var METEOR_SITE={x:180,z:44,r:20},LAUNCH_SITE={x:-20,z:108,r:42,h:10},PEAK={x:-400,z:330,r:210,h:95},SPOT_S8={px:60,pz:290};
+var FORDS=[];
+function riverDist(x,z){if(x<-175||x>75||z<-190||z>800)return 1e9;var m=1e9;for(var i=1;i<RIVER.length;i++){var a=RIVER[i-1],b=RIVER[i],dx=b.x-a.x,dz=b.z-a.z,t=((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz);t=t<0?0:t>1?1:t;var e=Math.hypot(x-a.x-t*dx,z-a.z-t*dz);if(e<m)m=e;}return m;}
+function riverFord(x,z){for(var i=0;i<FORDS.length;i++)if(Math.abs(x-FORDS[i].x)<9&&Math.abs(z-FORDS[i].z)<9)return true;return false;}
 /* Île v68 : un grand cœur arrondi (les villes) prolongé de quatre péninsules
  * aux biomes marqués — volcan au nord-ouest, pics enneigés au nord-est, jungle
  * à l'ouest, canyon désertique au sud-est — plus un cap au nord, et creusé de
@@ -11,9 +27,9 @@ var MAP={halfSize:880,landRadius:800,shoreStart:720,shoreEnd:775,
  transport:{duration:38,startX:-700,startZ:420,velocityX:37,velocityZ:-22,altitude:1500}};
 var LOBES=[{x:-610,z:-540,r:185,zone:'volcano'},{x:590,z:-580,r:160,zone:'snow'},{x:-700,z:290,r:150,zone:'jungle'},{x:575,z:575,r:175,zone:'desert'},{x:30,z:-690,r:115,zone:'meadow'}];
 var BAYS=[[-90,700,230],[715,40,200],[-725,-120,185],[255,-715,165]];
-var VOLCANO={x:-640,z:-560,r:250,h:175,crater:40};
+var VOLCANO=MAPD?{x:411,z:-344,r:185,h:120,crater:76}:{x:-640,z:-560,r:250,h:175,crater:40};
 /* Lac des Reflets : eau douce au sud, avec un îlot et sa maison. */
-var LAKE={x:-115,z:465,r:52,isle:11};
+var LAKE=MAPD?{x:-105,z:-218,r:72,isle:20}:{x:-115,z:465,r:52,isle:11};
 var WORLD=MAP.halfSize, ISLAND=MAP.landRadius, MATCH_PARTICIPANTS=100;
 /* Metres/second; shared by local and LAN simulation, HUDs and behavior tests.
  * Looking down only adds a small controlled descent bias; sprint accelerates
@@ -26,6 +42,7 @@ var FLIGHT=Object.freeze({freefallSpeed:26,diveSpeed:30,gravity:16,diveGravity:2
 var EMOTE_STYLES=Object.freeze(['salut','danse','victoire','robot','etoile','toupie']);
 function smin(a,b,k){var h=Math.max(k-Math.abs(a-b),0)/k;return Math.min(a,b)-h*h*k*.25;}
 function coastDistance(x,z){
+ if(MAPD){var sdm=mapSample(MAPD.sdf,x,z)*4,wob=4*Math.sin(x*.043-z*.031)+3*Math.sin((x+z)*.071)+2*Math.sin(x*.13+z*.09);return Math.max(0,MAP.shoreEnd-1.15*(sdm+wob));}
  var ax=Math.abs(x),az=Math.abs(z)*1.02,p=4.5,i,q;
  var d=Math.pow(Math.pow(ax,p)+Math.pow(az,p),1/p)*720/628;
  for(i=0;i<LOBES.length;i++)d=smin(d,Math.hypot(x-LOBES[i].x,z-LOBES[i].z)/LOBES[i].r*720,110);
@@ -55,7 +72,7 @@ var weapons={
  dmr:{name:'DMR',damage:46,rate:1.7,range:210,spread:.008,clip:10,reserve:40,reload:1.8},
  launcher:{name:'Lanceur',damage:78,rate:.65,range:105,spread:.018,clip:1,reserve:8,reload:2.4}
 };
-var regions=[
+var regionsV68=[
  {name:'Port Corail',x:-350,z:350,color:'#f27865',biome:'sand',style:'port',padW:78,padD:76},
  {name:'Forêt d’Opale',x:-330,z:-225,color:'#44a882',biome:'grass',style:'forest',padW:72,padD:66},
  {name:'Dunes d’Or',x:115,z:350,color:'#e7b84d',biome:'desert',style:'desert',padW:76,padD:66},
@@ -88,6 +105,31 @@ var regions=[
  {name:'Station des Neiges',x:380,z:-520,color:'#8a9cff',biome:'snow',style:'observatory',layout:'hamlet',padW:50,padD:42},
  {name:'Fort du Canyon',x:580,z:680,color:'#c4673a',biome:'desert',style:'desert',layout:'hamlet',padW:50,padD:42}
 ];
+/* v94 : les lieux de la carte de référence (noms originaux). Les huit premiers gardent les styles
+ * des index 0 à 7 (cosmétiques, progression, entraînement). */
+var regions=MAPD?[
+ {name:'Entrepôts du Centre',x:140,z:-92,color:'#f27865',biome:'grass',style:'port',mix:'depot',padW:66,padD:58},
+ {name:'Bourg Plaisance',x:-353,z:-356,color:'#44a882',biome:'grass',style:'forest',mix:'suburb',padW:72,padD:66},
+ {name:'Palmes Dorées',x:509,z:365,color:'#e7b84d',biome:'desert',style:'desert',mix:'palms',padW:76,padD:66},
+ {name:'Citadelle Azur',x:-270,z:-20,color:'#4d91d4',biome:'grass',style:'citadel',padW:88,padD:82},
+ {name:'Pic Polaire',x:-400,z:330,color:'#9fd8ff',biome:'snow',style:'cliff',layout:'hamlet',peak:true,padW:50,padD:42},
+ {name:'Rivage Chic',x:-600,z:-55,color:'#27b9b1',biome:'grass',style:'lagoon',layout:'hamlet',mix:'villa',padW:50,padD:42},
+ {name:'Champs du Fermier',x:169,z:414,color:'#c77a52',biome:'grass',style:'farm',padW:64,padD:54},
+ {name:'Centrale du Volcan',x:411,z:-344,color:'#b36ac8',biome:'grass',style:'observatory',layout:'hamlet',crater:true,padW:50,padD:42},
+ {name:'Méga Galerie',x:450,z:57,color:'#44a882',biome:'grass',style:'forest',mix:'mall',padW:72,padD:66},
+ {name:'Sources Poivrées',x:127,z:178,color:'#44a882',biome:'grass',style:'forest',mix:'suburb',padW:72,padD:66},
+ {name:'Casse du Nord',x:-450,z:-605,color:'#f27865',biome:'grass',style:'port',layout:'hamlet',mix:'depot',padW:50,padD:42},
+ {name:'Collines Hantées',x:-520,z:-445,color:'#44a882',biome:'grass',style:'forest',layout:'hamlet',mix:'haunted',padW:50,padD:42},
+ {name:'Le Bloc',x:-202,z:-525,color:'#b36ac8',biome:'grass',style:'observatory',layout:'hamlet',mix:'block',padW:50,padD:42},
+ {name:'Anse Corsaire',x:250,z:-405,color:'#f27865',biome:'grass',style:'port',layout:'hamlet',mix:'harbor',padW:50,padD:42},
+ {name:'Marches du Soleil',x:546,z:-458,color:'#27b9b1',biome:'grass',style:'lagoon',layout:'hamlet',mix:'sunny',padW:50,padD:42},
+ {name:'Chalet Solitaire',x:620,z:-101,color:'#44a882',biome:'grass',style:'forest',layout:'hamlet',mix:'cabin',padW:50,padD:42},
+ {name:'Mines du Givre',x:-222,z:203,color:'#9fd8ff',biome:'snow',style:'cliff',layout:'hamlet',padW:50,padD:42},
+ {name:'Base Aérienne du Givre',x:-545,z:385,color:'#b36ac8',biome:'snow',style:'observatory',layout:'hamlet',padW:50,padD:42},
+ {name:'Chalets Joyeux',x:-281,z:556,color:'#9fd8ff',biome:'snow',style:'cliff',layout:'hamlet',padW:50,padD:42},
+ {name:'Pagode Lotus',x:135,z:623,color:'#27b9b1',biome:'grass',style:'lagoon',layout:'hamlet',mix:'pagoda',padW:50,padD:42},
+ {name:'Fort du Canyon',x:330,z:520,color:'#e7b84d',biome:'desert',style:'desert',layout:'hamlet',padW:50,padD:42}
+]:regionsV68;
 var streets=[];
 /* Each district grid has road lanes between every house row/column.  Keeping
  * this data separate from render geometry makes minimaps and decorations agree
@@ -99,7 +141,7 @@ function makeDistrictStreets(r,cols,rows,sx,sz){
  for(var row=0;row<=rows;row++){var zz=top+row*sz;streets.push([{x:left,z:zz},{x:right,z:zz}]);}
 }
 /* Polylines are deliberately data, not colliders: the renderer can draw roads cheaply. */
-var roads=[
+var roadsV68=[
  [{x:-416.5,z:350},{x:-440,z:200},{x:-200,z:110},{x:-61,z:20}],
  [{x:-390,z:-225},{x:-430,z:-140},{x:-185,z:-70},{x:-61,z:-56}],
  [{x:115,z:303},{x:150,z:230},{x:100,z:102},{x:91,z:20}],
@@ -122,13 +164,39 @@ var roads=[
  [{x:-61,z:-56},{x:-5,z:-160},{x:-5,z:-235}],
  [{x:450,z:-100},{x:430,z:-145}]
 ];
+var roads=MAPD?[]:roadsV68;
+/* v94 : réseau routier de l'île de référence. Arbre couvrant de longueur minimale entre les villes
+ * (plus un second lien pour les villes isolées), routes courbes qui évitent la mer, le lac, le cratère
+ * du volcan et les autres villes ; un gué là où une route franchit la rivière. */
+function genRoadsS8(){
+ var nodes=regions.map(function(r){var g=districtGrid[r.layout||r.style],n=districtDensity[r.layout||r.style],rows=Math.ceil(n/g.cols);return {r:r,x:r.x,z:r.z,hw:g.cols*g.sx/2,hd:rows*g.sz/2};});
+ nodes.push({r:null,x:LAUNCH_SITE.x,z:LAUNCH_SITE.z,hw:LAUNCH_SITE.r,hd:LAUNCH_SITE.r});
+ function exitPt(a,tx,tz){var dx=tx-a.x,dz=tz-a.z;if(Math.abs(dx)/a.hw>Math.abs(dz)/a.hd)return {x:a.x+(dx>0?a.hw:-a.hw),z:a.z+clamp(dz/Math.max(1,Math.abs(dx))*a.hw,-a.hd*.6,a.hd*.6)};return {x:a.x+clamp(dx/Math.max(1,Math.abs(dz))*a.hd,-a.hw*.6,a.hw*.6),z:a.z+(dz>0?a.hd:-a.hd)};}
+ function okPt(x,z,a,b){if(coastDistance(x,z)>MAP.shoreStart-14)return false;if(Math.hypot(x-LAKE.x,z-LAKE.z)<LAKE.r*1.3)return false;var vr=Math.hypot(x-VOLCANO.x,z-VOLCANO.z);if(vr<VOLCANO.crater*1.15&&!((a.r&&a.r.crater)||(b.r&&b.r.crater)))return false;if(Math.hypot(x-METEOR_SITE.x,z-METEOR_SITE.z)<METEOR_SITE.r+8)return false;
+  for(var i=0;i<nodes.length;i++){var q=nodes[i];if(q===a||q===b)continue;if(Math.abs(x-q.x)<q.hw+6&&Math.abs(z-q.z)<q.hd+6)return false;}return true;}
+ function curve(p0,c,p1){var pts=[];for(var k=0;k<=6;k++){var t=k/6,u=1-t;pts.push({x:u*u*p0.x+2*u*t*c.x+t*t*p1.x,z:u*u*p0.z+2*u*t*c.z+t*t*p1.z});}return pts;}
+ function tryPath(a,b){var p0=exitPt(a,b.x,b.z),p1=exitPt(b,a.x,a.z),dx=p1.x-p0.x,dz=p1.z-p0.z,L=Math.hypot(dx,dz)||1,offs=[0,.18,-.18,.32,-.32];
+  for(var o=0;o<offs.length;o++){var c={x:(p0.x+p1.x)/2-dz/L*offs[o]*L,z:(p0.z+p1.z)/2+dx/L*offs[o]*L},pts=curve(p0,c,p1),good=true;
+   for(var k=1;k<pts.length&&good;k++){var s0=pts[k-1],s1=pts[k],n=Math.max(1,Math.ceil(Math.hypot(s1.x-s0.x,s1.z-s0.z)/10));for(var j=0;j<=n;j++){var t=j/n;if(!okPt(s0.x+(s1.x-s0.x)*t,s0.z+(s1.z-s0.z)*t,a,b)){good=false;break;}}}
+   if(good)return pts;}return null;}
+ var cand=[];for(var i=0;i<nodes.length;i++)for(var j=i+1;j<nodes.length;j++){var d=Math.hypot(nodes[i].x-nodes[j].x,nodes[i].z-nodes[j].z);if(d<560)cand.push({i:i,j:j,d:d});}
+ cand.sort(function(p,q){return p.d-q.d;});
+ var par=nodes.map(function(_,k){return k;}),deg=nodes.map(function(){return 0;}),linked={};
+ function find(k){while(par[k]!==k)k=par[k]=par[par[k]];return k;}
+ function add(e,pts){roads.push(pts);deg[e.i]++;deg[e.j]++;linked[e.i+','+e.j]=true;}
+ for(var c=0;c<cand.length;c++){var e=cand[c],ri=find(e.i),rj=find(e.j);if(ri===rj)continue;var pts=tryPath(nodes[e.i],nodes[e.j]);if(!pts)continue;par[ri]=rj;add(e,pts);}
+ for(c=0;c<cand.length;c++){e=cand[c];if(linked[e.i+','+e.j]||e.d>430||(deg[e.i]>=2&&deg[e.j]>=2))continue;pts=tryPath(nodes[e.i],nodes[e.j]);if(pts)add(e,pts);}
+ // gués : intersections des routes et de la rivière
+ for(var ri2=0;ri2<roads.length;ri2++)for(var k=1;k<roads[ri2].length;k++){var A=roads[ri2][k-1],B=roads[ri2][k];for(var m=1;m<RIVER.length;m++){var C=RIVER[m-1],D2=RIVER[m],den=(B.x-A.x)*(D2.z-C.z)-(B.z-A.z)*(D2.x-C.x);if(Math.abs(den)<1e-9)continue;var t1=((C.x-A.x)*(D2.z-C.z)-(C.z-A.z)*(D2.x-C.x))/den,t2=((C.x-A.x)*(B.z-A.z)-(C.z-A.z)*(B.x-A.x))/den;if(t1>=0&&t1<=1&&t2>=0&&t2<=1)FORDS.push({x:A.x+(B.x-A.x)*t1,z:A.z+(B.z-A.z)*t1});}}
+}
 /* Layout parameters are data too: map generation and street lines use exactly
  * the same lattice, leaving clear roads between non-overlapping houses. */
 var districtDensity={hamlet:12,port:42,citadel:48,forest:30,desert:30,cliff:26,lagoon:26,farm:25,observatory:27};
 var districtGrid={hamlet:{cols:4,sx:19,sz:18},port:{cols:7,sx:19,sz:19},citadel:{cols:8,sx:19,sz:19},forest:{cols:6,sx:20,sz:19},desert:{cols:6,sx:20,sz:19},cliff:{cols:6,sx:19,sz:18},lagoon:{cols:6,sx:19,sz:18},farm:{cols:5,sx:21,sz:19},observatory:{cols:6,sx:19,sz:18}};
 for(var _si=0;_si<regions.length;_si++){var _sr=regions[_si],_sg=districtGrid[_sr.layout||_sr.style],_sn=districtDensity[_sr.layout||_sr.style],_srows=Math.ceil(_sn/_sg.cols);makeDistrictStreets(_sr,_sg.cols,_srows,_sg.sx,_sg.sz);}
+if(MAPD)genRoadsS8();
 /* v71 : chaque hameau est relié au réseau existant par une route de campagne. */
-(function(){var base=roads.slice();for(var hi=0;hi<regions.length;hi++){var hr=regions[hi];if(hr.layout!=='hamlet')continue;
+if(!MAPD)(function(){var base=roads.slice();for(var hi=0;hi<regions.length;hi++){var hr=regions[hi];if(hr.layout!=='hamlet')continue;
  var best=null;for(var ri=0;ri<base.length;ri++)for(var rj=1;rj<base[ri].length;rj++){var a=base[ri][rj-1],b=base[ri][rj],dx=b.x-a.x,dz=b.z-a.z,t=clamp(((hr.x-a.x)*dx+(hr.z-a.z)*dz)/(dx*dx+dz*dz),0,1),px=a.x+dx*t,pz=a.z+dz*t,dd=Math.hypot(hr.x-px,hr.z-pz);if(!best||dd<best.d)best={x:px,z:pz,d:dd};}
  if(!best)continue;var g=districtGrid.hamlet,rows=Math.ceil(districtDensity.hamlet/g.cols),hw=g.cols*g.sx/2,hd=rows*g.sz/2;
  var ex=clamp(best.x,hr.x-hw,hr.x+hw),ez=clamp(best.z,hr.z-hd,hr.z+hd);if(Math.abs(best.x-hr.x)/hw>Math.abs(best.z-hr.z)/hd)ex=hr.x+(best.x>hr.x?hw:-hw);else ez=hr.z+(best.z>hr.z?hd:-hd);
@@ -146,7 +214,7 @@ function routeDist(x,z){
 }
 function townPad(x,z,margin){for(var i=0;i<regions.length;i++){var r=regions[i];if(Math.abs(x-r.x)<(r.padW||40)+margin&&Math.abs(z-r.z)<(r.padD||40)+margin)return r;}return null;}
 /* Champ de forêt (-2..2) : les massifs boisés de l'île, partagé avec le rendu. */
-function forestField(x,z){return Math.sin(x*.0113+1.7)*Math.cos(z*.0127-.4)+Math.sin((x*.6-z)*.0071+2.1)*.8+Math.sin((x+z*.7)*.0231)*.35;}
+function forestField(x,z){if(MAPD)return mapSample(MAPD.forest,x,z)/255*3.4-1.3+.25*Math.sin(x*.05)*Math.cos(z*.047);return Math.sin(x*.0113+1.7)*Math.cos(z*.0127-.4)+Math.sin((x*.6-z)*.0071+2.1)*.8+Math.sin((x+z*.7)*.0231)*.35;}
 function RNG(seed){ this.s=(seed>>>0)||123456789; }
 RNG.prototype.next=function(){ var t=this.s+=0x6D2B79F5; t=Math.imul(t^(t>>>15),t|1); t^=t+Math.imul(t^(t>>>7),t|61); return ((t^(t>>>14))>>>0)/4294967296; };
 RNG.prototype.range=function(a,b){ return a+(b-a)*this.next(); };
@@ -156,6 +224,8 @@ function lobeWeight(i,x,z){var L=LOBES[i];return 1-smoothRangeRaw(.5,1.05,Math.h
 function smoothRangeRaw(a,b,v){var t=Math.min(1,Math.max(0,(v-a)/(b-a)));return t*t*(3-2*t);}
 /* Poids des zones (0..1) : sert au relief, aux couleurs et aux décors. */
 function zoneWeights(x,z){
+ if(MAPD){var land0=1-smoothRangeRaw(MAP.shoreEnd,MAP.shoreEnd+60,coastDistance(x,z)),vr0=Math.hypot(x-VOLCANO.x,z-VOLCANO.z);
+  return {volcano:(1-smoothRangeRaw(VOLCANO.crater*.85,VOLCANO.crater*1.45,vr0))*land0,snow:mapSample(MAPD.snow,x,z)/255*land0,jungle:0,desert:mapSample(MAPD.desert,x,z)/255*land0,meadow:0,lava:mapSample(MAPD.lava,x,z)/255*land0};}
  /* Frontières ondulées : les zones se fondent les unes dans les autres. */
  var wx=x+38*Math.sin(z*.012+1.3)+18*Math.sin(z*.031),wz=z+38*Math.sin(x*.011-.7)+16*Math.sin(x*.029);
  var oldSnow=smoothRangeRaw(215,295,wx)*(1-smoothRangeRaw(-150,-50,wz)),oldDesert=smoothRangeRaw(-80,0,wx)*smoothRangeRaw(215,305,wz);
@@ -173,10 +243,12 @@ function biomeAt(x,z){
  if(d>=MAP.shoreStart)return 'sand';
  var zn=zoneAt(x,z);
  if(zn==='snow'||zn==='desert'||zn==='volcano')return zn;
+ if(zn==='lava')return 'volcano';
  return 'grass';
 }
 function smoothRange(a,b,v){var t=clamp((v-a)/(b-a),0,1);return t*t*(3-2*t);}
 function rawHeight(x,z){
+ if(MAPD)return rawHeightS8(x,z);
  var d=coastDistance(x,z), land=12+noise(x,z), w=zoneWeights(x,z);
  /* Pics enneigés : l'ancienne crête du nord-est et la nouvelle péninsule. */
  var ridge=Math.abs(Math.sin(x*.021+Math.sin(z*.017)*1.6))*.6+Math.abs(Math.sin(z*.026-x*.009))*.4;
@@ -198,6 +270,39 @@ function rawHeight(x,z){
  if(d>=MAP.shoreEnd)return SEA-3-Math.min(30,(d-MAP.shoreEnd)*.04);
  var t=(d-MAP.shoreStart)/(MAP.shoreEnd-MAP.shoreStart);t=t*t*(3-2*t);return land*(1-t)+(SEA-3)*t;
 }
+function rawHeightS8(x,z){
+ var d=coastDistance(x,z),w=zoneWeights(x,z),land=12+noise(x,z)*.5,ff=mapSample(MAPD.forest,x,z)/255;
+ /* l'intérieur des terres ne descend jamais sous la mer (seuls le lac et la rivière y descendent) */
+ if(land<5)land=5-(5-land)*.15;
+ /* collines boisées, plus hautes au nord-ouest (Collines Hantées, Bourg Plaisance) */
+ land+=ff*(4+5*Math.sin(x*.027+.4)*Math.cos(z*.024));
+ land+=Math.max(0,1-Math.hypot(x+480,z+450)/340)*15*(.65+.35*Math.sin(x*.021)*Math.sin(z*.019));
+ /* neige : relief accidenté et le Pic Polaire */
+ var ridge=Math.abs(Math.sin(x*.021+Math.sin(z*.017)*1.6))*.6+Math.abs(Math.sin(z*.026-x*.009))*.4;
+ land+=w.snow*(8+ridge*26);
+ var pp=Math.hypot(x-PEAK.x,z-PEAK.z);land+=Math.pow(Math.max(0,1-pp/PEAK.r),1.5)*PEAK.h*Math.max(.35,w.snow);
+ /* désert : dunes basses et mésas à sommet plat */
+ var mesa=smoothRange(.58,.66,(Math.sin(x*.031)*Math.cos(z*.027)+1)*.5)*22;
+ land=land*(1-w.desert)+(7+noise(x,z)*.35+mesa)*w.desert;
+ /* volcan : cône, cratère au fond plat où se trouve la centrale */
+ var vr=Math.hypot(x-VOLCANO.x,z-VOLCANO.z);
+ if(vr<VOLCANO.r){var hc=VOLCANO.h*Math.pow(1-VOLCANO.crater/VOLCANO.r,1.25),cone=vr>VOLCANO.crater?VOLCANO.h*Math.pow(1-vr/VOLCANO.r,1.25):hc-22*(1-smoothRange(VOLCANO.crater*.6,VOLCANO.crater,vr));land=land*(1-smoothRange(VOLCANO.r,VOLCANO.r*.55,vr)*.55)+cone;}
+ /* coulée de lave : lit légèrement creusé */
+ land-=w.lava*1.8;
+ /* cratère de la météorite */
+ var mr=Math.hypot(x-METEOR_SITE.x,z-METEOR_SITE.z);if(mr<METEOR_SITE.r*2){land+=Math.exp(-Math.pow((mr-METEOR_SITE.r)/7,2))*2.4-Math.pow(Math.max(0,1-mr/METEOR_SITE.r),1.6)*6;}
+ /* base de lancement : plate-forme plane */
+ var lr0=Math.hypot(x-LAUNCH_SITE.x,z-LAUNCH_SITE.z);if(lr0<LAUNCH_SITE.r+30){var tl=smoothRange(LAUNCH_SITE.r,LAUNCH_SITE.r+30,lr0);land=LAUNCH_SITE.h*(1-tl)+land*tl;}
+ /* Loot Lake et son îlot */
+ var lr=Math.hypot(x-LAKE.x,z-LAKE.z),lq=lr/LAKE.r;
+ if(lq<1.75){var lakeH=SEA-3.6+7*smoothRange(.55,1.3,lq),isle=lr<LAKE.isle*1.6?SEA+2.2-smoothRange(LAKE.isle*.8,LAKE.isle*1.6,lr)*5.5:-99;
+  lakeH=Math.max(lakeH,isle);land=land+(Math.min(land,lakeH)-land)*(1-smoothRange(1.3,1.75,lq));}
+ /* rivière, avec un gué à chaque route */
+ var rd=riverDist(x,z);if(rd<26){var bed=riverFord(x,z)?SEA+.55:SEA-2.4;land=land+(Math.min(land,bed)-land)*(1-smoothRange(9,26,rd));}
+ if(d<=MAP.shoreStart)return land;
+ if(d>=MAP.shoreEnd)return SEA-3-Math.min(30,(d-MAP.shoreEnd)*.04);
+ var t=(d-MAP.shoreStart)/(MAP.shoreEnd-MAP.shoreStart);t=t*t*(3-2*t);return land*(1-t)+(SEA-3)*t;
+}
 function heightAt(x,z){
  var wx=MAP.waiting.x,wz=MAP.waiting.z;
  if((x-wx)*(x-wx)+(z-wz)*(z-wz)<10000)return 5+noise(x,z)*.06;
@@ -206,7 +311,7 @@ function heightAt(x,z){
  return h;
 }
 /* The outer part of the smooth beach is shallow water even before its bed reaches -2. */
-function isWater(x,z){ if(coastDistance(x,z)>=MAP.shoreEnd)return true; return Math.hypot(x-LAKE.x,z-LAKE.z)<LAKE.r*1.1&&rawHeight(x,z)<SEA-.35; }
+function isWater(x,z){ if(coastDistance(x,z)>=MAP.shoreEnd)return true; if(MAPD&&riverDist(x,z)<10&&!riverFord(x,z))return rawHeight(x,z)<SEA-.35; return Math.hypot(x-LAKE.x,z-LAKE.z)<LAKE.r*1.1&&rawHeight(x,z)<SEA-.35; }
 function clamp(v,a,b){ return v<a?a:v>b?b:v; }
 function normAng(a){ while(a>Math.PI)a-=TAU; while(a<-Math.PI)a+=TAU; return a; }
 function finite(v){ return typeof v==='number'&&isFinite(v); }
@@ -320,7 +425,7 @@ World.prototype._createMap=function(){
    this._dropLoot(lx,heightAt(lx,lz)+.2,lz);
   }
  }
- this._object('dock',660,240,12,1.4,'wood');
+ if(MAPD)this._object('dock',200,-405,12,1.4,'wood');else this._object('dock',660,240,12,1.4,'wood');
  this._createFlora();
  var wx=MAP.waiting.x,wz=MAP.waiting.z,wait=[[-28,-15],[0,-15],[28,-15],[-14,18],[14,18]];
  for(i=0;i<wait.length;i++){var q=wait[i],wh=this._object('house',wx+q[0],wz+q[1],8,4.5,'wood');this._object('chest',wh.x,wh.z+1,.8,1,'wood');}
@@ -1208,6 +1313,6 @@ World.prototype.teleport=function(id,x,z){
 };
 
 World.prototype.snapshot=function(){function clean(a){return a.map(function(o){var q={};for(var k in o)if(k.charAt(0)!=='_')q[k]=o[k];return q;});}return {mode:this.mode,seed:this.seed,phase:this.phase,phaseTime:this.phaseTime,elapsed:this.elapsed,tick:this.tick,players:clean(this.players),objects:clean(this.objects),loot:clean(this.loot),builds:clean(this.builds),vehicles:clean(this.vehicles),storm:Object.assign({},this.storm),aircraft:Object.assign({},this.aircraft),results:Object.assign({},this.results),events:this.events.slice()};};
-var api={World:World,MATCH_PARTICIPANTS:MATCH_PARTICIPANTS,FLIGHT:FLIGHT,EMOTE_STYLES:EMOTE_STYLES,MAP:MAP,heightAt:heightAt,biomeAt:biomeAt,zoneAt:zoneAt,zoneWeights:zoneWeights,VOLCANO:VOLCANO,LOBES:LOBES,LAKE:LAKE,isWater:isWater,coastDistance:coastDistance,regions:regions,roads:roads,streets:streets,districts:districtDensity,districtGrid:districtGrid,vehicleSpecs:vehicleSpecs,weapons:weapons,rarities:rarities,BUILD_DURABILITY:BUILD_DURABILITY,buildPlacement:buildPlacement,supportAt:supportAt,buildSurface:buildSurface,roofTriangles:roofTriangles,forestField:forestField,routeDist:routeDist,townPad:townPad};
+var api={World:World,MATCH_PARTICIPANTS:MATCH_PARTICIPANTS,FLIGHT:FLIGHT,EMOTE_STYLES:EMOTE_STYLES,MAP:MAP,heightAt:heightAt,biomeAt:biomeAt,zoneAt:zoneAt,zoneWeights:zoneWeights,VOLCANO:VOLCANO,LOBES:LOBES,LAKE:LAKE,isWater:isWater,coastDistance:coastDistance,regions:regions,roads:roads,streets:streets,districts:districtDensity,districtGrid:districtGrid,vehicleSpecs:vehicleSpecs,weapons:weapons,rarities:rarities,BUILD_DURABILITY:BUILD_DURABILITY,buildPlacement:buildPlacement,supportAt:supportAt,buildSurface:buildSurface,roofTriangles:roofTriangles,forestField:forestField,routeDist:routeDist,townPad:townPad,s8:MAPD?{river:RIVER,fords:FORDS,meteor:METEOR_SITE,launch:LAUNCH_SITE,peak:PEAK,spot:SPOT_S8,riverDist:riverDist}:null};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;root.AZSim=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
