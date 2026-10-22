@@ -800,14 +800,14 @@ vC=aCol*(.55+.45*abs(n.z));gl_Position=projectionMatrix*viewMatrix*vec4(c+R*posi
     S.flash = 1;
     S.shockT = t;
     S.confettiT0.value = t;
-    play(S.c, "etoile", t, "ready", 4.2);
+    play(S.c, "victoire", t, "ready", 4.2);
     S.c.yawT = 0; S.c.face = true;
   }
 
   /* ---------------------------------------------------------------- le personnage */
   const LEN = { salut: 3.4, danse: 5.4, victoire: 4.2, robot: 4.8, etoile: 3.9, toupie: 4.6 };
   const IDLE_BAG = ["danse", "salut", "robot", "toupie", "victoire", "etoile"];
-  const TAP_BAG = ["salut", "victoire", "danse", "salut", "toupie"];
+  const TAP_BAG = ["salut", "victoire", "salut"];
   function play(Cs, style, t, kind, len) {
     const gap = Cs.emote ? 0.18 : 0; // une image sans émote pour que l'enchaînement reparte du début
     Cs.emote = { style, kind, start: t + gap, until: t + gap + (len || LEN[style] || 4), len: len || LEN[style] || 4 };
@@ -824,7 +824,7 @@ vC=aCol*(.55+.45*abs(n.z));gl_Position=projectionMatrix*viewMatrix*vec4(c+R*posi
       if (Cs.lastTab) {
         Cs.hopT = t; Cs.hopH = 0.07; Cs.lastAct = t;
         Cs.yawT = panel ? 0.42 : 0;
-        Cs.yawV += panel ? 2.4 : -2.4;
+        Cs.yawV += panel ? .8 : -.8;
         if (Cs.emote && Cs.emote.kind === "idle") Cs.emote = null;
       }
       Cs.lastTab = tab;
@@ -832,11 +832,8 @@ vC=aCol*(.55+.45*abs(n.z));gl_Position=projectionMatrix*viewMatrix*vec4(c+R*posi
     if (!panel) Cs.yawT = 0;
     if (Cs.emote && t >= Cs.emote.until) { Cs.emote = null; Cs.next = Math.max(Cs.next, t + 13 + Math.random() * 6); }
     const busy = !!(g && (g.modal || g.lobbyReady));
-    if (!Cs.emote && tab === "play" && !panel && !busy && !Cs.drag && t > Cs.next && t - Cs.lastAct > 5) {
-      const style = nextIdle(Cs);
-      play(Cs, style, t, "idle");
-      Cs.next = t + Cs.emote.len + 12 + Math.random() * 6;
-    }
+    // pas d'émote automatique : le personnage ne danse que si le joueur appuie sur EMOTE
+    void busy; void nextIdle;
     // ressort de rotation (petit pas, regard vers le panneau)
     Cs.yawV += ((Cs.yawT - Cs.yaw) * 42 - Cs.yawV * 8.5) * dt;
     Cs.yaw += Cs.yawV * dt;
@@ -877,7 +874,6 @@ vC=aCol*(.55+.45*abs(n.z));gl_Position=projectionMatrix*viewMatrix*vec4(c+R*posi
         if (!b) { b = { e: null, next: t + 6 + Math.random() * 10 }; S.c.bots.set(model, b); }
         if (S.ready && (!b.e || b.e.kind !== "ready")) b.e = { style: "victoire", kind: "ready", start: t + Math.random() * 0.4, until: t + 4.2, len: 4.2 };
         if (b.e && t >= b.e.until) { b.e = null; b.next = t + 14 + Math.random() * 12; }
-        if (!b.e && t > b.next && !S.ready) { const st = IDLE_BAG[Math.floor(Math.random() * IDLE_BAG.length)]; b.e = { style: st, kind: "idle", start: t, until: t + LEN[st], len: LEN[st] }; }
         if (b.e && t >= b.e.start) { p = Object.assign({}, player, { emote: Math.max(0.1, b.e.until - t), emoteDuration: b.e.len, emoteStyle: b.e.style }); mine = true; }
       }
       y0 = model.position.y;
