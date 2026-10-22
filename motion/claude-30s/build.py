@@ -1,4 +1,4 @@
-"""Build claude-15s.html: inline the fonts, three.js, the 3D glyph outlines and src/js/*.js into src/template.html."""
+"""Build claude-30s.html: inline the fonts, three.js, the 3D glyph outlines and src/js/*.js into src/template.html."""
 import base64
 import json
 from pathlib import Path
@@ -36,5 +36,5 @@ scripts = sorted((HERE / "src" / "js").glob("*.js"))
 script = "\n".join(f"// ===== {p.name} =====\n{p.read_text(encoding='utf-8')}" for p in scripts)
 html = (HERE / "src" / "template.html").read_text(encoding="utf-8")
 html = html.replace("/*FONTS*/", "\n".join(css)).replace("/*LIB*/", lib).replace("/*SCRIPT*/", script)
-(HERE / "claude-15s.html").write_text(html, encoding="utf-8")
-print(f"claude-15s.html written ({len(html) / 1024:.0f} KB, {len(scripts)} scripts)")
+(HERE / "claude-30s.html").write_text(html, encoding="utf-8")
+print(f"claude-30s.html written ({len(html) / 1024:.0f} KB, {len(scripts)} scripts)")

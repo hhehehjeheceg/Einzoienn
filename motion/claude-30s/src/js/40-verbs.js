@@ -154,7 +154,7 @@ function placeCode(t) {
   PANEL.position.set(P[0], P[1], P[2]);
   PANEL.rotation.set(-.06 + .02 * Math.sin(t * 1.1), -.3 + .04 * Math.sin(t * .8), 0);
   PANEL.updateMatrixWorld();
-  [[-.38, .82, .55, T_V[1] + .1], [2.92, -.8, .7, T_V[1] + .2]].forEach(([dx, dy, dz, t0], i) => {
+  [[-.38, .82, .55, T_V[1] + .1], [2.55, -.82, .7, T_V[1] + .2]].forEach(([dx, dy, dz, t0], i) => {
     const p = spring(t - t0, 150, .66), m = BRACES[i];
     m.position.set(C2[0] + dx, C2[1] + dy + .06 * Math.sin(t * 2 + i), C2[2] + dz);
     m.rotation.set(.2 * Math.sin(t + i), (i ? -1 : 1) * (.5 + t * .9) + (1 - p) * 2, (i ? .15 : -.15));
@@ -237,7 +237,8 @@ function setupVerb(t) {
 }
 function bgVerb(t) {
   ctx.fillStyle = '#080706'; ctx.fillRect(0, 0, W, H);
-  flowBG('night', LUT.night, { sx: 1.4, sp: .05, gain: 1.1, bias: -.12 }, .85);
+  ground('ember', t);
+  flowBG('night', LUT.night, { sx: 1.4, sp: .05, gain: 1.1, bias: -.12 }, .18);
   const sp = sparkScreen();
   glow(SOFT.clay, sp.x, sp.y, 260, .3, 'lighter');
   glow(SOFT.clay, 1300, 560, 900, .12, 'lighter');

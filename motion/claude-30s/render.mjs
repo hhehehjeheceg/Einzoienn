@@ -1,4 +1,4 @@
-// Frame-exact renderer for claude-15s.html (Playwright + ffmpeg). WebGL runs on SwiftShader in headless Chromium.
+// Frame-exact renderer for claude-30s.html (Playwright + ffmpeg). WebGL runs on SwiftShader in headless Chromium.
 //   node render.mjs stills 0 1.5 3.6 ...      -> out/stills/t_<s>.png + out/stills/sheet.png
 //   node render.mjs chunk <a> <b> <name>      -> out/<name>.mkv (lossless, frames a..b-1, motion blur)
 //   node render.mjs draft [a b]               -> out/draft.mp4 (30 fps, one sample per frame, 960 wide)
@@ -14,8 +14,8 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, 'out');
-const URL_ = 'file://' + path.join(HERE, 'claude-15s.html') + '?render=1';
-const FPS = 60, TOTAL = 15 * FPS;
+const URL_ = 'file://' + path.join(HERE, 'claude-30s.html') + '?render=1&noaa';
+const FPS = 60, TOTAL = 30 * FPS;
 const ARGS = ['--run-all-compositor-stages-before-draw', '--disable-threaded-animation', '--disable-checker-imaging',
   '--font-render-hinting=none', '--force-color-profile=srgb', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 

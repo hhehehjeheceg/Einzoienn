@@ -2,6 +2,8 @@
 //  The frame: which scene is on screen at time t, then the post (motion blur, shake, bloom, chroma, grain)
 //  and the preview player. The render only ever calls renderFrame(f); the player calls seek(t).
 // =====================================================================================================
+let JIT = [0, 0];   // sub-pixel camera jitter per sub-frame: the sub-frame average is also the anti-aliasing
+const HALTON = (i, b) => { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i % b); i = Math.floor(i / b); } return r; };
 function sceneAt(t) { let s = SCENES[0]; for (const S of SCENES) if (t >= S.t0) s = S; return s; }
 
 function draw(t) {
@@ -9,6 +11,8 @@ function draw(t) {
   for (const g of GROUPS) g.visible = false;
   const S = sceneAt(t), c = S.cam(t);
   camLook(c.p, c.tgt, c.roll || 0, c.fov || 30);
+  if (JIT[0] || JIT[1]) CAM.setViewOffset(W, H, JIT[0], JIT[1], W, H); else if (CAM.view && CAM.view.enabled) CAM.clearViewOffset();
+  setLook(false); setSparkMat('clay');
   S.setup(t);
   paintBG(() => S.bg(t));
   render3D();
@@ -74,15 +78,17 @@ function composite(ts, alpha) {
 function post(t, f) { bloom(bloomAmt(t)); chroma(caAmt(t)); grain(f, t < T_FLOOD ? .065 : .04); }
 
 // motion-blur budget: sub-frames per output frame, more where things move fast; never blur across a hard cut
-function subN(t) { let n = 3; for (const [a, b, k] of SUBS) if (t >= a && t < b) n = Math.max(n, k); return n; }
+function subN(t) { let n = 3; for (const [a, b, k] of SUBS) if (t >= a && t < b) n = Math.max(n, k); return Math.min(n, 9); }
 window.renderFrame = f => {
   CUR_F = f; const t0 = f / FPS, N = subN(t0);
   let lo = 0, hi = T - 1e-6;
   for (const c of CUTS) { if (c <= t0 + 1e-9) lo = Math.max(lo, c); else hi = Math.min(hi, c - 1e-4); }
   for (let i = 0; i < N; i++) {
     const ts = clamp(t0 + ((i + .5) / N - .5) * SHUTTER / FPS, lo, hi);
+    JIT = [HALTON(i + 1, 2) - .5, HALTON(i + 1, 3) - .5];
     draw(ts); composite(ts, 1 / (i + 1));
   }
+  JIT = [0, 0];
   post(t0, f);
   return N;
 };

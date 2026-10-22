@@ -6,7 +6,7 @@ const C4 = [0, 30, 0];
 const BW = [   // background, text colour, font, spark material, spark offset (world), spin direction
   { bg: BR.clay, fg: BR.ink, font: FR(250), mat: 'cream', off: [2.35, 1.05], dir: 1 },
   { bg: BR.cream, fg: BR.clay, font: SANS(230, 800), mat: 'clay', off: [-2.5, -1.0], dir: -1 },
-  { bg: BR.ink, fg: BR.cream, font: ISER(300), mat: 'clay', off: [2.45, -.95], dir: 1 },
+  { bg: BR.ink, fg: BR.cream, font: ISER(300), mat: 'clay', off: [2.75, 1.0], dir: 1 },
   { bg: null, fg: BR.cream, font: FR(250), mat: 'clay', off: [0, 0], dir: -1 },
 ];
 const SPARK_MATS = { clay: MAT.clay, cream: MAT.cream };

@@ -1,9 +1,9 @@
 'use strict';
 // =====================================================================================================
-//  Claude, 15 s: core (canvases, math, palette, type helpers, noise, sprites)
+//  Claude, 30 s: core (canvases, math, palette, type helpers, noise, sprites)
 //  Every frame is computed from the time alone: no state between frames, no timers, every random value is seeded.
 // =====================================================================================================
-const W = 1920, H = 1080, FPS = 60, T = 15, SHUTTER = 0.5, TAU = Math.PI * 2;
+const W = 1920, H = 1080, FPS = 60, T = 30, SHUTTER = 0.5, TAU = Math.PI * 2;
 const RENDER = new URLSearchParams(location.search).has('render');
 if (RENDER) document.body.classList.add('render');
 const cv = document.getElementById('c');
@@ -156,7 +156,12 @@ function makeLUT(stops) {
 }
 const LUT = {
   night: makeLUT([[0, hex('#070606')], [.45, hex('#0e0c0b')], [.7, hex('#1d1512')], [.88, hex('#3a2016')], [1, hex('#5a2c1c')]]),
-  cream: makeLUT([[0, hex('#efece3')], [.4, hex('#f3f0e8')], [.7, hex('#f6eadf')], [1, hex('#f8e4d6')]]),
+  // melted colour fields: dark grounds with veins of wine, clay and amber, then brighter mixes for the drops
+  ember: makeLUT([[0, hex('#050409')], [.38, hex('#0d0a17')], [.56, hex('#26123a')], [.7, hex('#5a1f47')], [.82, hex('#a8443e')], [.92, hex('#e9824a')], [1, hex('#ffc98f')]]),
+  aurora: makeLUT([[0, hex('#06061a')], [.3, hex('#120f3d')], [.5, hex('#33207a')], [.66, hex('#7b2f8f')], [.8, hex('#d9536e')], [.91, hex('#ff9a5c')], [1, hex('#ffe0b0')]]),
+  dusk: makeLUT([[0, hex('#0a0b1f')], [.35, hex('#1b1d4a')], [.55, hex('#3d2a6e')], [.72, hex('#8a3f7d')], [.86, hex('#e07a6e')], [1, hex('#ffcf9e')]]),
+  melt: makeLUT([[0, hex('#3a1460')], [.18, hex('#7b2fa0')], [.36, hex('#e0507a')], [.52, hex('#ff7a4f')], [.68, hex('#ffb35c')], [.82, hex('#f28fae')], [1, hex('#9c8cff')]]),
+  cream: makeLUT([[0, hex('#efe9df')], [.3, hex('#f5ede3')], [.55, hex('#f8e3d6')], [.75, hex('#efe2f0')], [.9, hex('#e3eef0')], [1, hex('#fbefd8')]]),
 };
 const FBW = 160, FBH = 90, FB = mk(FBW, FBH, true), fbImg = FB.g.createImageData(FBW, FBH), fbVal = new Float32Array(FBW * FBH);
 function flowField(t, lut, o = {}) {
@@ -184,3 +189,32 @@ function flowBG(name, lut, o, alpha = 1) {
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   ctx.globalAlpha = alpha; ctx.drawImage(e.c, 0, 0, W, H); ctx.globalAlpha = 1;
 }
+
+// ------------------------------------------------------------------ melted colour grounds: large soft blobs drifting on slow Lissajous paths,
+// mixed at low resolution then upscaled (a mesh gradient). blobs: [hex, radius (x W), x, y, amp x, amp y, speed, phase, alpha]
+const MG = mk(192, 108), mgx = MG.g, MGCACHE = {};
+function meshGrad(name, t, base, blobs, alpha = 1) {
+  let e = MGCACHE[name]; if (!e) e = MGCACHE[name] = { key: -1, c: mk(192, 108).c };
+  if (e.key !== CUR_F) {
+    mgx.globalCompositeOperation = 'source-over'; mgx.globalAlpha = 1; mgx.fillStyle = base; mgx.fillRect(0, 0, 192, 108);
+    for (const [col, r, x, y, ax, ay, w, ph, a] of blobs) {
+      const cx = (x + ax * Math.sin(t * w + ph)) * 192, cy = (y + ay * Math.cos(t * w * .83 + ph * 1.7)) * 108, R = r * 192;
+      const c = hex(col), g = mgx.createRadialGradient(cx, cy, 0, cx, cy, R);
+      g.addColorStop(0, rgb(c, a)); g.addColorStop(.5, rgb(c, a * .55)); g.addColorStop(1, rgb(c, 0));
+      mgx.fillStyle = g; mgx.fillRect(0, 0, 192, 108);
+    }
+    const g2 = e.c.getContext('2d'); g2.filter = 'blur(6px)'; g2.drawImage(MG.c, -12, -12, 216, 132); g2.filter = 'none';
+    e.key = CUR_F;
+  }
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.globalAlpha = alpha; ctx.drawImage(e.c, 0, 0, W, H); ctx.globalAlpha = 1;
+}
+const GROUND = {   // the colour story of the film: dark embers -> violet night -> dusk -> full melt -> cream
+  ember: ['#07060a', [['#3a1440', .55, .2, .3, .12, .15, .21, 0, .8], ['#6b2140', .45, .8, .75, .1, .12, .17, 2, .55], ['#a8443e', .35, .65, .2, .15, .1, .25, 4, .35], ['#1b1f5a', .6, .1, .9, .1, .1, .13, 1, .6], ['#d97757', .22, .5, .55, .2, .15, .31, 3, .18]]],
+  aurora: ['#0b0820', [['#5b2a9a', .6, .25, .35, .15, .12, .35, 0, .85], ['#c2407a', .45, .75, .3, .12, .15, .42, 2, .7], ['#ff8a4c', .35, .6, .8, .18, .1, .5, 4, .6], ['#2a2a8a', .55, .1, .85, .1, .12, .3, 1, .8], ['#ffb35c', .2, .45, .55, .2, .2, .6, 5, .35]]],
+  think: ['#060510', [['#1d1850', .6, .2, .3, .1, .1, .2, 0, .9], ['#4a1d4a', .45, .8, .7, .12, .1, .17, 2, .7], ['#8a3a2a', .3, .6, .4, .15, .12, .23, 4, .35], ['#13173f', .5, .5, .95, .1, .1, .15, 1, .7]]],
+  dusk: ['#0b0c22', [['#3d2a6e', .6, .2, .3, .1, .1, .15, 0, .9], ['#8a3f7d', .45, .85, .35, .1, .12, .18, 2, .6], ['#e07a6e', .3, .7, .85, .12, .08, .2, 4, .35], ['#1b1d4a', .5, .3, .9, .1, .1, .12, 1, .8]]],
+  melt: ['#e8604f', [['#ff9a5c', .55, .2, .3, .18, .15, .55, 0, .9], ['#f28fae', .5, .8, .3, .15, .18, .6, 2, .85], ['#8f6bff', .5, .7, .85, .2, .12, .5, 4, .8], ['#ffcf7a', .32, .4, .7, .2, .2, .7, 1, .75], ['#c2407a', .45, .1, .9, .15, .12, .45, 3, .7], ['#fff1dc', .18, .55, .45, .25, .2, .8, 5, .4]]],
+  cream: ['#f3eee6', [['#f8d9c4', .5, .15, .25, .1, .1, .2, 0, .8], ['#e6dcf3', .5, .85, .3, .1, .12, .18, 2, .75], ['#d8ece6', .45, .75, .9, .12, .1, .22, 4, .7], ['#f8ecc8', .4, .25, .85, .1, .1, .16, 1, .7]]],
+};
+const ground = (name, t, a = 1) => meshGrad(name, t, GROUND[name][0], GROUND[name][1], a);

@@ -4,7 +4,7 @@
 // =====================================================================================================
 const GLC = document.getElementById('gl') || document.createElement('canvas');
 GLC.width = W; GLC.height = H;
-const R3 = new THREE.WebGLRenderer({ canvas: GLC, antialias: true, alpha: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+const R3 = new THREE.WebGLRenderer({ canvas: GLC, antialias: !new URLSearchParams(location.search).has('noaa'), alpha: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
 R3.setPixelRatio(1); R3.setSize(W, H, false);
 R3.outputColorSpace = THREE.SRGBColorSpace;
 R3.toneMapping = THREE.NeutralToneMapping; R3.toneMappingExposure = 1.0;

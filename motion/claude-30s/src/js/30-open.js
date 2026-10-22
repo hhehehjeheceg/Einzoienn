@@ -113,7 +113,8 @@ function setupOpen(t) {
 }
 function bgOpen(t) {
   ctx.fillStyle = '#080706'; ctx.fillRect(0, 0, W, H);
-  flowBG('night', LUT.night, { sx: 1.4, sp: .05, gain: 1.1, bias: -.12 }, .9);
+  ground('ember', t);
+  flowBG('night', LUT.night, { sx: 1.4, sp: .05, gain: 1.1, bias: -.12 }, .18);
   const sp = sparkScreen(), ign = t >= T_IGN ? 1 : 0;
   const pre = ss(t / .4) * (.35 + .3 * pulse(t, bt(1), 1, .2));
   glow(SOFT.clay, sp.x, sp.y, 300 + 500 * ign * spring(t - T_IGN, 40, .9), (pre * (1 - ign) + ign * (.42 + .4 * pulse(t, T_IGN, 1, .35))) * (1 - .4 * seg(t, 2, 3.5)), 'lighter');
