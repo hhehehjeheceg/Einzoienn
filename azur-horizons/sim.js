@@ -289,6 +289,8 @@ function rawHeightS8(x,z){
  if(vr<VOLCANO.r){var hc=VOLCANO.h*Math.pow(1-VOLCANO.crater/VOLCANO.r,1.25),cone=vr>VOLCANO.crater?VOLCANO.h*Math.pow(1-vr/VOLCANO.r,1.25):hc-22*(1-smoothRange(VOLCANO.crater*.6,VOLCANO.crater,vr));land=land*(1-smoothRange(VOLCANO.r,VOLCANO.r*.55,vr)*.55)+cone;}
  /* coulée de lave : lit légèrement creusé */
  land-=w.lava*1.8;
+ /* colline du point de vue de l'événement, au sud de la base de lancement */
+ var sp=Math.hypot(x-SPOT_S8.px,z-SPOT_S8.pz);if(sp<80)land+=Math.pow(1-sp/80,2)*11;
  /* cratère de la météorite */
  var mr=Math.hypot(x-METEOR_SITE.x,z-METEOR_SITE.z);if(mr<METEOR_SITE.r*2){land+=Math.exp(-Math.pow((mr-METEOR_SITE.r)/7,2))*2.4-Math.pow(Math.max(0,1-mr/METEOR_SITE.r),1.6)*6;}
  /* base de lancement : plate-forme plane */

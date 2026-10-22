@@ -303,7 +303,7 @@
   /* -------------------------------------------- objets « arbre » / « rocher » de la simulation */
   const legacyObjectModel = A.objectModel;
   A.objectModel = function (o) {
-    if (!o || (o.type !== 'tree' && o.type !== 'rock') || isEventWorld()) return legacyObjectModel.apply(this, arguments);
+    if (!o || (o.type !== 'tree' && o.type !== 'rock')) return legacyObjectModel.apply(this, arguments);
     const k = o.type === 'rock' ? 2 : ((o.seed || 0) % 3 === 0 ? 1 : 0), g = new T.Group();
     const mesh = new T.Mesh(W.floraGeometry(k, false).clone(), W.floraMaterial(k));
     mesh.userData.shared = true; mesh.castShadow = true; mesh.receiveShadow = true;
@@ -322,7 +322,8 @@
     if (env.rockFormations) { add(env.rockFormations.base); add(env.rockFormations.cap); }
     (env.scenery || []).forEach((q) => add(q.mesh));
     const v2 = env.worldV2 || {};
-    add(v2.sky); add(v2.clouds); add(v2.ridges); add(v2.flora); add(v2.landmarks); add(v2.palms);
+    const sky = (o) => { if (o) list.push({ o, vis: o.visible, sky: true }); };
+    sky(v2.sky); sky(v2.clouds); add(v2.ridges); add(v2.flora); add(v2.landmarks); add(v2.palms);
     const v65 = env.v65MapDetails;
     if (v65) [1, 2, 3, 5].forEach((i) => add(v65.children[i]));
     return list;
@@ -346,13 +347,13 @@
     try {
       const cw = this.ensureCh1World(), ev = isEventWorld(), view = root.AZUR && root.AZUR.view;
       cw.t += dt || 0; floraUniforms.time.value = cw.t;
-      // en mode événement, on rend la main aux anciennes couches
-      cw.root.visible = !ev;
-      if (ev !== cw.wasEvent) { for (const h of cw.hidden) if (ev) h.o.visible = h.vis; cw.wasEvent = ev; }
-      if (!ev) for (const h of cw.hidden) h.o.visible = false;
-      if (ev) return r;
-      if (view && view._zp82) view._zp82.visible = false;
-      const u = cw.sky.material.uniforms; u.time.value = cw.t; u.day.value = day == null ? 1 : day;
+      // v94 : même île en mode événement (routes, arbres, sol) ; seul le ciel reste celui de l'événement
+      cw.root.visible = true; cw.sky.visible = !ev;
+      if (ev !== cw.wasEvent) { for (const h of cw.hidden) h.o.visible = ev && h.sky ? h.vis : false; cw.wasEvent = ev; }
+      for (const h of cw.hidden) if (!ev || !h.sky) h.o.visible = false;
+      if (view && view._zp82 && !ev) view._zp82.visible = false;
+      const u = cw.sky.material.uniforms; u.time.value = cw.t;
+      if (ev) { /* le ciel de l'événement garde ses couleurs */ } u.day.value = day == null ? 1 : day;
       u.dusk.value = root.AZUR && root.AZUR.timeOfDay === 'sunset' ? 1 : 0;
       if (view && view.fogDay && !cw.fogSet) { view.fogDay.set('#c6e2f2'); cw.fogSet = true; }
       const w = root.AZUR && root.AZUR.world;

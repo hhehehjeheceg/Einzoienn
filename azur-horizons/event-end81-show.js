@@ -229,6 +229,7 @@
   /* Fissures de lave sur les pentes du volcan derrière le dépôt. */
   function buildLava() {
     O.lava = [];
+    if (root.AZSim && root.AZSim.s8) return; // v94 : la vraie coulée du volcan est sur la carte
     var paths = [[[150, -40], [175, -25], [190, -38], [215, -20]], [[200, 20], [222, 34], [240, 22], [262, 40]], [[260, -60], [280, -48], [292, -66]], [[120, 60], [138, 74], [150, 64]]];
     paths.forEach(function (pp, idx) {
       var pts = pp.map(function (q) { var x = BASE.x + F.x * q[0] + R.x * q[1], z = BASE.z + F.z * q[0] + R.z * q[1]; return new T.Vector3(x, H(x, z) + .6, z); });
@@ -1426,12 +1427,19 @@
   function build() {
     low = !!(api.isMobile || api.quality === 'low');
     X = L.makeTextures(low);
+    // v94 : île de référence — point de vue sur la colline au sud de la base, base de lancement près de
+    // la Citadelle, météorite suspendue au-dessus de son cratère (près de la Méga Galerie), Point Zéro sur Loot Lake
+    var s8 = root.AZSim && root.AZSim.s8, LK = root.AZSim && root.AZSim.LAKE;
+    if (s8) { SPOT.px = s8.spot.px; SPOT.pz = s8.spot.pz; SPOT.bx = s8.launch.x; SPOT.bz = s8.launch.z; }
     P.set(SPOT.px, H(SPOT.px, SPOT.pz), SPOT.pz); BASE.set(SPOT.bx, H(SPOT.bx, SPOT.bz) + .4, SPOT.bz);
     F.set(BASE.x - P.x, 0, BASE.z - P.z).normalize(); R.crossVectors(F, UP).normalize();
-    ZP.set(0, H(0, 0) + 20, 0);
+    if (s8 && LK) ZP.set(LK.x, H(LK.x, LK.z) + 20, LK.z); else ZP.set(0, H(0, 0) + 20, 0);
     skyPos(LAY.imp[0], 0, LAY.imp[1], IMPACT); IMPACT.y = H(IMPACT.x, IMPACT.z);
+    if (s8) { IMPACT.set(s8.meteor.x, 0, s8.meteor.z); IMPACT.y = H(IMPACT.x, IMPACT.z); }
     STAR.copy(ZP).add(new T.Vector3(0, 1350, 0));
-    skyPos(LAY.met[0], LAY.met[1], LAY.met[2], MET_B); MET_A.copy(MET_B); MET_A2.copy(MET_B);
+    skyPos(LAY.met[0], LAY.met[1], LAY.met[2], MET_B);
+    if (s8) MET_B.set(IMPACT.x, IMPACT.y + 115, IMPACT.z);
+    MET_A.copy(MET_B); MET_A2.copy(MET_B);
     // la météorite file vers le bas-gauche de l'écran (panache vers le haut-droite, ~47°) quand on la regarde
     var my = LAY.met[0] * D2R; tmp.copy(F).multiplyScalar(Math.sin(my)).addScaledVector(R, -Math.cos(my));
     MDIR.copy(tmp).multiplyScalar(.68).addScaledVector(UP, -.73).addScaledVector(dirYP(LAY.met[0], 0, tmp2), .12).normalize();

@@ -1062,7 +1062,8 @@
   };
   function updateProps(env, dt, focus, quality) {
     const cw = env.ch1World; if (!cw) return;
-    if (isEventWorld()) { if (env.ch1Props) { disposeProps(env.ch1Props); env.ch1Props = null; } return; } // le mode événement garde sa mémoire
+    const lowQ = root.AZUR && root.AZUR.view && root.AZUR.view.quality === 'low';
+    if (isEventWorld() && lowQ) { if (env.ch1Props) { disposeProps(env.ch1Props); env.ch1Props = null; } return; } // v94 : même décor en événement, sauf en qualité basse
     const w = root.AZUR && root.AZUR.world; if (!w || !w.objects) return;
     const low = quality === 'low';
     let cp = env.ch1Props;
