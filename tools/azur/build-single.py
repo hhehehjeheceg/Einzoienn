@@ -61,7 +61,20 @@ for d, _, files in os.walk(os.path.join(ROOT, "assets")):
         if os.path.splitext(fn)[1].lower() in (".webp", ".svg", ".jpg", ".png"):
             rel = os.path.relpath(os.path.join(d, fn), ROOT).replace(os.sep, "/")
             INLINE[rel] = data_uri(rel)
-INLINE["event-end-audio.mp3"] = data_uri("event-end-audio.mp3")
+# the event music is re-encoded lighter (80 kb/s) so the file stays under 25 MiB upload limits
+def light_audio(rel, kbps=80):
+    import shutil, subprocess, tempfile
+    if not shutil.which("ffmpeg"):
+        return data_uri(rel)
+    tmp = os.path.join(tempfile.mkdtemp(), "a.mp3")
+    r = subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", os.path.join(ROOT, rel), "-b:a", "%dk" % kbps, tmp])
+    if r.returncode != 0 or not os.path.exists(tmp):
+        return data_uri(rel)
+    with open(tmp, "rb") as f:
+        return "data:audio/mpeg;base64," + base64.b64encode(f.read()).decode("ascii")
+
+
+INLINE["event-end-audio.mp3"] = light_audio("event-end-audio.mp3")
 
 chars = os.path.join(ROOT, "assets", "ch1", "chars")
 PACKS = {}
