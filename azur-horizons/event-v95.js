@@ -135,7 +135,7 @@
     var info = E.playerInfo || {}, mode = info.mode || "none", inp = p._input || {}, idle = Math.abs(+inp.moveX || 0) + Math.abs(+inp.moveZ || 0) < .05;
     var next = null;
     if (RIDE.phase === "thrown") next = "fall";
-    else if (mode === "zeroshock" || mode === "blast") next = "fall";
+    // v106 : plus de chute à plat au choc ni au souffle — debout, bras écartés (vidéo 3:04-3:46, pose de event-float-v105)
     else if (mode === "suck") next = "tumble";
     else if (p.grounded && !(p.emote > 0)) {
       // le souffle d'une onde qui passe : petit saut et recul (jamais quand on chevauche la météorite)

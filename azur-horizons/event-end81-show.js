@@ -632,7 +632,7 @@
     addRift(O.b1x.clone().addScaledVector(R, 900 * O.b1S).addScaledVector(UP, -650 * O.b1S), 520 * O.b1S, 40.4, 45.6, { fi: .8, fo: 1.2, seed: 3.3, real: true, ring: true }); // anneau à droite de l'éclatement (vidéo 0:42)
     addRift(O.r2p, 540, 43.6, 47.6, { fi: .8, fo: .8, seed: 12.4, ring: true }); // v106 : anneau-portail avec sa méduse et son voile (vidéo 0:44-0:47)
     addRift(O.r2p, 540, 46.9, 57.6, { fi: .6, fo: 2.4, flash: [48.6], seed: 12.4 }); // puis l'étoile et son cône de lumière (O.beam, vidéo 0:48-0:56)
-    O.rbp = skyPos(-28, 21, 430); addRift(O.rbp, 300, 82.4, 88.4, { fi: 1, fo: 1, seed: 4.4, ring: true, rainbow: true }); // grand anneau arc-en-ciel (vidéo 1:24-1:30) — v106 : remplace l'ancien portail-sprite
+    O.rbp = skyPos(-15, 24, 1200); addRift(O.rbp, 720, 82.4, 88.4, { fi: 1, fo: 1, seed: 4.4, ring: true, rainbow: true }); // grand anneau arc-en-ciel (vidéo 1:24-1:30) — v106 : remplace l'ancien portail-sprite
     addRift(skyPos(-43, 5, 400), 110, 83, 88, { fi: .8, fo: .6, seed: 7.1, ring: true }); // petit anneau en bas à gauche (ancien portail 2)
     // v89 : les quatre failles-méduses, relevées sur la vidéo (63 → 72 s) ; chaque éclat = une fusée qui en sort
     addRift(skyPos(46, 59, 1150), 430, 46.6, 72, { seed: 2.2, wing: true, droop: 1, nw: 3, flash: [66.6, 66.85] });
@@ -1057,8 +1057,8 @@
     if (t > 2.9 && t < 60) for (var i = 0; i < lp.length; i++) {
       var q = lp[i], age = t - q.tb; if (age <= 0) continue;
       var dist = q.v * 2.2 * (1 - Math.exp(-age / 2.6)) + age * .6, x = BASE.x + Math.cos(q.ang) * dist, z = BASE.z + Math.sin(q.ang) * dist;
-      var y = BASE.y + 2 + q.h + q.up * age * 1.1 + Math.min(age, 6) * 1.2;
-      var s = q.s + age * 2.3; if (s > 46) s = 46;
+      var y = BASE.y + 2 + q.h * .6 + q.up * age * .45 + Math.min(age, 6) * .6; // v106 : nuage bas qui s'étale autour du pas de tir (vidéo 0:08-0:14)
+      var s = q.s * .7 + age * 1.5; if (s > 26) s = 26;
       var a = cl(age * 1.6) * (1 - ramp(t, q.tb + 14, q.tb + 34)) * .95;
       var warm = win(t, 8.3, 20, 1, 6) * cl(1 - dist / 60) * 1.2;
       sys.add(x, y, z, s, .93, .94, 1.0, a, q.rot + age * .05, q.var, .35, warm);
@@ -1148,7 +1148,7 @@
     // portail arc-en-ciel
     var po = win(t, 81.6, 87.7, 1, .5), opn = U.easeOut((t - 81.6) / 1.6) * (1 - ramp(t, 87.1, 87.7));
     L.setOp(O.portal, 0); O.portal.scale.setScalar(40 + 300 * opn); O.portal.material.rotation = t * .05;
-    L.setOp(O.portalCrack, po * (.7 + .3 * hsh(flick))); O.portalCrack.scale.setScalar(70 + 120 * opn); O.portalCrack.material.map = X.crack[flick % 2]; O.portalCrack.material.rotation = flick * .3;
+    L.setOp(O.portalCrack, 0); O.portalCrack.scale.setScalar(70 + 120 * opn); O.portalCrack.material.map = X.crack[flick % 2]; O.portalCrack.material.rotation = flick * .3;
     L.setOp(O.portalFlash, win(t, 85.5, 87.3, .4, .6) * .28); // v106 : simple lueur rose dans l'anneau (vidéo 1:26) O.portalFlash.scale.setScalar(140 + 260 * ramp(t, 85.5, 86.6));
     L.setOp(O.portalBeam, win(t, 86.6, 87.9, .1, .6)); O.portalBeam.material.map = X.bursts[flick % 3]; O.portalBeam.scale.setScalar(300);
     var po2 = win(t, 83, 87.4, .8, .5); L.setOp(O.portal2, 0); O.portal2.scale.setScalar(110 * U.easeOut((t - 83) / 1.2)); L.setOp(O.portal2Crack, po2 * (.6 + .4 * hsh(flick + 3))); O.portal2Crack.material.map = X.crack[(flick + 1) % 2];
@@ -1226,7 +1226,7 @@
     L.setOp(O.zHalo, win(t, 166.4, 168, .3, .5)); O.zHalo.scale.setScalar(200);
     var cr = win(t, 167.3, 200.5, .8, 2); // v106 : l'étoile s'éteint une fois la météorite sortie (vidéo 3:19)
     L.setOp(O.zCrack, cr * (.85 + .15 * hsh(flick))); O.zCrack.scale.setScalar(320 + 80 * ramp(t, 189, 192)); O.zCrack.material.map = X.crack[Math.floor((t + 600) * 4) % 2]; O.zCrack.material.rotation = Math.floor((t + 600) * 4) * .2;
-    L.setOp(O.zGlow, Math.min(1, win(t, 167.25, 177.4, .5, 1.2) * 1.15 + win(t, 190, 200.5, 1, 2) * .7)); O.zGlow.scale.setScalar(560 + 40 * Math.sin(t * 1.4));
+    L.setOp(O.zGlow, Math.min(1, win(t, 167.25, 177.4, .5, 1.2) * 1.15 + win(t, 190, 200.5, 1, 2) * .7)); O.zGlow.scale.setScalar(560 + 40 * Math.sin(t * 1.4) + 900 * win(t, 167.25, 177.4, 1.5, 1)); // v106 : grand halo bleu autour de l'étoile (vidéo 2:52)
     L.setOp(O.zSphere, win(t, 190.5, 201, 1.2, 3) * .9); O.zSphere.scale.setScalar(1100 + 900 * U.easeOut(ramp(t, 190.5, 195))); // v105b : la grande sphère bleue autour de l'étoile (vidéo 3:12-3:17)
     L.setOp(O.zFlash, win(t, 189.6, 191.6, .2, 1.2) * .6); O.zFlash.scale.setScalar(500 + 900 * ramp(t, 189.6, 190.6));
     L.setOp(O.zStarBurst, win(t, 190.4, 209, .6, 3) * .55); O.zStarBurst.material.map = X.burstBig[flick % 2]; O.zStarBurst.material.rotation = flick * .6; O.zStarBurst.scale.setScalar(900);
@@ -1245,7 +1245,7 @@
     placeBeam(O.lV, STAR, ZP, lz);
     O.lasers.forEach(function (g, i) { var lp = O.laserPts[i]; placeBeam(g, lp[0], lp[1], win(t, 177.7 + i * .1, 179.0, .15, .35) * (.8 + .2 * Math.sin(t * 30 + i))); }); // vidéo : rafale de lasers fins 178-179, puis un seul
     // dôme
-    var du = O.dome.material.uniforms, amt = Math.max(ramp(t, 177.3, 179), .11 * (1 - ramp(t, 176.8, 177.6))) * (1 - ramp(t, 223.2, 223.7));
+    var du = O.dome.material.uniforms, amt = Math.max(ramp(t, 177.3, 179), .11 * (1 - ramp(t, 176.8, 177.6))) * (1 - ramp(t, 223.2, 223.7)) * (1 - .45 * (1 - ramp(t, 182.8, 184))); // v106 : vue de la colline elle est plus discrète (vidéo 3:00)
     O.dome.visible = amt > .004; du.time.value = t; du.amt.value = amt;
     du.flash.value = win(t, 182.95, 184.6, .1, 1.4) * .8 + win(t, 215.8, 218, .2, 1.5) * .22 + win(t, 222.6, 223.5, .5, .2) * .55;
     du.cyan.value = .55 * (1 - ramp(t, 176.6, 178)) + .75 * ramp(t, 221.6, 222.9); du.hot.value = win(t, 216, 223.4, .5, .3) * .38; // v105b : rose-lavande jusqu'au bout, cyan-blanc juste avant l'explosion (vidéo 3:43)
@@ -1274,7 +1274,7 @@
       var iu = O.orbIn.material.uniforms; iu.time.value = t * 1.7; iu.amt.value = .25 * ov;
       O.orb.scale.setScalar(42 * pul); O.orb.rotation.y = t * .3; O.orbIn.scale.setScalar(25 * pul); O.orbIn.rotation.y = -t * .5;
     }
-    L.setOp(O.orbCore, ov * (.28 + .05 * Math.sin(t * 9))); O.orbCore.scale.setScalar(130 * pul);
+    L.setOp(O.orbCore, ov * (.28 + .05 * Math.sin(t * 9)) * (1 - .55 * win(t, 177, 183.2, 1, .4))); O.orbCore.scale.setScalar(130 * pul);
     L.setOp(O.orbHalo, ov * .12); O.orbHalo.scale.setScalar(480 * pul);
     O.orbArcs.forEach(function (a3, i) { a3.material.map = X.arcs[(ofl + i) % 3]; a3.material.rotation = hsh(ofl + i * 7) * 6.28; a3.scale.setScalar(70 + 24 * hsh(ofl + i)); L.setOp(a3, ov * (hsh(ofl * 3 + i) > .45 ? .4 : 0)); });
     var obk = win(t, 73.4, 78.4, .8, 1.6) * .22;
@@ -1444,9 +1444,9 @@
     L.setOp(fx.flare, ex * .35); fx.flare.scale.set((600 + 900 * ramp(t, 247, 253)) * kd, (30 + 20 * ramp(t, 247, 253)) * kd, 1);
     L.setOp(fx.soft, ex * (.09 + .03 * ramp(t, 238, 250) + .45 * win(t, 224.4, 236, .8, 6))); fx.soft.scale.setScalar((320 + 300 * ramp(t, 238, 252) + 380 * win(t, 224.4, 236, .8, 6)) * kd);
     // v106 — la supernova de la vidéo (3:46-3:56) : filaments violets, roses et bleus qui rayonnent sur tout l'écran depuis la lumière
-    var nv = win(t, 225.2, 241, 1.2, 5);
-    L.setOp(fx.nova, nv * .85); fx.nova.material.rotation = .3 + t * .012; fx.nova.scale.setScalar((2.6 + .8 * ramp(t, 225.2, 236)) * kd * 420);
-    L.setOp(fx.nova2, nv * .6); fx.nova2.material.rotation = -t * .02; fx.nova2.scale.setScalar((1.5 + .5 * ramp(t, 225.2, 236)) * kd * 420);
+    var nv = win(t, 225.2, 233.5, 1.2, 3.5); // vidéo : les filaments ont disparu à 3:58 (l'île et les étoiles seules)
+    L.setOp(fx.nova, nv * .4); fx.nova.material.rotation = .3 + t * .012; fx.nova.scale.setScalar((2.6 + .8 * ramp(t, 225.2, 236)) * kd * 420);
+    L.setOp(fx.nova2, nv * .75); fx.nova2.material.rotation = -t * .02; fx.nova2.scale.setScalar((1.5 + .5 * ramp(t, 225.2, 236)) * kd * 420);
     L.setOp(fx.rays, (win(t, 223.6, 254.4, .6, .4) * (.035 + .015 * Math.sin(t * 1.7)) + win(t, 226.2, 230, .5, 2.5) * .1 + win(t, 243, 253, 3, .8) * .06)); fx.rays.material.rotation = t * .04; fx.rays.scale.setScalar(kd * 1300 + 500 * win(t, 223.6, 229, .5, 4) + 700 * ramp(t, 244, 252));
     L.setOp(fx.rays2, win(t, 224, 254.4, 1, .4) * .04 + win(t, 244, 253, 3, .8) * .05); fx.rays2.material.rotation = -t * .06; fx.rays2.scale.setScalar((2000 + 800 * Math.sin(t * .8)) * kd);
     L.setOp(fx.big, win(t, 223.2, 226.6, .3, 1.4) * .85 + win(t, 250.5, 253.2, 1.5, 1.2) * .06); // v106 : grand voile blanc au souffle (vidéo 3:45) fx.big.scale.setScalar((900 + 900 * ramp(t, 223.2, 224.2) + 600 * ramp(t, 251.5, 254)) * kd);
@@ -1679,7 +1679,7 @@
     var glowGround = O.gLight ? O.gLight.intensity : 0;
     if (v.hemi) { v.hemi.color.set(0x8ab8ff); v.hemi.groundColor.set(0x2a6a3c); v.hemi.intensity = (lerp(1.42, .8, dark) + .7 * bright) * (1 - .42 * space); v.hemi.color.lerp(HEMI_BR, Math.max(bright * .5, space * .6)); }
     if (v.sun) {
-      v.sun.color.set(space > .5 ? 0x6f8cff : 0xc4dcff); v.sun.intensity = lerp(1.25, .3, dark) * (1 - .7 * space);
+      v.sun.color.set(space > .5 ? 0x6f8cff : 0xc4dcff); v.sun.intensity = lerp(1.25, .85, dark) * (1 - .7 * space); if (dark > .3 && space < .5) v.sun.color.set(0x7fb4ff); // v106 : l'étoile éclaire le joueur en bleu (vidéo 2:44-2:56)
       var p = api.player(); if (p) { v.sun.position.set(p.x, p.y, p.z).addScaledVector(dirYP(LAY.moon[0], LAY.moon[1], tmp), 160); v.sun.target.position.set(p.x, p.y, p.z); v.sun.target.updateMatrixWorld(); }
     }
     if (v.skyFill) { v.skyFill.color.set(0x5f9cff); v.skyFill.intensity = .25 * (1 - space); }
