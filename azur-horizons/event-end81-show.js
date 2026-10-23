@@ -957,11 +957,11 @@
   /* v100 : la fusée monte très haut et accélère sans arrêt (16 m/s à 12 s → ~114 m/s à 33 s) ; les instants calés
    * sur la musique ne bougent pas (allumage 8,3 s, décollage 10 s, faille 33,3 s). Elle entre dans la faille vers
    * 1 400 m, et l'éclair géant de 38,6 s part juste au-dessus d'elle. */
-  function rkAlt(t) { var u = t - 10; return u <= 0 ? 0 : u < 2 ? 4 * u * u : u < 23.3 ? 16 + 16 * (u - 2) + 4.5 * (u - 2) * (u - 2) : 2398.6 + 207.7 * (u - 23.3) + 10.6 * (u - 23.3) * (u - 23.3); } // v102 : ≈ 2 400 m à la faille, ≈ 3 800 m à l'explosion
+  function rkAlt(t) { var u = t - 10; return u <= 0 ? 0 : u < 2 ? 4 * u * u : u < 23.3 ? 16 + 16 * (u - 2) + 8.03 * (u - 2) * (u - 2) : 3999.9 + 358.1 * (u - 23.3) + 21.5 * (u - 23.3) * (u - 23.3); } // v103 : ≈ 4 000 m à la faille, ≈ 6 500 m à l'explosion
   // v101 : après l'éclair de sa faille (33,3 s) elle ne disparaît plus : elle le traverse et continue d'accélérer, bien visible,
   // jusqu'à l'explosion de foudre de 38,6 s (≈ 2 300 m). Avant, un simple point bleu la remplaçait à ce moment-là.
   // v100 : elle grandit doucement après le décollage (×2,3 ≈ 64 m) pour se lire de loin au bout de sa traînée
-  function rkGrow(t) { return 1 + 1.8 * U.sm(ramp(t, 10.5, 20)) + 3.2 * U.sm(ramp(t, 25, 38.6)); } // v102 : ×6 à l'explosion (on la voit de loin)
+  function rkGrow(t) { return 1 + 2.5 * U.sm(ramp(t, 10.5, 20)) + 6.5 * U.sm(ramp(t, 24, 38.6)); } // v103 : ×10 à l'explosion (on la voit de loin)
   // agrandissement des effets de la faille d'entrée : elle est plus loin de la colline qu'avant (265 m de haut)
   function rkS() { var a = tmp3.copy(BASE).addScaledVector(UP, 265.7).distanceTo(P), b = rocketPos(33.3, tmp3).distanceTo(P); return Math.max(1, b / Math.max(1, a)); }
   function rocketPos(t, out) {
@@ -1679,13 +1679,14 @@
         // v85 — caméra Fortnite : 80° d'angle horizontal (mesuré sur la vidéo) au lieu des 97° du jeu,
         // le temps du rendu seulement (le jeu garde ses propres valeurs, visée comprise).
         var f0 = cam.fov, pl = null; try { pl = api.player(); } catch (e) {}
-        var narrow = !!(pl && pl.deployed);
-        if (narrow) { cam.fov = fovFor(f0, cam.aspect); cam.updateProjectionMatrix(); }
+        var narrow = !!(pl && pl.deployed), far0 = cam.far, tF = VT(), farOn = tF > 9 && tF < 130 && far0 < 16000; // v103 : la fusée monte à 6,5 km
+        if (farOn) cam.far = 16000;
+        if (narrow || farOn) { if (narrow) cam.fov = fovFor(f0, cam.aspect); cam.updateProjectionMatrix(); }
         // v95 : secousse de la caméra quand une onde de choc passe sur le joueur
         var sh = Math.min(1.4, E.shake || 0), shx = 0, shy = 0, shz = 0;
         if (sh > .01) { var tq = VT(); shx = (Math.sin(tq * 37.1) + .5 * Math.sin(tq * 71.3)) * sh * .35; shy = (Math.sin(tq * 43.7 + 1) + .5 * Math.sin(tq * 89.1)) * sh * .3; shz = Math.sin(tq * 29.3 + 2) * sh * .35; cam.position.x += shx; cam.position.y += shy; cam.position.z += shz; }
         try { return renderEvent.call(this, scene, cam, arguments); }
-        finally { if (narrow) { cam.fov = f0; cam.updateProjectionMatrix(); } if (sh > .01) { cam.position.x -= shx; cam.position.y -= shy; cam.position.z -= shz; } }
+        finally { if (narrow || farOn) { cam.fov = f0; cam.far = far0; cam.updateProjectionMatrix(); } if (sh > .01) { cam.position.x -= shx; cam.position.y -= shy; cam.position.z -= shz; } }
       }
       return inner.apply(this, arguments);
     };

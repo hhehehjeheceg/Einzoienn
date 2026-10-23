@@ -349,6 +349,11 @@
         if (!hook) install();
         var p = me(), t = VT(), d = Math.min(.1, +dt || 0);
         if (p && p.alive && p.deployed) { pushOut(p); pose(p, t, d); }
+        // v103 : chute libre très haut (lâché par la fusée à ~6,5 km) : on tombe plus vite tant qu'on est loin du sol,
+        // sinon la chute durait plus de 3 minutes et l'on ratait l'événement
+        if (p && p.alive && p.deployed && !RIDE.phase && p.falling && !p.gliding && !p._eventFloat && t > 38 && t < 150) {
+          var hg = p.y - H(p.x, p.z); if (hg > 420) p.y -= Math.min(hg - 400, 75 * d);
+        }
         if (RIDE.phase) {
           if (RIDE.phase === "rift" || RIDE.phase === "m2") V.pose = null;
           E.cameraZoom = RIDE.phase === "m2" ? 1.45 : RIDE.phase === "rift" ? 1.2 : 1.1;
