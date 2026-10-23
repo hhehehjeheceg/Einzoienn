@@ -1277,12 +1277,15 @@
     M.g.visible = vis;
     if (vis) {
       met2Pos(t, M.g.position); var ap = ramp(t, 192.6, 194.5) * (1 - ramp(t, 221.8, 222.8));
-      M.rock.scale.setScalar(22 * ap * (1 - .4 * ramp(t, 217.6, 222.4))); M.rock.rotation.set(t * .3, t * .2, 0);
+      // v96 : le joueur revenu de la faille la chevauche → elle ne tourne plus sur elle-même et ses lueurs
+      // (centrées sur la roche, donc autour de lui) sont atténuées pour qu'il voie la descente sur le dôme
+      var ride = E.v96 && E.v96.m2, dim = ride ? .3 : 1;
+      M.rock.scale.setScalar(22 * ap * (1 - .4 * ramp(t, 217.6, 222.4))); if (ride) M.rock.rotation.set(0, 0, 0); else M.rock.rotation.set(t * .3, t * .2, 0);
       var u = M.rock.material.uniforms; u.front.value.set(0, -1, 0); u.heat.value = 1.4; u.time.value = t; u.lightDir.value.set(0, 1, 0);
       if (u.camPos) { var cm = api.camera(); if (cm) u.camPos.value.copy(cm.position); u.energy.value = .6; }
-      if (M.flame) { M.flame.position.set(0, 8, 0); var fu = M.flame.material.uniforms; fu.time.value = t; fu.amt.value = ap; }
-      L.setOp(M.glow, ap * .95); M.glow.scale.setScalar(320 + 60 * Math.sin(t * 8)); L.setOp(M.core, ap); M.core.scale.setScalar(120);
-      M.tail.forEach(function (s, i) { s.position.set(0, 18 + i * 22, 0); s.scale.setScalar(50 + i * 14); L.setOp(s, ap * (.6 - i * .08) * (.85 + .15 * Math.sin(t * 17 + i))); });
+      if (M.flame) { M.flame.position.set(0, 8, 0); var fu = M.flame.material.uniforms; fu.time.value = t; fu.amt.value = ap * (ride ? .45 : 1); }
+      L.setOp(M.glow, ap * .95 * dim); M.glow.scale.setScalar(320 + 60 * Math.sin(t * 8)); L.setOp(M.core, ap * dim); M.core.scale.setScalar(120);
+      M.tail.forEach(function (s, i) { s.position.set(0, 18 + i * 22, 0); s.scale.setScalar(50 + i * 14); L.setOp(s, ap * (.6 - i * .08) * (.85 + .15 * Math.sin(t * 17 + i)) * dim); });
       E.meteorPos = E.meteorPos || new T.Vector3(); E.meteorPos.copy(M.g.position); E.meteorVisible = true;
     }
     // escorte : six fusées qui plongent dans le dôme
@@ -1728,7 +1731,7 @@
     if (G) { O.prevTOD = G.timeOfDay; G.timeOfDay = 'night'; }
     hideWorldSky(true); hookRender();
     O.volcHidden = []; try { api.scene().traverse(function (o) { if (o.isPoints && o.visible && o.material && o.material.vertexShader && o.material.vertexShader.indexOf('t*320.') >= 0) { O.volcHidden.push(o); o.visible = false; } }); } catch (e) {}
-    E.end81 = { S: L.S, skyPos: skyPos, O: O, TRAILS: TRAILS, FLASHES: FLASHES, RIFTS: RIFTS, meteorPos: meteorPos };
+    E.end81 = { S: L.S, skyPos: skyPos, O: O, TRAILS: TRAILS, FLASHES: FLASHES, RIFTS: RIFTS, meteorPos: meteorPos, met2Pos: met2Pos };
   }
   function update() {
     if (!on) return;

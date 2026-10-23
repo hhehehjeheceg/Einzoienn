@@ -884,7 +884,8 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
   }
 
   function pickLocomotion(an, p, st, armed, dt, menu) {
-    const x = +p.x || 0, z = +p.z || 0, yaw = +p.yaw || 0;
+    // v96 : quand une roche porte le joueur, son déplacement (p._azCarryX/Z cumulés) ne compte pas comme une course
+    const x = (+p.x || 0) - (+p._azCarryX || 0), z = (+p.z || 0) - (+p._azCarryZ || 0), yaw = +p.yaw || 0;
     const dx = an.lastX === null || menu ? 0 : x - an.lastX, dz = an.lastZ === null || menu ? 0 : z - an.lastZ;
     an.lastX = x; an.lastZ = z;
     const raw = dt > 0 ? Math.min(16, Math.hypot(dx, dz) / dt) : 0;

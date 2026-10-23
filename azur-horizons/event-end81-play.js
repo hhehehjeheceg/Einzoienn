@@ -211,7 +211,10 @@
     var s = S(); if (!G || !s || !s.ZP || !s.STAR || p.vehicleId) return;
     var tgt = null, pk = .8, O2 = E.end81 && E.end81.O, an = E.anchors || {};
     // v85 — quand le joueur ne touche à rien, la caméra suit l'action comme dans la vidéo
-    if (t >= 9 && t < 33.6 && an.rocket1) { tgt = an.rocket1; pk = .9; }
+    var ride = E.v96 && E.v96.phase; // v96 : debout sur la météorite → on regarde où elle va (la faille, puis le dôme)
+    if (ride === 'm1' && E.rc) { tgt = E.rc; pk = .9; }
+    else if (ride === 'm2' || ride === 'thrown') tgt = s.ZP;
+    else if (t >= 9 && t < 33.6 && an.rocket1) { tgt = an.rocket1; pk = .9; }
     else if (t >= 33.6 && t < 45.5 && (an.b1 || (O2 && O2.b1p))) { tgt = an.b1 || O2.b1p; pk = .95; }
     else if (t >= 45.5 && t < 54.2 && O2 && O2.r2p) { tgt = O2.r2p; pk = .85; }
     else if (t >= 54.2 && t < 62.6 && an.rA) { tgt = an.rA; pk = .9; }   // v89 : on suit la fusée comme la vidéo
