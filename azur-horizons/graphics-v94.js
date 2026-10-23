@@ -22,7 +22,7 @@
   if (!T || !S || !VP || VP.__gfx94) return;
   VP.__gfx94 = true;
   // -2 : la première version pouvait couper le post-traitement à tort (plantage du sol) ; on repart à zéro
-  const KEY = "azGfx94Off-2";
+  const KEY = "azGfx94Off-3"; // v98 : nouvelle clé — le conflit azFd (brouillard × façades) est corrigé, on réessaie tout
   try { localStorage.removeItem("azGfx94Off-1"); } catch (e) {}
   const G = (root.AZGfx94 = { on: { post: true, fog: true, sky: true, ibl: true, terrain: true, water: true, grass: true, shadows: true }, time: { value: 0 }, errors: [] });
   try { const k = JSON.parse(localStorage.getItem(KEY) || "{}"); for (const f in k) G.on[f] = false; } catch (e) {}
@@ -85,14 +85,14 @@
       "#ifdef USE_FOG",
       "\t#ifdef FOG_EXP2",
       "\t\tfloat fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );",
-      "\t\tvec3 azFv = azFogW - cameraPosition; float azFl = max( length( azFv ), 0.001 ); vec3 azFd = azFv / azFl;",
+      "\t\tvec3 azFv = azFogW - cameraPosition; float azFl = max( length( azFv ), 0.001 ); vec3 azFogDir = azFv / azFl;",
       // plus léger en altitude : les sommets et le ciel restent nets, les vallées et la mer se voilent
       "\t\tfogFactor *= mix( 0.52, 1.0, exp( - max( azFogW.y - 6.0, 0.0 ) * 0.011 ) );",
       // voile bas près du sol, même de près (perspective atmosphérique)
       "\t\tfogFactor = max( fogFactor, ( 1.0 - exp( - vFogDepth * 0.0016 ) ) * exp( - max( azFogW.y + 2.0, 0.0 ) * 0.05 ) * 0.35 );",
-      "\t\tfloat azSun = pow( max( dot( azFd, vec3( " + SUN.x.toFixed(4) + ", " + SUN.y.toFixed(4) + ", " + SUN.z.toFixed(4) + " ) ), 0.0 ), 6.0 );",
+      "\t\tfloat azSun = pow( max( dot( azFogDir, vec3( " + SUN.x.toFixed(4) + ", " + SUN.y.toFixed(4) + ", " + SUN.z.toFixed(4) + " ) ), 0.0 ), 6.0 );",
       "\t\tvec3 azFc = mix( fogColor, fogColor * vec3( 1.10, 1.0, 0.84 ) + vec3( 0.05, 0.035, 0.0 ), azSun * 0.75 );",
-      "\t\tazFc = mix( azFc, azFc * vec3( 0.9, 0.96, 1.07 ), clamp( azFd.y * 2.0, 0.0, 1.0 ) );",
+      "\t\tazFc = mix( azFc, azFc * vec3( 0.9, 0.96, 1.07 ), clamp( azFogDir.y * 2.0, 0.0, 1.0 ) );",
       "\t\tgl_FragColor.rgb = mix( gl_FragColor.rgb, azFc, clamp( fogFactor, 0.0, 1.0 ) );",
       "\t#else",
       "\t\tfloat fogFactor = smoothstep( fogNear, fogFar, vFogDepth );",

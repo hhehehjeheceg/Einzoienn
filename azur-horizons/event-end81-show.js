@@ -963,9 +963,18 @@
     O.rocket = L.models ? L.models.launchRocket(X) : bigRocket(); grp.add(O.rocket);
     // v97 : la coque sombre se fondait dans la nuit dès que la fusée quittait les projecteurs du pas de tir
     // (on ne voyait plus que la lueur bleue de la coiffe) → légère lumière propre + un éclairage qui la suit
-    O.rocket.traverse(function (o) {
-      var m = o.isMesh && o.material; if (!m || !m.isMeshStandardMaterial || m.userData.az97) return; m.userData.az97 = 1;
-      if (m.emissive && m.emissive.getHex() === 0) { m.emissive.setHex(0x3a465c); m.emissiveIntensity = .55; if (m.map && !m.emissiveMap) m.emissiveMap = m.map; m.needsUpdate = true; }
+    // v98 : plus lumineuse encore, jamais écartée par le tri de visibilité, et un liseré bleu (coque + boosters)
+    // qui dessine sa silhouette sur le ciel de nuit quelle que soit la distance
+    var rkMeshes = [];
+    O.rocket.traverse(function (o) { if (o.isMesh) rkMeshes.push(o); });
+    var shellMat = new T.MeshBasicMaterial({ color: 0x7fb2ff, transparent: true, opacity: .32, blending: T.AdditiveBlending, depthWrite: false, side: T.BackSide, fog: false }); shellMat.toneMapped = false;
+    rkMeshes.forEach(function (o) {
+      o.frustumCulled = false;
+      var m = o.material; if (!m || !m.isMeshStandardMaterial || m.userData.az97) return; m.userData.az97 = 1;
+      if (m.emissive && m.emissive.getHex() === 0) { m.emissive.setHex(0x6a7891); m.emissiveIntensity = .9; if (m.map && !m.emissiveMap) m.emissiveMap = m.map; m.needsUpdate = true; }
+      var gt = o.geometry && o.geometry.type, big = (gt === 'LatheGeometry' || gt === 'CylinderGeometry') && o.geometry.boundingSphere !== undefined;
+      if (gt === 'LatheGeometry' || gt === 'CylinderGeometry') { o.geometry.computeBoundingSphere(); big = o.geometry.boundingSphere.radius > 2.5; }
+      if (big) { var sh = new T.Mesh(o.geometry, shellMat); sh.scale.set(1.07, 1.004, 1.07); sh.frustumCulled = false; sh.renderOrder = 3; o.add(sh); }
     });
     O.rkFill = new T.PointLight(0xd2e0ff, 0, 75, 1.1); grp.add(O.rkFill);
     O.launchPuffs = []; var R2 = U.rng(31);

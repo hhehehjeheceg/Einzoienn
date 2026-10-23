@@ -125,7 +125,8 @@
     var s = S(); if (!s || !p.deployed || p.grounded || t > 18) return;
     var inp = p._input || {}, idle = Math.abs(+inp.moveX || 0) + Math.abs(+inp.moveZ || 0) < .05;
     var fw = (E.v93 && E.v93.FWD) || 0, dx = s.P.x + s.F.x * fw - p.x, dz = s.P.z + s.F.z * fw - p.z, d = Math.hypot(dx, dz); // v93 : vers la pente face au dépôt
-    if (idle && d > 6) { var sp = Math.min(d, (p.gliding ? 16 : 22)) * dt; p.x += dx / d * sp; p.z += dz / d * sp; p._lastX = p.x; p._lastZ = p.z; }
+    // v98 : plus de traction vers la colline quand on lâche les commandes (en planeur on partait « en arrière »)
+    void d;
     if (p.gliding && t < 16 && idle) { var g = H(p.x, p.z); if (p.y - g > 3) p.y -= Math.min(p.y - g - 2, 9 * dt); }
     // v97 : plus de recadrage forcé de la caméra pendant la descente (elle tournait toute seule en planeur)
   }
@@ -242,7 +243,9 @@
    * sur sa coiffe, son épaulement ou le haut des boosters… et l'on monte avec elle au décollage.
    * Le pas de tir est un sol. Tout disparaît dès que la fusée entre dans la faille (33,3 s). */
   var colHook = null;
-  function rocketC() { var o = E.end81 && E.end81.O, rk = o && o.rocket; return rk && rk.visible ? rk.position : null; }
+  // v98 : position de la fusée à l'instant présent (celle du rendu a une image de retard : on passait au travers quand elle accélère)
+  var rkNow = new T.Vector3();
+  function rocketC() { var o = E.end81 && E.end81.O, rk = o && o.rocket; if (!rk || !rk.visible) return null; var t = VT(); if (E.end81.rocketPose && t < 33.3) return E.end81.rocketPose(t, rkNow); return rk.position; }
   // v93 : point (x, z) dans le repère de l'île volante (elle tourne lentement sur elle-même)
   function islLocal(x, z) {
     var isl = E.end81 && E.end81.O && E.end81.O.isl; if (!isl || !isl.visible) return null;

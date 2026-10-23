@@ -246,9 +246,10 @@
     var t = VT(); dt = Math.min(.1, Math.max(0, +dt || 0));
     if (RIDE.phase === "rk" ? t > 34 : RIDE.phase && (t < 118 || t > 224.5)) { endRide(p, false); return false; }
     // v97 : debout sur la fusée du lancement → elle nous emporte jusqu'à la faille
-    if (!RIDE.phase && t < 33 && p.grounded) {
+    // v98 : elle nous rattrape aussi en l'air (planeur, chute, saut) dès qu'on est juste au-dessus d'une de ses surfaces
+    if (!RIDE.phase && t < 33) {
       var fr = frame("rk", t);
-      if (fr) { var rx = p.x - fr.c.x, rz = p.z - fr.c.z, rs = surf(fr, rx, rz); if (rs != null && Math.abs(p.y - (fr.c.y + rs)) < .8) { enter("rk", p); RIDE.ox = rx; RIDE.oz = rz; RIDE.oy = 0; RIDE.vy = 0; RIDE.hasC = false; } }
+      if (fr) { var rx = p.x - fr.c.x, rz = p.z - fr.c.z, rs = surf(fr, rx, rz), dy = rs == null ? 99 : p.y - (fr.c.y + rs); if (rs != null && dy > -1.6 && dy < (p.grounded ? .8 : 2.2) && (p.grounded || (+p._vy || 0) < 4)) { enter("rk", p); RIDE.ox = rx; RIDE.oz = rz; RIDE.oy = 0; RIDE.vy = 0; RIDE.hasC = false; } }
     }
     if (RIDE.phase === "rk" && t >= 33.1) { spit(p, t); return false; }
     // monter dessus : debout sur la roche pendant la poussée des fusées

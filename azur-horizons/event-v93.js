@@ -90,6 +90,13 @@
     if (root.document) { root.document.body.classList.remove("azend-cine"); root.document.body.classList.remove("azend-black"); }
   }
 
+  // v98 : le filet ne téléporte plus un joueur qui plane vers la fusée ou se trouve dessus (il était renvoyé sur la colline
+  // au moment du décollage) — seulement celui qui est resté dans le bus ou qui est loin de la fusée
+  function nearRocket(p) {
+    if (E.v96 && E.v96.phase) return true;
+    var o = E.end81 && E.end81.O, rk = o && o.rocket; if (!rk || !rk.visible) return false;
+    return Math.hypot(p.x - rk.position.x, p.z - rk.position.z) < 160;
+  }
   function placeOnHill(w, p) {
     var s = L && L.S; if (!s || !s.P) return false;
     try { if (!p.deployed && w._deployFromBus) w._deployFromBus(p, false); } catch (e) {}
@@ -123,7 +130,7 @@
     if (E.active && w && p && !V.started) { V.started = true; if (E.tVideo < -BUS_PRE) E.tVideo = -BUS_PRE; }
     if (E.active && w && p && !V.placed) {
       if (p.deployed && p.grounded) V.placed = true;                                   // posé après le saut
-      else if (w.eventVariant !== "flight" && VT() > 9.5 && (!p.deployed || p.y - H(p.x, p.z) > 30) && placeOnHill(w, p)) V.placed = true; // filet : jamais rater le décollage (pas en « Vol sans fin »)
+      else if (w.eventVariant !== "flight" && VT() > 9.5 && (!p.deployed || (p.y - H(p.x, p.z) > 30 && !nearRocket(p))) && placeOnHill(w, p)) V.placed = true; // filet : jamais rater le décollage (pas en « Vol sans fin »)
     }
     showSpeed(!!(E.active && w && p && w.eventVariant === "flight" && !p.deployed));
     var beforeX = p ? p.x : 0, beforeZ = p ? p.z : 0;
