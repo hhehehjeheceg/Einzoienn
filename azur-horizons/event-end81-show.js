@@ -1222,20 +1222,20 @@
   function updateZenith(t, cam) {
     var flick = Math.floor((t + 600) * 13);
     L.setOp(O.zRing, win(t, 161.5, 165, .5, .5) * (.75 + .25 * hsh(flick))); O.zRing.scale.setScalar(70 + 15 * Math.sin(t * 5));
-    L.setOp(O.zStar, win(t, 164.6, 168.4, .4, 1) + win(t, 189.4, 192, .2, 1.5) + win(t, 167.4, 211, .8, 3) * .55); O.zStar.scale.setScalar(110 + 240 * ramp(t, 164.6, 167));
+    L.setOp(O.zStar, win(t, 164.6, 168.4, .4, 1) + win(t, 189.4, 192, .2, 1.5) + win(t, 167.4, 200.5, .8, 2) * .55); O.zStar.scale.setScalar(110 + 240 * ramp(t, 164.6, 167));
     L.setOp(O.zHalo, win(t, 166.4, 168, .3, .5)); O.zHalo.scale.setScalar(200);
-    var cr = win(t, 167.3, 211, .8, 3);
+    var cr = win(t, 167.3, 200.5, .8, 2); // v106 : l'étoile s'éteint une fois la météorite sortie (vidéo 3:19)
     L.setOp(O.zCrack, cr * (.85 + .15 * hsh(flick))); O.zCrack.scale.setScalar(320 + 80 * ramp(t, 189, 192)); O.zCrack.material.map = X.crack[Math.floor((t + 600) * 4) % 2]; O.zCrack.material.rotation = Math.floor((t + 600) * 4) * .2;
-    L.setOp(O.zGlow, Math.min(1, win(t, 167.25, 177.4, .5, 1.2) * 1.15 + win(t, 190, 211, 1, 3) * .7)); O.zGlow.scale.setScalar(560 + 40 * Math.sin(t * 1.4));
+    L.setOp(O.zGlow, Math.min(1, win(t, 167.25, 177.4, .5, 1.2) * 1.15 + win(t, 190, 200.5, 1, 2) * .7)); O.zGlow.scale.setScalar(560 + 40 * Math.sin(t * 1.4));
     L.setOp(O.zSphere, win(t, 190.5, 201, 1.2, 3) * .9); O.zSphere.scale.setScalar(1100 + 900 * U.easeOut(ramp(t, 190.5, 195))); // v105b : la grande sphère bleue autour de l'étoile (vidéo 3:12-3:17)
     L.setOp(O.zFlash, win(t, 189.6, 191.6, .2, 1.2) * .6); O.zFlash.scale.setScalar(500 + 900 * ramp(t, 189.6, 190.6));
     L.setOp(O.zStarBurst, win(t, 190.4, 209, .6, 3) * .55); O.zStarBurst.material.map = X.burstBig[flick % 2]; O.zStarBurst.material.rotation = flick * .6; O.zStarBurst.scale.setScalar(900);
     // éclairs qui descendent de l'étoile
-    var bw = win(t, 191, 208.5, .5, 2);
+    var bw = win(t, 198.4, 206.5, .4, 1.5) * .65; // v106 : vidéo 3:18-3:26 — fins éclairs sous la tête de la météorite (pas avant : la sphère et sa gerbe seules)
     for (var i = 0; i < O.zBolts.length; i++) {
       var q = O.zBolts[i], on2 = bw > .01 && hsh(flick * 5 + i) > .3; q.visible = on2; if (!on2) continue;
       var hgt = 500 + hsh(i * 3) * 400;
-      q.position.copy(STAR); q.position.y -= hgt / 2; q.position.x += (hsh(i + flick) - .5) * 120; q.position.z += (hsh(i * 2 + flick) - .5) * 120;
+      if (O.met2 && O.met2.g.visible) q.position.copy(O.met2.g.position); else q.position.copy(STAR); q.position.y -= hgt / 2; q.position.x += (hsh(i + flick) - .5) * 120; q.position.z += (hsh(i * 2 + flick) - .5) * 120;
       q.scale.set(hgt * .22, hgt, 1); q.rotation.set(0, Math.atan2(cam.position.x - q.position.x, cam.position.z - q.position.z), (hsh(i + flick * 2) - .5) * .4);
       q.material.map = X.boltV[(flick + i) % 4]; q.material.opacity = bw * .7; q.material.color.setHex(0xa8c8ff);
     }
