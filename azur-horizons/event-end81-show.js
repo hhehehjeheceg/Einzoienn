@@ -278,10 +278,16 @@
     opts = opts || {};
     if (!opts.real) size *= KS;
     var sd = opts.seed || (RIFTS.length * 1.73 + .4);
-    var m = new T.Mesh(new T.PlaneGeometry(1, 1), opts.wing && L.wingMaterial ? L.wingMaterial(sd, opts.droop || 0, opts.nw || 3) : L.riftMaterial(sd, opts.narrow));
+    var mt = opts.ring && L.ringRiftMaterial ? L.ringRiftMaterial(sd, opts.rainbow ? 1 : 0) : opts.wing && L.wingMaterial ? L.wingMaterial(sd, opts.droop || 0, opts.nw || 3, opts.jelly ? 1 : 0) : L.riftMaterial(sd, opts.narrow);
+    var m = new T.Mesh(new T.PlaneGeometry(1, 1), mt);
     m.frustumCulled = false; m.visible = false; m.renderOrder = 4; grp.add(m);
     var r = { m: m, pos: pos.clone(), size: size, a: a, b: b, fi: opts.fi || 1.2, fo: opts.fo || 1.5, flash: opts.flash || null, curl: opts.curl == null ? 1 : opts.curl, grow: opts.grow || null, op: opts.op || 1, cap: !!opts.cap };
-    m.material.uniforms.curl.value = r.curl;
+    if (m.material.uniforms.curl) m.material.uniforms.curl.value = r.curl;
+    // v106 : couches des nouveaux types de failles (vidéo) — trou sombre de l'anneau, nuage bleu marbré, cône de lumière
+    if (opts.ring && L.ringHoleMaterial) { r.hole = new T.Mesh(m.geometry, L.ringHoleMaterial()); r.hole.frustumCulled = false; r.hole.visible = false; r.hole.renderOrder = 3; grp.add(r.hole); }
+    if (opts.cloud && L.cellCloudMaterial) { r.cloud = new T.Mesh(m.geometry, L.cellCloudMaterial(sd + 3.1)); r.cloud.frustumCulled = false; r.cloud.visible = false; r.cloud.renderOrder = 3; r.cloudK = opts.cloud; grp.add(r.cloud); }
+    if (opts.burst2) { r.extra = new T.Mesh(m.geometry, L.riftMaterial(sd + 7.7, false)); r.extra.frustumCulled = false; r.extra.visible = false; r.extra.renderOrder = 4; grp.add(r.extra); }
+    if (opts.cone && L.lightCone) { r.cone = L.lightCone(0xa8ccff); r.cone.visible = false; r.coneK = opts.cone; grp.add(r.cone); }
     RIFTS.push(r); return r;
   }
   function updateRifts(t, cam) {
@@ -294,7 +300,12 @@
       var gs = r.grow ? lerp(r.grow[2], 1, ramp(t, r.grow[0], r.grow[1])) : 1;
       var dc = r.pos.distanceTo(cam.position); r.m.scale.setScalar(Math.min(r.size, dc * .5) * (.55 + .45 * open) * (1 + .15 * fl) * gs);
       var u = r.m.material.uniforms; u.time.value = t; u.open.value = .25 + .75 * open; u.amt.value = op * (.85 + .15 * Math.sin(t * 7 + i)); u.flash.value = fl;
+      if (r.hole) { r.hole.visible = true; r.hole.position.copy(r.m.position); r.hole.quaternion.copy(r.m.quaternion); r.hole.scale.copy(r.m.scale); var hu = r.hole.material.uniforms; hu.amt.value = op; hu.open.value = u.open.value; hu.time.value = t; }
+      if (r.cloud) { r.cloud.visible = true; r.cloud.position.copy(r.m.position).addScaledVector(camFwd, 30); r.cloud.quaternion.copy(r.m.quaternion); r.cloud.scale.copy(r.m.scale).multiplyScalar(r.cloudK); var cu2 = r.cloud.material.uniforms; cu2.amt.value = op * (.8 + .3 * fl); cu2.open.value = open; cu2.time.value = t; }
+      if (r.extra) { r.extra.visible = true; r.extra.position.copy(r.m.position); r.extra.quaternion.copy(r.m.quaternion); r.extra.rotateZ(.9); r.extra.scale.copy(r.m.scale).multiplyScalar(1.15); var xu = r.extra.material.uniforms; xu.time.value = t * 1.07; xu.open.value = u.open.value; xu.amt.value = u.amt.value * .85; xu.flash.value = fl; xu.curl.value = r.curl; }
+      if (r.cone) { var gy = H(r.m.position.x, r.m.position.z), hc = Math.max(10, r.m.position.y - gy); r.cone.visible = true; r.cone.position.copy(r.m.position); r.cone.scale.set(hc * r.coneK, hc, hc * r.coneK); r.cone.material.uniforms.amt.value = op * .5 * open; r.cone.material.uniforms.time.value = t; }
     }
+    for (var j = 0; j < RIFTS.length; j++) { var rj = RIFTS[j]; if (rj.m.visible) continue; if (rj.hole) rj.hole.visible = false; if (rj.extra) rj.extra.visible = false; if (rj.cloud) rj.cloud.visible = false; if (rj.cone) rj.cone.visible = false; }
   }
 
   /* ============================================================ traînées */
@@ -579,7 +590,7 @@
     O.ringAs = L.sprite(grp, X.star, 0xcfeaff, 160, true, 0); O.ringAs.position.copy(O.ringA.position);
     O.ringB = L.sprite(grp, X.ring, 0x7fa8ff, 160, true, 0); skyPos(52, 57, 1400, O.ringB.position);
     // rayon de lumière sous la faille R2 (46-51)
-    O.r2p = skyPos(-170, 48, 1350);
+    O.r2p = skyPos(-170, 27, 1350); // v106 : remesuré sur la vidéo (0:50, horizon et aurores visibles) : ≈ 27° au-dessus de l'horizon
     var cc = document.createElement('canvas'); cc.width = 128; cc.height = 128; var cg = cc.getContext('2d'), R3 = U.rng(77);
     for (var cx = 0; cx < 128; cx++) { var vv = .35 + .65 * Math.pow(R3(), 2); var gr2 = cg.createLinearGradient(0, 128, 0, 0); gr2.addColorStop(0, 'rgba(255,255,255,0)'); gr2.addColorStop(.55, 'rgba(255,255,255,' + (vv * .55).toFixed(2) + ')'); gr2.addColorStop(1, 'rgba(255,255,255,' + vv.toFixed(2) + ')'); cg.fillStyle = gr2; cg.fillRect(cx, 0, 1, 128); }
     var ctex = new T.CanvasTexture(cc); ctex.colorSpace = T.SRGBColorSpace;
@@ -615,10 +626,14 @@
     [O.b2Bolts, O.b2Core, O.b2Crack, O.redSphere, O.redArcs].forEach(function (s2) { s2.position.copy(O.b2p); });
     [O.b3Bolts, O.b3Core, O.b3Crack].forEach(function (s2) { s2.position.copy(O.b3p); });
     // failles fixes
-    addRift(skyPos(46, 59, 1500), 1000, -42, 47.6, { fi: 2.5, fo: 3, seed: 9.9, wing: true, nw: 3, grow: [19.5, 23.5, .45] });
+    addRift(skyPos(46, 59, 1500), 1000, -42, 47.6, { fi: 2.5, fo: 3, seed: 9.9, wing: true, nw: 3, jelly: true, grow: [19.5, 23.5, .45] }); // v106 : la méduse cyan de la vidéo (0:17-0:34)
     addRift(rocketPos(33.3, new T.Vector3()), 70 * rkS(), 32.8, 36.6, { fi: .4, fo: 1.4, flash: [33.3], seed: 8.1, real: true });
-    addRift(O.b1x, 1700 * O.b1S, 39.2, 52, { fi: 1.2, fo: 3, seed: 5.7, curl: 1.6, real: true });
-    addRift(O.r2p, 540, 45.4, 57.6, { fi: 1, fo: 2.4, flash: [48.2], seed: 12.4 });
+    addRift(O.b1x, 1700 * O.b1S, 39.2, 52, { fi: 1.2, fo: 3, seed: 5.7, curl: 1.6, real: true, cloud: .72, burst2: true }); // v106 : nuage bleu marbré + double gerbe d'éclairs (vidéo 0:40-0:43)
+    addRift(O.b1x.clone().addScaledVector(R, 900 * O.b1S).addScaledVector(UP, -650 * O.b1S), 520 * O.b1S, 40.4, 45.6, { fi: .8, fo: 1.2, seed: 3.3, real: true, ring: true }); // anneau à droite de l'éclatement (vidéo 0:42)
+    addRift(O.r2p, 540, 43.6, 47.6, { fi: .8, fo: .8, seed: 12.4, ring: true }); // v106 : anneau-portail avec sa méduse et son voile (vidéo 0:44-0:47)
+    addRift(O.r2p, 540, 46.9, 57.6, { fi: .6, fo: 2.4, flash: [48.6], seed: 12.4 }); // puis l'étoile et son cône de lumière (O.beam, vidéo 0:48-0:56)
+    O.rbp = skyPos(-15, 24, 1200); addRift(O.rbp, 720, 83.6, 90.5, { fi: 1, fo: 1.5, flash: [85.2], seed: 4.4, ring: true, rainbow: true }); // grand anneau arc-en-ciel (vidéo 1:24-1:30)
+    addRift(skyPos(-36, 13, 1300), 260, 84, 89.4, { fi: .8, fo: 1.2, seed: 7.1, ring: true });
     // v89 : les quatre failles-méduses, relevées sur la vidéo (63 → 72 s) ; chaque éclat = une fusée qui en sort
     addRift(skyPos(46, 59, 1150), 430, 46.6, 72, { seed: 2.2, wing: true, droop: 1, nw: 3, flash: [66.6, 66.85] });
     addRift(skyPos(107, 52.5, 1100), 420, 63.2, 72.4, { seed: 6.6, wing: true, droop: .55, nw: 3, flash: [66.8, 69.6] });
@@ -963,8 +978,12 @@
   function rkGrow(t) { return 1; } // v104 : la fusée garde toujours sa taille réelle (demande du joueur : elle ne grossit plus jamais)
   // agrandissement des effets de la faille d'entrée : elle est plus loin de la colline qu'avant (265 m de haut)
   function rkS() { var a = tmp3.copy(BASE).addScaledVector(UP, 265.7).distanceTo(P), b = rocketPos(33.3, tmp3).distanceTo(P); return Math.max(1, b / Math.max(1, a)); }
+  // v106 : comme sur la vidéo (0:20-0:41), la fusée s'incline doucement en s'éloignant de la colline : vue d'en bas elle
+  // reste à ≈ 50° au-dessus de l'horizon (le joueur et la fusée dans la même image) au lieu de filer au zénith
+  function rkDrift(alt) { var dB = Math.hypot(BASE.x - P.x, BASE.z - P.z), x = alt * .84 - dB; return x <= -300 ? 0 : x >= 300 ? x : (x + 300) * (x + 300) / 1200; }
   function rocketPos(t, out) {
-    return out.copy(BASE).addScaledVector(UP, 1.2 + rkAlt(Math.min(t, 38.6)));
+    var alt = rkAlt(Math.min(t, 38.6));
+    return out.copy(BASE).addScaledVector(UP, 1.2 + alt).addScaledVector(F, rkDrift(alt));
   }
   /* distance de la caméra de référence (colline) au point d'entrée : sert à dimensionner les effets */
   function rkScale() { return 1; }
@@ -1002,7 +1021,7 @@
     var rk = O.rocket, flying = t >= 9.6;
     rk.visible = t < 38.6; // v101 : visible jusqu'à l'explosion (38,6 s)
     if (!flying) rk.position.copy(BASE).addScaledVector(UP, 1.2); else rocketPos(t, rk.position);
-    if (flying && rk.visible) { rocketPos(t + .05, tmp); tmp.sub(rk.position); if (tmp.lengthSq() > 1e-6) rk.quaternion.setFromUnitVectors(UP, tmp.normalize()); } else rk.quaternion.identity();
+    rk.quaternion.identity(); // v106 : elle reste droite en s'éloignant (vue de la colline elle file tout droit vers le haut, et l'on tient debout sur sa coiffe)
     var ign = ramp(t, 8.3, 9.6), fl = .88 + .12 * Math.sin(t * 41) + .06 * Math.sin(t * 67);
     var fm = rk.userData.flame, core = rk.userData.core, fon = t > 8.2 && rk.visible;
     if (rk.userData.flames) {
@@ -1053,7 +1072,7 @@
       var dis = ramp(t, 38.9 + (1 - c.k) * 1.5, 41.5 + (1 - c.k) * 3.2); // v85 : la traînée se disloque vite après l'entrée dans la faille (vidéo 34-39 s)
       var a2 = cl(age2 * 2.5) * (1 - dis) * .9;
       var hot = cl(1 - age2 / 1.6);
-      sys.add(tmp.x, tmp.y, tmp.z, size, .98, .84 + .06 * c.k, .95, a2, c.rot + age2 * .03, c.var, .25, hot * 1.6 + .25);
+      sys.add(tmp.x, tmp.y, tmp.z, size, .76, .71 + .04 * c.k, .93, a2 * .85, c.rot + age2 * .03, c.var, .25, hot * 1.6 + .25); // v106 : lavande comme la vidéo (171,164,216), crème-orange près de la flamme
     }
     // entrée dans la faille : éclair bleu
     L.setOp(O.e1Flash, win(t, 33.2, 35.4, .15, 1.6)); O.e1Flash.scale.setScalar((30 + 75 * ramp(t, 33.2, 34.4)) * (O.rkS || 1));
@@ -1116,8 +1135,8 @@
     L.setOp(O.ringA, win(t, 42.1, 46.4, .6, 1)); O.ringA.scale.setScalar(260 + 30 * Math.sin(t * 3)); L.setOp(O.ringAs, win(t, 42.3, 46, .4, 1) * (.7 + .3 * Math.sin(t * 9)));
     L.setOp(O.ringB, win(t, 44.4, 47.5, .5, 1)); O.ringB.scale.setScalar(200);
     // rayon de la faille R2
-    var bk = win(t, 46.3, 51.6, 1, 1.4);
-    O.beam.visible = bk > .01; O.beam.material.opacity = bk * (.62 + .08 * Math.sin(t * 6)); O.beam.rotation.y = t * .05;
+    var bk = win(t, 48.4, 56.4, 1, 1.6); // v106 : le cône n'apparaît qu'avec l'étoile (vidéo 0:48,5), translucide
+    O.beam.visible = bk > .01; O.beam.material.opacity = bk * (.36 + .05 * Math.sin(t * 6)); O.beam.rotation.y = t * .05;
     if (O.beam.visible) { var top = O.r2p, bot = tmp.copy(top); bot.y = P.y - 40; O.beam.position.copy(top).lerp(bot, .5); O.beam.scale.set(KS, top.y - bot.y, KS); }
     L.setOp(O.r2Glow, win(t, 47.6, 52, .8, 2)); O.r2Glow.scale.setScalar(260 + 380 * win(t, 47.6, 51, 1, 1));
     // sphère rouge + gerbe près de la montagne (75,5-80)
@@ -1208,7 +1227,7 @@
     var cr = win(t, 167.3, 211, .8, 3);
     L.setOp(O.zCrack, cr * (.85 + .15 * hsh(flick))); O.zCrack.scale.setScalar(320 + 80 * ramp(t, 189, 192)); O.zCrack.material.map = X.crack[Math.floor((t + 600) * 4) % 2]; O.zCrack.material.rotation = Math.floor((t + 600) * 4) * .2;
     L.setOp(O.zGlow, Math.min(1, win(t, 167.25, 177.4, .5, 1.2) * 1.15 + win(t, 190, 211, 1, 3) * .7)); O.zGlow.scale.setScalar(560 + 40 * Math.sin(t * 1.4));
-    L.setOp(O.zSphere, win(t, 190.5, 201, 1.2, 3) * .9); // v105b : la grande sphère bleue autour de l'étoile (vidéo 3:12-3:17) O.zSphere.scale.setScalar(1100 + 900 * U.easeOut(ramp(t, 190.5, 195)));
+    L.setOp(O.zSphere, win(t, 190.5, 201, 1.2, 3) * .9); O.zSphere.scale.setScalar(1100 + 900 * U.easeOut(ramp(t, 190.5, 195))); // v105b : la grande sphère bleue autour de l'étoile (vidéo 3:12-3:17)
     L.setOp(O.zFlash, win(t, 189.6, 191.6, .2, 1.2) * .6); O.zFlash.scale.setScalar(500 + 900 * ramp(t, 189.6, 190.6));
     L.setOp(O.zStarBurst, win(t, 190.4, 209, .6, 3) * .55); O.zStarBurst.material.map = X.burstBig[flick % 2]; O.zStarBurst.material.rotation = flick * .6; O.zStarBurst.scale.setScalar(900);
     // éclairs qui descendent de l'étoile
@@ -1229,7 +1248,7 @@
     var du = O.dome.material.uniforms, amt = Math.max(ramp(t, 177.3, 179), .11 * (1 - ramp(t, 176.8, 177.6))) * (1 - ramp(t, 223.2, 223.7));
     O.dome.visible = amt > .004; du.time.value = t; du.amt.value = amt;
     du.flash.value = win(t, 182.95, 184.6, .1, 1.4) * .8 + win(t, 215.8, 218, .2, 1.5) * .22 + win(t, 222.6, 223.5, .5, .2) * .55;
-    du.cyan.value = .55 * (1 - ramp(t, 176.6, 178)) + .75 * ramp(t, 221.6, 222.9); // v105b : rose-lavande jusqu'au bout, cyan-blanc juste avant l'explosion (vidéo 3:43) du.hot.value = win(t, 216, 223.4, .5, .3) * .38;
+    du.cyan.value = .55 * (1 - ramp(t, 176.6, 178)) + .75 * ramp(t, 221.6, 222.9); du.hot.value = win(t, 216, 223.4, .5, .3) * .38; // v105b : rose-lavande jusqu'au bout, cyan-blanc juste avant l'explosion (vidéo 3:43)
     var rp = t > 216.2 && t < 223.2 ? ((t - 216.2) % 1.4) / 1.4 : 0; du.ripple.value = rp > 0 ? (1 - rp) * .45 : 0; du.ripT.value = rp * 1.6;
     var RD = 110 * (1 + .03 * Math.sin(t * 2.2)) * (1 + .12 * win(t, 216, 223.4, 1, .3));
     O.dome.scale.set(RD, RD * 1.05, RD);
@@ -1690,7 +1709,7 @@
         // v85 — caméra Fortnite : 80° d'angle horizontal (mesuré sur la vidéo) au lieu des 97° du jeu,
         // le temps du rendu seulement (le jeu garde ses propres valeurs, visée comprise).
         var f0 = cam.fov, pl = null; try { pl = api.player(); } catch (e) {}
-        var narrow = !!(pl && pl.deployed), far0 = cam.far, tF = VT(), farOn = tF > 9 && tF < 130 && far0 < 16000; // v103 : la fusée monte à 6,5 km
+        var narrow = !!(pl && pl.deployed), far0 = cam.far, tF = VT(), farOn = ((tF > 9 && tF < 130) || (tF > 183 && tF < 256)) && far0 < 16000; // v103 : la fusée monte à 6,5 km — v106 : et l'on flotte à 1,7 km pendant la fin
         if (farOn) cam.far = 16000;
         if (narrow || farOn) { if (narrow) cam.fov = fovFor(f0, cam.aspect); cam.updateProjectionMatrix(); }
         // v95 : secousse de la caméra quand une onde de choc passe sur le joueur

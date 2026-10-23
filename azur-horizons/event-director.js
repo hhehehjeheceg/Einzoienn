@@ -48,6 +48,8 @@
   }
   function update(dt) {
     var game = root.AZUR; hook(game);
+    // v106 : « La Fin » (end81) a sa propre caméra guidée, calée sur la vidéo — l'ancienne assistance la contrariait
+    if (E.end81) { setCine(false); return; }
     var st = E.state, md = E.playerInfo && E.playerInfo.mode;
     setCine(!!(CINE[st] || (st === 'impact' && E.tState < 14) || (md && AIR[md] && md !== 'drift')));
     if (!game || game.screen !== 'game' || game.paused || game.modal || game.editing) return;

@@ -1069,7 +1069,7 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     const ev = root.AZEvent, evFloat = ev && ev.active && ev.v93 && options.local ? ev.v93.floating : 0;
     const evPose = ev && ev.active && ev.v95 && options.local ? ev.v95.pose : null; // v95 : réactions pendant « La Fin »
     if ((evPose === "fall" || evPose === "tumble") && !p.downed) { base = "LiftAir_Fall_Air_Loop"; scale = evPose === "tumble" ? 1.25 : 1; fade = 0.35; pickLocomotion(an, p, st, false, dt, menu); }
-    else if (evFloat > 0.5 && !p.downed) { base = "Swim_Idle_Loop"; scale = 0.6; fade = 0.6; pickLocomotion(an, p, st, false, dt, menu); } // « La Fin » : lévitation bras écartés
+    else if (evFloat > 0.5 && !p.downed) { base = "Idle_Loop"; scale = 0.5; fade = 0.6; pickLocomotion(an, p, st, false, dt, menu); } // « La Fin » : lévitation bras écartés — v106 : debout (le clip de nage enfonçait le corps de 1,3 m sous le joueur), bras et jambes posés par event-float-v105
     else if (p.downed) { base = an.speed > 0.3 ? "Crawl_Fwd_Loop" : "Crawl_Idle_Loop"; pickLocomotion(an, p, st, false, dt, menu); }
     else if (p.swimming) { const r = pickLocomotion(an, p, st, false, dt, menu); base = an.speed > 0.4 ? "Swim_Fwd_Loop" : "Swim_Idle_Loop"; scale = an.speed > 0.4 ? Math.min(1.6, Math.max(0.7, an.speed / 2)) : 1; void r; }
     else if (emote) { const E5 = root.AZEmotes95, d5 = E5 && E5.defs[p.emoteStyle]; base = d5 ? d5.clip : EMOTES[p.emoteStyle] || "Dance_Loop"; if (d5 && d5.ts) scale = d5.ts; fade = 0.25; }

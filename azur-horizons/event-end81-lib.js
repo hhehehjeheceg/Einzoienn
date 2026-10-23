@@ -329,13 +329,16 @@
       fragmentShader: [
         'varying vec3 vDir;uniform vec3 moonDir;uniform float time,red,space,dark,glow,bright;', NOISE,
         'void main(){vec3 d=normalize(vDir);float h=d.y;',
-        'vec3 hor=vec3(.10,.30,.52),mid=vec3(.035,.13,.30),zen=vec3(.008,.025,.075);',
-        'vec3 c=mix(hor,mid,smoothstep(-.02,.22,h));c=mix(c,zen,smoothstep(.22,.92,h));',
+        // v106 : couleurs relevées sur la vidéo (0:22-0:33) — zénith bleu nuit (11,16,29), milieu (19,31,55),
+        // grand halo cyan autour de la lune (47,180,219) qui s'étire en volutes de nébuleuse
+        'vec3 hor=vec3(.11,.30,.50),mid=vec3(.07,.12,.22),zen=vec3(.04,.06,.11);',
+        'vec3 c=mix(hor,mid,smoothstep(-.02,.24,h));c=mix(c,zen,smoothstep(.24,.95,h));',
         'float md=max(dot(d,normalize(moonDir)),0.);',
-        'c+=vec3(.20,.62,.88)*pow(md,40.)*.3*glow+vec3(.08,.34,.62)*pow(md,7.)*.16*glow;',
+        'c+=(vec3(.20,.62,.80)*pow(md,26.)*.55+vec3(.03,.30,.50)*pow(md,6.)*.55+vec3(.02,.10,.2)*pow(md,2.)*.35)*glow;',
         'vec2 q=vec2(atan(d.z,d.x)*2.2,h*3.4);',
         'float n=fbm(q*1.3+vec2(time*.003,0.));float neb=smoothstep(.42,.86,n)*(1.-smoothstep(.0,1.,abs(h-.32)*1.6));',
-        'c+=vec3(.06,.26,.46)*neb*.55*glow;',
+        'float wisp=smoothstep(.5,.85,fbm(vec2(q.x*.9+q.y*1.6,q.y*4.2-q.x*.5)+3.7))*pow(md,3.);',
+        'c+=vec3(.06,.26,.46)*neb*.55*glow+vec3(.10,.42,.62)*wisp*.8*glow;',
         'float lane=smoothstep(.52,.78,fbm(q*2.1+vec2(3.1,1.7)));c*=1.-.32*lane*smoothstep(.0,.3,h);',
         'vec3 redc=mix(vec3(.42,.05,.10),vec3(.86,.20,.27),smoothstep(-.05,.75,h))+vec3(.25,.05,.1)*neb+vec3(1.,.72,.78)*pow(max(h,0.),7.)*.9;',
         'vec3 brc=c*1.55+vec3(.04,.13,.26)*(1.-smoothstep(.0,.8,h))+vec3(.12,.38,.62)*pow(md,5.)*.35;c=mix(c,brc,bright);',
@@ -428,13 +431,90 @@
    * translucides en éventail, striées de fibres, plus claires sur les bords, qui pendent
    * plus ou moins (droop : 0 = papillon, 1 = rideaux de méduse), et une fine pluie de
    * paillettes qui tombe d'un côté de l'étoile. */
-  L.wingMaterial = function (seed, droop, nw) {
+  /* v106 — FAILLE « ANNEAU » de la vidéo (0:42-0:47, 1:24-1:26) : un trou sombre cerclé d'un épais anneau bleu
+   * lumineux et flou, frange irisée (violet / vert / jaune) sur le bord intérieur, petite étoile à filaments au
+   * centre, lueur rose dedans (variante arc-en-ciel) et un rideau de paillettes qui tombe sous l'anneau.
+   * Deux couches : le disque sombre (mélange normal, il ASSOMBRIT le ciel) puis la lumière (additive). */
+  var RING_FS = [
+    'varying vec2 vUv;uniform float time,amt,open,seed,flash,rainbow,dark;', NOISE,
+    'float hs(float n){return fract(sin(n*91.345+seed*17.13)*43758.5453);}',
+    'void main(){vec2 p=(vUv-.5)*2.;float r=length(p),a=atan(p.y,p.x);',
+    ' float R=mix(.5,.56,rainbow)*mix(.35,1.,open),w=.16+.08*fbm3(vec2(a*2.+seed,time*.2))+.06*rainbow;',
+    ' float wisp=fbm(vec2(a*3.2+seed*2.,r*6.-time*.35));',
+    // anneau bleu saturé, épais et flou (pas un néon blanc) ; un fil clair seulement sur le bord intérieur
+    ' float ring=exp(-pow((r-R)/w,2.)*2.)*(.45+.9*wisp);',
+    ' float halo=exp(-max(r-R,0.)*mix(3.,1.5,rainbow))*step(R*.9,r)*mix(.55,.9,rainbow);',
+    ' float ball=exp(-r*r*2.2)*.3*rainbow;',
+    ' float hue=fract(a/6.2832*1.5+time*.03+seed);vec3 irid=.5+.5*cos(6.2832*(hue+vec3(0.,.33,.67)));',
+    ' float fringe=exp(-pow((r-(R-w*.7))/(w*.6),2.))*(.4+.6*wisp);',
+    ' vec3 col=vec3(.16,.42,1.)*ring*1.5+vec3(.7,.85,1.)*pow(ring,6.)*.45+vec3(.12,.3,1.)*halo+vec3(.2,.45,1.)*ball;',
+    ' col+=irid*fringe*mix(.1,.45,rainbow);',
+    // l'étoile au centre et ses filaments qui retombent (méduse), ou de longs éclairs (anneau arc-en-ciel)
+    ' float core=exp(-r*40.)*2.4+exp(-r*9.)*.45;vec3 fil=vec3(0.);',
+    ' for(int i=0;i<8;i++){float fi=float(i);',
+    '  float ang=mix(-1.5708+(hs(fi)-.5)*2.8,hs(fi+5.)*6.2832,rainbow)+.15*sin(time*.6+fi),Lf=mix(1.05+.5*hs(fi+3.),1.5+.4*hs(fi+3.),rainbow)*R*open;',
+    '  float bendA=mix(.9*(hs(fi+9.)-.5),0.,rainbow)*r;',
+    '  float jag=(sin(r*38.+fi*3.+time*3.)*.012+sin(r*91.+fi*1.7+floor(time*6.))*.005)*(1.+2.*rainbow);',
+    '  float d=abs(r*sin(a-ang-bendA)-jag*r);',
+    '  fil+=vec3(.75,.85,1.)*exp(-d*d/(.00003+.00016*r))*smoothstep(Lf,Lf*.25,r)*step(0.,cos(a-ang-bendA))*(.8+.4*rainbow);}',
+    ' col+=vec3(.95,.98,1.)*core+fil;',
+    ' col+=vec3(1.,.42,.82)*exp(-dot(p-vec2(0.,-.1),p-vec2(0.,-.1))*7.)*.5*rainbow;',
+    // voile violet et paillettes qui pendent sous l'anneau
+    ' float vl=fbm(vec2(p.x*4.+seed,p.y*1.6-time*.12));float veil=smoothstep(.42,.05,abs(p.x+.06*sin(p.y*6.+time)))*smoothstep(-.35,-.62,p.y)*smoothstep(-1.,-.8,p.y);',
+    ' col+=vec3(.42,.32,1.)*veil*(.3+.6*vl)*(1.-rainbow);',
+    ' vec2 g=vec2(p.x*38.,(p.y+time*.09)*38.);vec2 id=floor(g),f=fract(g)-.5;float hh=fract(sin(dot(id,vec2(12.9898,78.233))+seed*7.)*43758.5453);',
+    ' float spk=step(.84,hh)*exp(-dot(f,f)*24.)*(.5+.5*sin(time*8.+hh*40.));',
+    ' col+=vec3(.7,.85,1.)*spk*veil*1.3;',
+    ' col*=amt*(1.+flash*.8);col+=vec3(.9,.96,1.)*flash*exp(-r*4.)*1.2;',
+    ' gl_FragColor=vec4(col*(1.-smoothstep(.88,1.,r)),1.);}'
+  ].join('\n');
+  var PLANE_VS = 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}';
+  L.ringRiftMaterial = function (seed, rainbow) {
+    return new T.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: true, blending: T.AdditiveBlending, fog: false, side: T.DoubleSide,
+      uniforms: { time: { value: 0 }, amt: { value: 0 }, open: { value: 0 }, seed: { value: seed || 1 }, flash: { value: 0 }, rainbow: { value: rainbow || 0 }, dark: { value: 0 }, curl: { value: 1 }, narrow: { value: 0 } },
+      vertexShader: PLANE_VS, fragmentShader: RING_FS });
+  };
+  // le trou sombre au centre de l'anneau (mélange normal : il cache les étoiles derrière lui)
+  L.ringHoleMaterial = function () {
+    return new T.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: true, fog: false, side: T.DoubleSide,
+      uniforms: { amt: { value: 0 }, open: { value: 0 }, time: { value: 0 } }, vertexShader: PLANE_VS,
+      fragmentShader: ['varying vec2 vUv;uniform float amt,open,time;', NOISE,
+        'void main(){vec2 p=(vUv-.5)*2.;float r=length(p),R=.5*mix(.35,1.,open);',
+        ' float n=fbm3(p*3.+time*.05);float a=smoothstep(R*1.02,R*.7,r)*(.55+.15*n)*amt;',
+        ' gl_FragColor=vec4(mix(vec3(.004,.008,.03),vec3(.03,.02,.09),n),a);}'].join('\n') });
+  };
+  /* v106 — le grand NUAGE BLEU MARBRÉ derrière l'éclatement de foudre (vidéo 0:40-0:43) : taches bleues à
+   * nervures claires, comme des cellules, qui se dissolvent sur les bords */
+  L.cellCloudMaterial = function (seed) {
+    return new T.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: true, blending: T.AdditiveBlending, fog: false, side: T.DoubleSide,
+      uniforms: { time: { value: 0 }, amt: { value: 0 }, seed: { value: seed || 1 }, open: { value: 1 } }, vertexShader: PLANE_VS,
+      fragmentShader: ['varying vec2 vUv;uniform float time,amt,seed,open;', NOISE,
+        'void main(){vec2 p=(vUv-.5)*2.;float r=length(p);',
+        ' vec2 q=p*3.4+vec2(seed,seed*.7);float n=fbm(q+vec2(time*.03,-time*.02));float m=fbm(q*1.9-vec2(n*1.6,time*.04));',
+        ' float cells=smoothstep(.38,.72,m),vein=1.-smoothstep(0.,.06,abs(m-.55));',
+        ' float rr=r/mix(.4,1.,open)*(1.+.12*(fbm3(vec2(atan(p.y,p.x)*3.+seed,time*.1))-.5));float fall=smoothstep(.98,.84,rr)*(.75+.25*smoothstep(.3,.7,n))+smoothstep(1.,.6,rr)*.15;',
+        ' vec3 col=vec3(.06,.2,.95)*cells*1.25+vec3(.35,.62,1.)*vein*.7+vec3(.45,.3,1.)*pow(m,4.)*.5+vec3(.03,.08,.4)*(1.-cells);',
+        ' gl_FragColor=vec4(col*fall*amt,1.);}'].join('\n') });
+  };
+  /* v106 — CÔNE DE LUMIÈRE sous une faille (vidéo 0:50) : faisceau qui s'élargit vers le sol */
+  L.lightCone = function (color) {
+    var g = new T.CylinderGeometry(.04, 1, 1, 40, 1, true); g.translate(0, -.5, 0);
+    var m = new T.Mesh(g, new T.ShaderMaterial({ transparent: true, depthWrite: false, blending: T.AdditiveBlending, fog: false, side: T.DoubleSide,
+      uniforms: { amt: { value: 0 }, time: { value: 0 }, col: { value: new T.Color(color || 0x9fc8ff) } },
+      vertexShader: 'varying vec2 vUv;varying vec3 vN;varying vec3 vV;void main(){vUv=uv;vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',
+      fragmentShader: ['varying vec2 vUv;varying vec3 vN;varying vec3 vV;uniform float amt,time;uniform vec3 col;', NOISE,
+        'void main(){float f=abs(dot(vN,vV));float y=vUv.y;float rays=.6+.4*vn(vec2(vUv.x*40.,time*.4));',
+        ' float a=pow(f,1.5)*smoothstep(0.,.35,y)*pow(y,.6)*rays*amt;gl_FragColor=vec4(col*a,a);}'].join('\n') }));
+    m.frustumCulled = false; return m;
+  };
+
+  L.wingMaterial = function (seed, droop, nw, jelly) {
     return new T.ShaderMaterial({
       transparent: true, depthWrite: false, depthTest: true, blending: T.AdditiveBlending, fog: false, side: T.DoubleSide,
-      uniforms: { time: { value: 0 }, open: { value: 0 }, seed: { value: seed || 1 }, amt: { value: 0 }, flash: { value: 0 }, curl: { value: 1 }, narrow: { value: 0 }, droop: { value: droop || 0 }, nw: { value: nw || 3 } },
+      uniforms: { time: { value: 0 }, open: { value: 0 }, seed: { value: seed || 1 }, amt: { value: 0 }, flash: { value: 0 }, curl: { value: 1 }, narrow: { value: 0 }, droop: { value: droop || 0 }, nw: { value: nw || 3 }, jelly: { value: jelly || 0 } },
       vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
       fragmentShader: [
-        'varying vec2 vUv;uniform float time,open,seed,amt,flash,droop,nw;', NOISE,
+        'varying vec2 vUv;uniform float time,open,seed,amt,flash,droop,nw,jelly;', NOISE,
         'float hs(float n){return fract(sin(n*91.345+seed*17.13)*43758.5453);}',
         'float sgA(float a){return mod(a+3.14159,6.28318)-3.14159;}',
         'void main(){vec2 p=(vUv-.5)*2.;float r=length(p),a=atan(p.y,p.x);float rot=hs(5.)*6.2832;vec3 col=vec3(0.);',
@@ -450,7 +530,23 @@
         '  float outer=smoothstep(R*.4,R*.92,rq),side=smoothstep(hw*.3,hw*.95,abs(da));',
         '  float sway=1.+.08*sin(time*1.7+fk*2.+rq*5.);',
         '  wv+=inS*rad*fib*(.32+.45*outer+.35*side)*sway;we+=inS*rad*side*outer*fib;}',
-        ' col+=(vec3(.16,.30,.88)*wv*.72+vec3(.45,.62,1.)*we*.3)*(1.-droop);',
+        ' col+=(vec3(.16,.30,.88)*wv*.72+vec3(.45,.62,1.)*we*.3)*(1.-droop)*(1.-jelly);',
+        /* v106 — la méduse de la vidéo (0:17-0:34) : pattes épaisses cyan-blanc qui se plient comme des pattes d'araignée,
+           voile cyan qui s'étire vers le bas à gauche, cœur cyan éclatant */
+        ' if(jelly>.01){vec3 jc=vec3(0.);',
+        '  for(int i=0;i<10;i++){float fi=float(i);',
+        '   float L=(.4+.36*hs(fi+51.))*mix(.25,1.,open);float th=fi*.6283+(hs(fi+53.)-.5)*.45+.3;',
+        '   float knee=L*(.3+.3*hs(fi+55.)),bend=(hs(fi+57.)-.5)*1.2+.8*sign(hs(fi+59.)-.5);',
+        '   float kr=max(r-knee,0.)/max(L,.1);float ang=th+bend*kr*(1.+kr)*.32*step(.3,hs(fi+61.))+.02*sin(r*9.+fi*2.3+time*1.2);',
+        '   float d=abs(r*sgA(a-ang));float k=r/max(L,.001);float w=.011*(1.-.6*k)+.0025;',
+        '   float fade=smoothstep(.02,.06,r)*(1.-smoothstep(.7,1.,k));',
+        '   jc+=(vec3(.82,.92,1.)*exp(-d*d/(w*w*.5))+vec3(.18,.62,1.)*exp(-d/(w*2.6))*.38)*fade;}',
+        '  vec2 vq=p-vec2(-.04,-.06);float vy=-(vq.y*.82+vq.x*.57),vx=vq.x*.82-vq.y*.57;',
+        '  float vw=.07+.42*max(vy,0.),veil=smoothstep(-.06,.12,vy)*(1.-smoothstep(.3,.78,vy))*(1.-smoothstep(vw*.25,vw,abs(vx)));',
+        '  veil*=.5+.5*smoothstep(.2,.9,vn(vec2(vx*20.+seed,vy*2.6-time*.1)));',
+        '  jc+=vec3(.16,.48,.95)*veil*.68*mix(.3,1.,open);',
+        '  jc+=vec3(.45,.92,1.)*exp(-r*34.)*1.9+vec3(.1,.6,1.)*exp(-r*r*26.)*.75;',
+        '  col=mix(col,jc,jelly);}',
         /* rideaux de méduse (droop) : voiles verticaux qui pendent sous l'étoile, striés, ondulants */
         ' float cu=0.,ce=0.;if(droop>.01){for(int k=0;k<3;k++){float fk=float(k);',
         '  float y=-p.y,cx=(fk-1.)*.3+(hs(fk+41.)-.5)*.16,wd=(.15+.09*hs(fk+43.))*(.25+.75*smoothstep(.0,.35,y));',
@@ -461,7 +557,7 @@
         '  cu+=inX*inY*fib*(.4+.5*ex);ce+=inX*inY*ex*smoothstep(.0,.2,y);}}',
         ' col+=(vec3(.17,.30,.92)*cu*.62+vec3(.5,.66,1.)*ce*.25)*droop;',
         /* filaments courbes */
-        ' for(int i=0;i<9;i++){float fi=float(i);',
+        ' if(jelly<.5)for(int i=0;i<9;i++){float fi=float(i);',
         '  float L=(.3+.66*hs(fi+3.)*hs(fi+3.7))*mix(.2,1.,open)+.12*step(.6,hs(fi+5.));float th=rot+fi*.6981+(hs(fi+1.)-.5)*.55;',
         '  float cv=(hs(fi+7.)-.5)*1.6+.7*sign(hs(fi+11.)-.5);',
         '  float ang=th+cv*r*r/max(L,.2)+.04*sin(time*1.3+fi*2.1+r*7.);',
@@ -471,7 +567,7 @@
         /* étoile centrale */
         ' float core=exp(-r*75.)*2.6+exp(-r*22.)*.38;',
         ' float sp=exp(-abs(p.x)*160.)*exp(-abs(p.y)*16.)+exp(-abs(p.y)*160.)*exp(-abs(p.x)*16.);',
-        ' col+=vec3(.86,.96,1.)*(core+sp*.4)+vec3(.2,.5,1.)*exp(-r*r*14.)*.3;',
+        ' col+=(vec3(.86,.96,1.)*(core+sp*.4)+vec3(.2,.5,1.)*exp(-r*r*14.)*.3)*(1.-.7*jelly);',
         /* pluie de paillettes */
         ' vec2 g=vec2((p.x-.08)*50.,(p.y+time*.09)*50.);vec2 id=floor(g),f2=fract(g)-.5;float hh=h12(id+seed);',
         ' float spk=step(.82,hh)*exp(-dot(f2,f2)*28.)*(.55+.45*sin(time*8.+hh*40.));',

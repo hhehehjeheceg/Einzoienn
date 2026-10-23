@@ -994,6 +994,10 @@
           );
         // Ray-test the complete shoulder-offset boom. Testing only the back
         // vector then offsetting the camera put it through nearby house corners.
+        // v106 : en regardant vers le haut au sol, le bras de caméra raccourcit au lieu que la caméra soit remontée
+        // à la verticale : elle reste dans l'axe du personnage, qui reste dans l'image (comme Fortnite / la vidéo)
+        const lift = p.y + .3;
+        if (!driven && p.grounded && back.y < -.05 && target.y + back.y * dist < lift) dist = Math.max(.9, (target.y - lift) / -back.y);
         const desired = this._camD.copy(target).addScaledVector(back, dist);
         if (!driven) { const shs = .5 * (window.AZEvent?.cameraShoulder ?? 1); desired.x += Math.cos(yaw) * shs; desired.z -= Math.sin(yaw) * shs; }
         else desired.y += 1.05 + Math.min(1.2, Math.abs(driven.speed || 0) * .045);

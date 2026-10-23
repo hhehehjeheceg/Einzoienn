@@ -136,7 +136,8 @@
     var beforeX = p ? p.x : 0, beforeZ = p ? p.z : 0;
     var r = prevPre.apply(this, arguments);
     if (!p || !E.active) return r;
-    if (!V.freeRoam && w && VT() >= 222.8 && VT() < 400 && spared(w, p)) goFree();
+    // v106 : jugé juste avant l'explosion seulement — ensuite le souffle projette le joueur à plus d'un kilomètre (vidéo)
+    if (!V.freeRoam && w && VT() >= 222.8 && VT() < 224.3 && spared(w, p)) goFree();
     var mode = E.playerInfo && E.playerInfo.mode, t = VT(), d = Math.min(0.1, +dt || 0);
     var floating = mode === "zeroshock" || mode === "float" || mode === "blast" || mode === "drift" || mode === "suck";
     V.floating += ((floating ? 1 : 0) - V.floating) * Math.min(1, d * 3);

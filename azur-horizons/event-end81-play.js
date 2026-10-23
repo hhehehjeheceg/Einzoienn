@@ -174,9 +174,15 @@
         // souffle de l'explosion puis lente dérive vers la lumière
         // v105 (vidéo 224,5 → 246 s) : le souffle projette le joueur dans l'espace (l'île n'est plus qu'un disque sous lui),
         // puis il dérive lentement vers la lumière au centre de l'île
-        var base = Math.max(H(p.x, p.z), c.y) + 300 + 1350 * U.easeOut(cl((t - 224.3) / 3.2)) - 900 * U.sm(ramp(t, 229, 246));
-        floatTo(p, base, 650, 70); setMode(t < 228 ? 'blast' : 'drift', t); st.float = 1;
-        var spd = lerp(3, 42, ramp(t, 228, 246)) * dt; if (d2 > 30) { p.x += dx2 / d2 * spd; p.z += dz2 / d2 * spd; }
+        // v106 (vidéo 3:44-4:06, mesuré sur l'île vue d'en haut) : le souffle projette le joueur loin du centre
+        // (≈ 1 km en 4 s, 400 m plus haut : la lumière droit devant), il s'éloigne encore jusqu'à 238 s
+        // (l'île entière sous lui, la lumière en son centre), puis il dérive vers la lumière
+        if (!st.blastDir) st.blastDir = d2 > 1 ? { x: -dx2 / d2, z: -dz2 / d2, d0: d2 } : { x: 1, z: 0, d0: 0 };
+        var bd = st.blastDir, ko = U.easeOut(cl((t - 224.3) / 4)), k2 = U.sm(ramp(t, 228, 238)), k3 = U.sm(ramp(t, 238, 246.2));
+        var dw = bd.d0 + (1000 - bd.d0) * ko + 300 * k2 - 450 * k3, hw = 400 * ko + 300 * k2 - 160 * k3;
+        var mx = c.x + bd.x * dw - p.x, mz = c.z + bd.z * dw - p.z, md = Math.hypot(mx, mz), stp = E.__snap ? md : Math.min(md, 420 * dt);
+        if (md > .01) { p.x += mx / md * stp; p.z += mz / md * stp; }
+        floatTo(p, Math.max(H(p.x, p.z) + 30, c.y + hw), 650, 70); setMode(t < 228 ? 'blast' : 'drift', t); st.float = 1;
         st.suckFrom = null;
       } else {
         // aspiré en spirale dans le tourbillon
@@ -212,6 +218,12 @@
     lookPrev = G.look; G.look = function () { steerUser = VT(); return lookPrev.apply(this, arguments); };
   }
   function unwrapLook() { if (G && lookPrev) G.look = lookPrev; lookPrev = null; }
+  var PITCH_KEYS = [[183.5, -.12], [184.6, -.15], [185.5, -.38], [187.8, -.38], [188.8, .7], [189.8, 1.08], [192.5, 1.02], [196, .95], [199, .8], [203, .6], [206, .45], [209, .25], [211, .05], [212.6, -.3], [214, -.42], [224, -.42]];
+  function keyPitch(t) {
+    var K = PITCH_KEYS; if (t <= K[0][0]) return K[0][1];
+    for (var i = 1; i < K.length; i++) if (t < K[i][0]) { var a = K[i - 1], b = K[i], u = U.sm((t - a[0]) / (b[0] - a[0])); return a[1] + (b[1] - a[1]) * u; }
+    return K[K.length - 1][1];
+  }
   function steerCam(t, p, dt) {
     var s = S(); if (!G || !s || !s.ZP || !s.STAR || p.vehicleId) return;
     // v97 : jamais en vol (planeur, chute) ni quand le joueur se déplace : la caméra donne la direction
@@ -224,26 +236,28 @@
     else if (ride === 'm2' || ride === 'thrown') tgt = s.ZP;
     else if (t >= 9 && t < 33.6 && an.rocket1) { tgt = an.rocket1; pk = .9; }
     else if (t >= 33.6 && t < 45.5 && (an.b1 || (O2 && O2.b1p))) { tgt = an.b1 || O2.b1p; pk = .95; }
-    else if (t >= 45.5 && t < 54.2 && O2 && O2.r2p) { tgt = O2.r2p; pk = .85; }
+    else if (t >= 45.5 && t < 54.2 && O2 && O2.r2p) { tgt = O2.r2p; pk = .5; } // v106 : l'étoile reste en haut de l'image, l'horizon et les aurores en bas (vidéo 0:48-0:52)
     else if (t >= 54.2 && t < 62.6 && an.rA) { tgt = an.rA; pk = .9; }   // v89 : on suit la fusée comme la vidéo
     else if (t >= 62.6 && t < 64 && O2 && O2.b0p) { tgt = O2.b0p; pk = .9; }
+    else if (t >= 83.2 && t < 91 && O2 && O2.rbp) { tgt = O2.rbp; pk = .4; } // v106 : le grand anneau arc-en-ciel (vidéo 1:24-1:30)
     else if (t >= 119 && t < 153.5 && E.meteorPos && E.meteorVisible) { tgt = E.meteorPos; pk = .9; }
     else if (t >= 157.8 && t < 176.8) { tgt = s.STAR; pk = 1; }
     else if (t >= 176.8 && t < 183.5) tgt = s.ZP;
     else if (t >= 183.5 && t < 188.6) tgt = s.ZP;
     else if (t >= 188.6 && t < 212.5) { tgt = (t > 193 && E.meteorVisible && E.meteorPos) ? E.meteorPos : s.STAR; pk = 1; } // v105b : la caméra suit la météorite et son escorte (vidéo 3:13-3:32)
     else if (t >= 212.5 && t < 224) tgt = s.ZP;
-    else if (t >= 224 && t < 254.5) tgt = an.blackhole || s.ZP;
+    else if (t >= 224 && t < 254.5) { tgt = an.blackhole || s.ZP; pk = 1; }
     if (!tgt) return;
     var idle = ramp(t - steerUser, 2.5, 4.5); if (idle <= 0) return;
     var dx = tgt.x - p.x, dz = tgt.z - p.z, dy = tgt.y + 25 - (p.y + 1.8), hd = Math.hypot(dx, dz) || 1;
     var yawGoal = Math.atan2(-dx, -dz), pitchGoal = Math.max(-1.05, Math.min(1.12, Math.atan2(dy, hd) * pk));
     // v105b — cadrages de la vidéo pendant la flottaison : la caméra reste près, derrière le joueur, jamais à la verticale
+    // v106 : inclinaison relevée image par image sur la vidéo (3:03 → 3:44) — la caméra passe SOUS le joueur
+    // pour regarder l'étoile au zénith (on le voit d'en dessous), redescend en suivant la météorite, puis plonge sur le dôme
     if (!ride) {
-      if (t >= 183.5 && t < 188.6) pitchGoal = -.2;
-      else if (t >= 188.6 && t < 212.5) pitchGoal = Math.max(-.15, Math.min(.55, pitchGoal));
-      else if (t >= 212.5 && t < 224) pitchGoal = Math.max(-.8, Math.min(-.25, pitchGoal));
-      else if (t >= 224 && t < 254.5) pitchGoal = Math.max(-.6, Math.min(.05, pitchGoal));
+      if (t >= 9 && t < 64) pitchGoal = Math.min(.85, pitchGoal); // v106 : au début la caméra ne passe jamais à la verticale (le joueur reste dans l'image, vidéo 0:20-0:50)
+      else if (t >= 183.5 && t < 224) pitchGoal = keyPitch(t);
+      else if (t >= 224 && t < 254.5) pitchGoal = Math.max(-.9, Math.min(.1, pitchGoal - .06));
     }
     var k = E.__snapCam ? 1 : (1 - Math.exp(-Math.min(.1, dt || .016) * 1.6)) * idle; // __snapCam : outil de comparaison avec la vidéo (cadrage immédiat)
     var dyaw = yawGoal - G.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw));
@@ -405,7 +419,7 @@
     busRoute(t, w, p, dt);
     // v93 : à bord du bus (Vol sans fin) ou resté loin, le trou noir ne l'avale pas
     if (t >= 253.6) { st.spared = !!((E.v93 && E.v93.freeRoam) || (p.deployed ? st.far : w.eventVariant === 'flight')); if (!st.spared) hideAll(p, w); publish(p, t); return; }
-    if (t < 224) { st.far = null; st.spared = false; }
+    if (t < 224) { st.far = null; st.spared = false; st.blastDir = null; }
     if (st.hidden && t < 253.6) { st.hidden = false; var vv = api.view(); if (vv && vv.actorRoot) vv.actorRoot.visible = true; if (st.saved) { p.x = st.saved.x; p.z = st.saved.z; p.y = H(p.x, p.z) + 1; } }
     if (p.deployed && p.alive) {
       if (p.grounded && t > -25) st.landedSeen = true;
@@ -419,7 +433,7 @@
     var zf = lerp(.45, .55, ramp(t, 223, 226)) + .2 * ramp(t, 236, 246) + 2.6 * ramp(t, 247, 251.5); // v105b : dans l'espace la caméra reste près du joueur (vidéo 3:46-4:05)
     E.cameraZoom = t < 183.5 ? zg : lerp(zg, zf, ramp(t, 183.5, 185.2));
     // caméra par-dessus l'épaule comme Fortnite (personnage à gauche de l'écran, ~0,9 m de décalage)
-    E.cameraShoulder = 1.8 * (1 - ramp(t, 236, 250));
+    E.cameraShoulder = t < 183.5 ? 1.8 : t < 224 ? 1.8 * (1 - ramp(t, 183.5, 185)) : 0; // v106 : en apesanteur le joueur est au centre de l'image (vidéo 3:04-4:13)
     publish(p, t);
   }
   function update(dt) {
