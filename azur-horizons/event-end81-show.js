@@ -408,7 +408,7 @@
         var u = p / 9, pa = age - u * 1.4; if (pa < 0) continue;
         var rise = (8 + 34 * u) * Math.min(pa, 6) * .5 * k, spread = (6 + 26 * u) * k, a2 = hsh(b.seed + p) * 6.283;
         var al = cl(pa * 2) * (1 - ramp(age, 8, 14)) * .75;
-        sys.add(b.pos.x + Math.cos(a2) * spread * .5, b.pos.y + rise + 4, b.pos.z + Math.sin(a2) * spread * .5, (24 + 30 * u + pa * 6) * k, .22, .2, .22, al, a2 + t * .05, p % 4, 0, (1 - cl(pa / 1.5)) * .9);
+        sys.add(b.pos.x + Math.cos(a2) * spread * .5, b.pos.y + rise + 4, b.pos.z + Math.sin(a2) * spread * .5, (24 + 30 * u + pa * 6) * k * .6, .5, .42, .56, al * .55, a2 + t * .05, p % 4, 0, (1 - cl(pa / 1.5)) * .9); // v106 : fumée mauve légère — la colonne noire n'existe pas dans la vidéo (1:04-1:20)
       }
     }
     // maisons en feu dans les villes frappées
@@ -1098,7 +1098,7 @@
       pa.needsUpdate = true; O.sock.rotation.y = .35 * Math.sin(t * .21) + .1 * Math.sin(t * .9);
     }
     // éteint pendant le décollage (sinon il fait une 2e traînée), il revient vers 82-88 s (vidéo A : visible à 93, 102, 111, 162 s)
-    var bo = live * (1 - win(t, 9.8, 88, 1.5, 6)) * (.84 + .1 * Math.sin(t * 2.1) + .06 * Math.sin(t * 5.3));
+    var bo = live * (1 - win(t, 9.8, 88, 1.5, 6)) * (1 - win(t, 163, 177.6, 1.2, 1)) * (.84 + .1 * Math.sin(t * 2.1) + .06 * Math.sin(t * 5.3));
     O.baseBeam.visible = O.baseBeamCore.visible = bo > .01;
     O.baseBeam.material.opacity = .16 * bo; O.baseBeamCore.material.opacity = .3 * bo; L.setOp(O.baseBeamGlow, .2 * bo);
     // projecteur : balayage lent jusqu'au décollage
@@ -1677,7 +1677,7 @@
     var dark = ramp(t, 157.6, 160) * (1 - ramp(t, 176.4, 177.8)), space = ramp(t, 223.3, 224.6);
     var red = win(t, 188.7, 190.9, .55, .75), bright = win(t, 140.5, 153.4, 6, 1.2);
     var glowGround = O.gLight ? O.gLight.intensity : 0;
-    if (v.hemi) { v.hemi.color.set(0x8ab8ff); v.hemi.groundColor.set(0x2a6a3c); v.hemi.intensity = (lerp(1.42, .45, dark) + .7 * bright) * (1 - .42 * space); v.hemi.color.lerp(HEMI_BR, Math.max(bright * .5, space * .6)); }
+    if (v.hemi) { v.hemi.color.set(0x8ab8ff); v.hemi.groundColor.set(0x2a6a3c); v.hemi.intensity = (lerp(1.42, .8, dark) + .7 * bright) * (1 - .42 * space); v.hemi.color.lerp(HEMI_BR, Math.max(bright * .5, space * .6)); }
     if (v.sun) {
       v.sun.color.set(space > .5 ? 0x6f8cff : 0xc4dcff); v.sun.intensity = lerp(1.25, .3, dark) * (1 - .7 * space);
       var p = api.player(); if (p) { v.sun.position.set(p.x, p.y, p.z).addScaledVector(dirYP(LAY.moon[0], LAY.moon[1], tmp), 160); v.sun.target.position.set(p.x, p.y, p.z); v.sun.target.updateMatrixWorld(); }

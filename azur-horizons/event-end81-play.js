@@ -241,6 +241,7 @@
     else if (t >= 45.5 && t < 54.2 && O2 && O2.r2p) { tgt = O2.r2p; pk = .5; } // v106 : l'étoile reste en haut de l'image, l'horizon et les aurores en bas (vidéo 0:48-0:52)
     else if (t >= 54.2 && t < 62.6 && an.rA) { tgt = an.rA; pk = .9; }   // v89 : on suit la fusée comme la vidéo
     else if (t >= 62.6 && t < 64 && O2 && O2.b0p) { tgt = O2.b0p; pk = .9; }
+    else if (((t >= 66 && t < 74.5) || (t >= 91 && t < 119)) && E.meteorPos && E.meteorVisible) { tgt = E.meteorPos; pk = .5; } // v106 : la météorite enflammée dans l'image (vidéo 1:06-1:14, 1:31-1:58)
     else if (t >= 83.2 && t < 91 && O2 && O2.rbp) { tgt = O2.rbp; pk = .4; } // v106 : le grand anneau arc-en-ciel (vidéo 1:24-1:30)
     else if (t >= 119 && t < 153.5 && E.meteorPos && E.meteorVisible) { tgt = E.meteorPos; pk = .9; }
     else if (t >= 157.8 && t < 176.8) { tgt = s.STAR; pk = 1; }
@@ -257,7 +258,8 @@
     // v106 : inclinaison relevée image par image sur la vidéo (3:03 → 3:44) — la caméra passe SOUS le joueur
     // pour regarder l'étoile au zénith (on le voit d'en dessous), redescend en suivant la météorite, puis plonge sur le dôme
     if (!ride) {
-      if (t >= 9 && t < 64) pitchGoal = Math.min(.85, pitchGoal); // v106 : au début la caméra ne passe jamais à la verticale (le joueur reste dans l'image, vidéo 0:20-0:50)
+      if (t >= 9 && t < 64) pitchGoal = Math.min(.85, pitchGoal);
+      else if (t >= 157.8 && t < 176.8) pitchGoal = Math.min(.95, pitchGoal); // l'étoile au zénith en haut de l'image, le joueur en bas à gauche (vidéo 2:44-2:56) // v106 : au début la caméra ne passe jamais à la verticale (le joueur reste dans l'image, vidéo 0:20-0:50)
       else if (t >= 183.5 && t < 224) pitchGoal = keyPitch(t);
       else if (t >= 224 && t < 254.5) pitchGoal = Math.max(-.9, Math.min(.1, pitchGoal - .06));
     }
