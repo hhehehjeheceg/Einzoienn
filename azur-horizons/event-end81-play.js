@@ -159,8 +159,8 @@
       if (st.mode !== 'zeroshock' && st.mode !== 'float') { st.liftFrom = p.y; }
       // v105 (vidéo 183 → 186,5 s) : l'onde arrache le joueur d'un coup — on voit toute l'île dès 186 s — puis il flotte
       // en apesanteur et dérive lentement plus haut jusqu'à la plongée des fusées (≈ 490 m au-dessus du sol à 212 s)
-      var lk = U.easeOut(cl((t - 183.5) / 2.8)), target = Math.max(ground, st.liftFrom || p.y) + 340 * lk + 150 * U.sm(ramp(t, 187, 212)) + 4 * Math.sin(t * .7);
-      floatTo(p, target, t < 187 ? 240 : 60, 40); setMode(t < 189 ? 'zeroshock' : 'float', t); st.float = ramp(t, 183.6, 185);
+      var lk = U.sm(ramp(t, 184, 188.2)), target = Math.max(ground, st.liftFrom || p.y) + 340 * lk + 150 * U.sm(ramp(t, 188.2, 212)) + 4 * Math.sin(t * .7); // v105b : l'onde frappe à 184 s (vidéo), 50 m à 185 s, 220 m à 186,5 s
+      floatTo(p, target, t < 189 ? 240 : 60, 40); setMode(t < 189 ? 'zeroshock' : 'float', t); st.float = ramp(t, 183.6, 185);
       var dx = s.ZP.x - p.x, dz = s.ZP.z - p.z, d = Math.hypot(dx, dz), want = 300;
       if (d > want) { var pull = Math.min(6, (d - want) * .05) * dt; p.x += dx / d * pull; p.z += dz / d * pull; }
       return;
@@ -231,13 +231,20 @@
     else if (t >= 157.8 && t < 176.8) { tgt = s.STAR; pk = 1; }
     else if (t >= 176.8 && t < 183.5) tgt = s.ZP;
     else if (t >= 183.5 && t < 188.6) tgt = s.ZP;
-    else if (t >= 188.6 && t < 212.5) { tgt = s.STAR; pk = 1; }
-    else if (t >= 212.5 && t < 254.5) tgt = s.ZP;
+    else if (t >= 188.6 && t < 212.5) { tgt = (t > 193 && E.meteorVisible && E.meteorPos) ? E.meteorPos : s.STAR; pk = 1; } // v105b : la caméra suit la météorite et son escorte (vidéo 3:13-3:32)
+    else if (t >= 212.5 && t < 224) tgt = s.ZP;
+    else if (t >= 224 && t < 254.5) tgt = an.blackhole || s.ZP;
     if (!tgt) return;
     var idle = ramp(t - steerUser, 2.5, 4.5); if (idle <= 0) return;
     var dx = tgt.x - p.x, dz = tgt.z - p.z, dy = tgt.y + 25 - (p.y + 1.8), hd = Math.hypot(dx, dz) || 1;
     var yawGoal = Math.atan2(-dx, -dz), pitchGoal = Math.max(-1.05, Math.min(1.12, Math.atan2(dy, hd) * pk));
-    if (t >= 183.5 && t < 188.6 && !ride) pitchGoal = -.2; // v105 (vidéo 184-188 s) : derrière le joueur, l'horizon en haut de l'image, pas une plongée sur le dôme
+    // v105b — cadrages de la vidéo pendant la flottaison : la caméra reste près, derrière le joueur, jamais à la verticale
+    if (!ride) {
+      if (t >= 183.5 && t < 188.6) pitchGoal = -.2;
+      else if (t >= 188.6 && t < 212.5) pitchGoal = Math.max(-.15, Math.min(.55, pitchGoal));
+      else if (t >= 212.5 && t < 224) pitchGoal = Math.max(-.8, Math.min(-.25, pitchGoal));
+      else if (t >= 224 && t < 254.5) pitchGoal = Math.max(-.6, Math.min(.05, pitchGoal));
+    }
     var k = E.__snapCam ? 1 : (1 - Math.exp(-Math.min(.1, dt || .016) * 1.6)) * idle; // __snapCam : outil de comparaison avec la vidéo (cadrage immédiat)
     var dyaw = yawGoal - G.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw));
     G.yaw += dyaw * k; G.pitch += (pitchGoal - G.pitch) * k;
@@ -409,7 +416,7 @@
     // v85 — distance caméra mesurée sur la vidéo : ~4,4 m au sol (au lieu de 3,7), tout près du joueur
     // quand il flotte (~2,8 m, 183,5 → 223), puis elle reste proche dans le tourbillon (~8 m à 246 s) puis recule (~24 m à 251,5 s).
     var air = !!(p.gliding || p.falling || p.flying), zg = air ? 1 : 4.4 / 3.7;
-    var zf = lerp(.45, 1, ramp(t, 223, 226)) + .35 * ramp(t, 236, 246) + 2.6 * ramp(t, 247, 251.5);
+    var zf = lerp(.45, .55, ramp(t, 223, 226)) + .2 * ramp(t, 236, 246) + 2.6 * ramp(t, 247, 251.5); // v105b : dans l'espace la caméra reste près du joueur (vidéo 3:46-4:05)
     E.cameraZoom = t < 183.5 ? zg : lerp(zg, zf, ramp(t, 183.5, 185.2));
     // caméra par-dessus l'épaule comme Fortnite (personnage à gauche de l'écran, ~0,9 m de décalage)
     E.cameraShoulder = 1.8 * (1 - ramp(t, 236, 250));

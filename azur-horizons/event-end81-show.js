@@ -1208,7 +1208,7 @@
     var cr = win(t, 167.3, 211, .8, 3);
     L.setOp(O.zCrack, cr * (.85 + .15 * hsh(flick))); O.zCrack.scale.setScalar(320 + 80 * ramp(t, 189, 192)); O.zCrack.material.map = X.crack[Math.floor((t + 600) * 4) % 2]; O.zCrack.material.rotation = Math.floor((t + 600) * 4) * .2;
     L.setOp(O.zGlow, Math.min(1, win(t, 167.25, 177.4, .5, 1.2) * 1.15 + win(t, 190, 211, 1, 3) * .7)); O.zGlow.scale.setScalar(560 + 40 * Math.sin(t * 1.4));
-    L.setOp(O.zSphere, win(t, 190.5, 199.5, 1.2, 3) * .5); O.zSphere.scale.setScalar(1100 + 900 * U.easeOut(ramp(t, 190.5, 195)));
+    L.setOp(O.zSphere, win(t, 190.5, 201, 1.2, 3) * .9); // v105b : la grande sphère bleue autour de l'étoile (vidéo 3:12-3:17) O.zSphere.scale.setScalar(1100 + 900 * U.easeOut(ramp(t, 190.5, 195)));
     L.setOp(O.zFlash, win(t, 189.6, 191.6, .2, 1.2) * .6); O.zFlash.scale.setScalar(500 + 900 * ramp(t, 189.6, 190.6));
     L.setOp(O.zStarBurst, win(t, 190.4, 209, .6, 3) * .55); O.zStarBurst.material.map = X.burstBig[flick % 2]; O.zStarBurst.material.rotation = flick * .6; O.zStarBurst.scale.setScalar(900);
     // éclairs qui descendent de l'étoile
@@ -1229,7 +1229,7 @@
     var du = O.dome.material.uniforms, amt = Math.max(ramp(t, 177.3, 179), .11 * (1 - ramp(t, 176.8, 177.6))) * (1 - ramp(t, 223.2, 223.7));
     O.dome.visible = amt > .004; du.time.value = t; du.amt.value = amt;
     du.flash.value = win(t, 182.95, 184.6, .1, 1.4) * .8 + win(t, 215.8, 218, .2, 1.5) * .22 + win(t, 222.6, 223.5, .5, .2) * .55;
-    du.cyan.value = .55 * (1 - ramp(t, 176.6, 178)) + .25 * ramp(t, 210.5, 214); du.hot.value = win(t, 216, 223.4, .5, .3) * .38;
+    du.cyan.value = .55 * (1 - ramp(t, 176.6, 178)) + .75 * ramp(t, 221.6, 222.9); // v105b : rose-lavande jusqu'au bout, cyan-blanc juste avant l'explosion (vidéo 3:43) du.hot.value = win(t, 216, 223.4, .5, .3) * .38;
     var rp = t > 216.2 && t < 223.2 ? ((t - 216.2) % 1.4) / 1.4 : 0; du.ripple.value = rp > 0 ? (1 - rp) * .45 : 0; du.ripT.value = rp * 1.6;
     var RD = 110 * (1 + .03 * Math.sin(t * 2.2)) * (1 + .12 * win(t, 216, 223.4, 1, .3));
     O.dome.scale.set(RD, RD * 1.05, RD);
@@ -1286,7 +1286,7 @@
       tr.spec = { tp: [204.8 + e * .1, 209.2 + e * .08, 211.0 + e * .1, 212.6 + e * .12, 213.6 + e * .2], tail: 1.6 }; tr.fr = arcFracs(tr.curve, 5);
       tr.a = tr.spec.tp[0]; tr.b = tr.spec.tp[4]; O.escort.push(tr); FLASHES.push({ pos: p3.clone().add(new T.Vector3(0, 6, 0)), t: tr.b, size: 160 }); addBoom(p3, tr.b, 1.4, true); // v93 : elles s'écrasent et explosent
     }
-    O.fireCol = new T.Mesh(new T.CylinderGeometry(9, 15, 1, 16, 1, true), new T.MeshBasicMaterial({ color: 0xff5a24, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, fog: false, side: T.DoubleSide }));
+    O.fireCol = new T.Mesh(new T.CylinderGeometry(9, 15, 1, 16, 1, true), new T.MeshBasicMaterial({ color: 0xff1e3c, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, fog: false, side: T.DoubleSide }));
     O.fireCol.frustumCulled = false; O.fireCol.visible = false; grp.add(O.fireCol);
     // éclats au contact avec le dôme : la fusée du laser (183 s) et la météorite (216,2 s)
     O.zHit = L.sprite(grp, X.star, 0xe8f6ff, 300, true, 0); O.zHit.position.set(ZP.x, ZP.y + DOME_TOP, ZP.z);
@@ -1340,7 +1340,7 @@
     var mgk = win(t, 216.6, 223.6, 1.2, .5); O.mGround.visible = mgk > .004;
     if (O.mGround.visible) { O.mGround.material.opacity = mgk * (.55 + .15 * Math.sin(t * 6)); O.mGround.scale.setScalar((DOME_TOP + 22) * (1 + .1 * ramp(t, 217, 223))); }
     // colonne de feu puis de fumée sombre au sommet du dôme
-    var fc = win(t, 215.9, 221, .3, 2.5);
+    var fc = win(t, 215.9, 223.5, .3, .7); // v105b : la colonne rouge reste jusqu'à l'explosion (vidéo 3:37-3:44)
     O.fireCol.visible = O.fireCore.visible = fc > .004;
     if (fc > .004) {
       var base = Math.min(ZP.y + DOME_TOP - 6, O.met2.g.position.y), top = ZP.y + DOME_TOP + 514, hgt = top - base; // v93 : la colonne suit la météorite dans la bulle
@@ -1352,7 +1352,7 @@
       for (var p = 0; p < 30; p++) {
         var k2 = p / 29, y = ZP.y + DOME_TOP + 20 + k2 * 520, age = t - 216.6 - k2 * .8; if (age < 0) continue;
         var a = cl(age * 1.5) * (1 - ramp(t, 226, 236)) * .85;
-        sys.add(ZP.x + Math.sin(p * 2.1 + t * .2) * (8 + k2 * 20), y, ZP.z + Math.cos(p * 1.7) * (8 + k2 * 20), 46 + k2 * 60, .2, .2, .25, a * .7, p + t * .05, p % 4, 0, cl(1 - age / 2) * .8);
+        sys.add(ZP.x + Math.sin(p * 2.1 + t * .2) * (8 + k2 * 20), y, ZP.z + Math.cos(p * 1.7) * (8 + k2 * 20), 30 + k2 * 40, .62, .07, .12, a * .75, p + t * .05, p % 4, 0, .55 + cl(1 - age / 2) * .5); // v105b : colonne cramoisie lumineuse (vidéo), plus de fumée noire
       }
     }
   }
@@ -1402,6 +1402,14 @@
         var bl2 = new T.PointLight(0x8fb4ff, 2.5, 50, 1.2); bl2.position.set(0, 2, -8); O.fBus.add(bl2);
       }
     } catch (e) { O.fBus = null; }
+    // v105b — l'espace de la vidéo (3:46-4:13) : nébuleuses violettes et roses autour de la lumière, paillettes blanches
+    O.neb = []; var nebC = [0x7a3cff, 0xff4fd8, 0x3f6bff, 0xb15cff, 0x5f3aff, 0xff6ad0, 0x4a8cff];
+    for (var nb = 0; nb < 7; nb++) { var sn = L.sprite(grp, X.soft, nebC[nb], 900, true, 0); sn.userData = { a: nb / 7 * 6.283 + .4, e: .15 + .5 * hsh(nb * 3), r: 1400 + 900 * hsh(nb * 5), s: 1400 + 1400 * hsh(nb * 7) }; O.neb.push(sn); }
+    var SN = low ? 500 : 1100, spos = new Float32Array(SN * 3);
+    for (var sp = 0; sp < SN; sp++) { var u1 = hsh(sp * 1.7) * 6.283, u2 = hsh(sp * 2.9) * 2 - 1, rr2 = 120 + 900 * Math.pow(hsh(sp * 4.3), .6), rq = Math.sqrt(1 - u2 * u2); spos[sp * 3] = Math.cos(u1) * rq * rr2; spos[sp * 3 + 1] = u2 * rr2 * .6 + 200; spos[sp * 3 + 2] = Math.sin(u1) * rq * rr2; }
+    var sg = new T.BufferGeometry(); sg.setAttribute('position', new T.BufferAttribute(spos, 3));
+    O.sparks = new T.Points(sg, new T.PointsMaterial({ color: 0xf2f6ff, size: 3.2, sizeAttenuation: true, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, fog: false }));
+    O.sparks.material.toneMapped = false; O.sparks.frustumCulled = false; O.sparks.position.copy(c); O.sparks.visible = false; grp.add(O.sparks);
     O.mstreaks = [];
     for (var k = 0; k < 4; k++) {
       var pts = []; for (var j = 0; j <= 30; j++) { var a = j / 30 * Math.PI * 2.4 + k * 1.57, r = 420 * (1 - j / 34); pts.push(ZP.clone().add(new T.Vector3(Math.cos(a) * r, 60 + 80 * Math.sin(j * .3 + k), Math.sin(a) * r))); }
@@ -1410,7 +1418,7 @@
   }
   function updateFinale(t, cam) {
     var fx = O.fx, c = O.fxC;
-    var ex = win(t, 223.3, 254.6, .4, .3), kd = cl(c.distanceTo(cam.position) / 420) * .88 + .12;
+    var ex = win(t, 223.3, 254.6, .4, .3), kd = Math.max(.12, c.distanceTo(cam.position) / 420); // v105b : la lumière garde sa taille à l'écran même vue de l'espace (1,6 km)
     L.setOp(fx.core, ex * (.8 + .15 * Math.sin(t * 7))); fx.core.scale.setScalar((90 + 110 * win(t, 223.3, 228, .3, 3) + 40 * ramp(t, 244, 252.5)) * kd);
     L.setOp(fx.flare, ex * .35); fx.flare.scale.set((600 + 900 * ramp(t, 247, 253)) * kd, (30 + 20 * ramp(t, 247, 253)) * kd, 1);
     L.setOp(fx.soft, ex * (.09 + .03 * ramp(t, 238, 250))); fx.soft.scale.setScalar((320 + 300 * ramp(t, 238, 252)) * kd);
@@ -1445,6 +1453,9 @@
         O.fBus.scale.setScalar(1.35 * (1 - ramp(t, 249.4, 251)) + .01);
       }
     }
+    var spc = ramp(t, 224.2, 226.5) * (1 - ramp(t, 253.4, 254.5));
+    O.neb.forEach(function (sn, i) { var d = sn.userData, a = d.a + t * .01; sn.position.set(c.x + Math.cos(a) * d.r, c.y - 300 + d.e * 700, c.z + Math.sin(a) * d.r); sn.scale.setScalar(d.s * (1 + .08 * Math.sin(t * .4 + i))); L.setOp(sn, spc * (.12 + .05 * Math.sin(t * .7 + i * 2))); });
+    O.sparks.visible = spc > .01; if (O.sparks.visible) { O.sparks.material.opacity = spc * (.7 + .3 * Math.sin(t * 3)); O.sparks.rotation.y = t * .03; O.sparks.scale.setScalar(1 + .6 * ramp(t, 238, 252)); }
     O.mstreaks.forEach(function (tr, i) { var a0 = 238 + i * 2.6, k = (t - a0) / 4; tr.set(cl(k), .55, (k > 0 ? 1 : 0) * (1 - ramp(t, a0 + 4, a0 + 5.5)) * .9, t); });
     E.anchors = E.anchors || {}; if (!E.anchors.blackhole) E.anchors.blackhole = new T.Vector3(); E.anchors.blackhole.copy(c);
   }
@@ -1653,7 +1664,7 @@
     var su = O.sky.material.uniforms; su.time.value = t; su.red.value = red; su.space.value = space; su.dark.value = dark; su.glow.value = 1 - .7 * dark; su.bright.value = bright * .35;
     O.sky.position.copy(cam.position); O.stars.position.copy(cam.position); O.stars2.position.copy(cam.position);
     O.stars.material.uniforms.time.value = t; O.stars.material.uniforms.amt.value = 1 - .3 * red;
-    O.stars2.material.uniforms.time.value = t; O.stars2.material.uniforms.amt.value = space * 1.2;
+    O.stars2.material.uniforms.time.value = t; O.stars2.material.uniforms.amt.value = space * 2.2; // v105b : ciel d'espace bien étoilé (vidéo)
     var px = v.renderer.getPixelRatio(); O.stars.material.uniforms.px.value = px; O.stars2.material.uniforms.px.value = px;
     O.moon.position.copy(cam.position).addScaledVector(dirYP(LAY.moon[0], LAY.moon[1], tmp), 2500); O.moon.scale.setScalar(720); O.moonHalo.position.copy(O.moon.position);
     L.setOp(O.moon, (1 - space) * (1 - .8 * dark)); L.setOp(O.moonHalo, (1 - space) * (.34 - .26 * dark) * (1 - red)); O.moonHalo.scale.setScalar(2600);
@@ -1700,7 +1711,7 @@
           var cu = post.comp.uniforms; cu.time.value = t;
           cu.warp.value = win(t, 223.5, 227.5, .3, 2.5) * .42 + win(t, 246, 252.6, 2, .5) * .12;
           cu.strength.value = .75; cu.wide.value = .42; cu.vig.value = .32 + .25 * ramp(t, 224, 230);
-          if (cu.grade) { cu.grade.value = ramp(t, 223.4, 226) * .6; cu.squash.value = Math.pow(ramp(t, 252.3, 254.45), 1.6); }
+          if (cu.grade) { cu.grade.value = ramp(t, 223.4, 226) * .95; cu.squash.value = Math.pow(ramp(t, 252.3, 254.45), 1.6); }
           tmp.copy(O.fxC || ZP).project(cam); cu.warpC.value.set(tmp.x * .5 + .5, tmp.y * .5 + .5);
           post.render(inner, scene, cam); return;
         } catch (e) { post.failed = true; r.setRenderTarget(null); console.error('[AZUR end81] post', e); }
