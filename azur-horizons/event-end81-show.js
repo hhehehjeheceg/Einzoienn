@@ -629,7 +629,9 @@
     addRift(skyPos(46, 59, 1500), 1000, -42, 47.6, { fi: 2.5, fo: 3, seed: 9.9, wing: true, nw: 3, jelly: true, grow: [19.5, 23.5, .45] }); // v106 : la méduse cyan de la vidéo (0:17-0:34)
     addRift(rocketPos(33.3, new T.Vector3()), 70 * rkS(), 32.8, 36.6, { fi: .4, fo: 1.4, flash: [33.3], seed: 8.1, real: true });
     addRift(O.b1x, 1700 * O.b1S, 39.2, 50, { fi: 1.2, fo: 3, seed: 5.7, curl: 1.6, real: true, cloud: .72, burst2: true, grow: [43.4, 41.4, .45], op: .75 }); // v106 : nuage bleu marbré + double gerbe d'éclairs (vidéo 0:40-0:43)
-    addRift(O.b1x.clone().addScaledVector(R, 900 * O.b1S).addScaledVector(UP, -650 * O.b1S), 520 * O.b1S, 40.4, 45.6, { fi: .8, fo: 1.2, seed: 3.3, real: true, ring: true }); // anneau à droite de l'éclatement (vidéo 0:42)
+    // v106 : placé en angle depuis la colline (16° à droite, 12° sous l'éclatement) — l'ancien décalage en mètres le mettait sous le sol
+    var b1d = O.b1x.distanceTo(P), ringP = O.b1x.clone().addScaledVector(R, b1d * .29).addScaledVector(UP, -b1d * .21).sub(P).multiplyScalar(.6).add(P);
+    addRift(ringP, 520 * O.b1S * .6, 40.4, 45.6, { fi: .8, fo: 1.2, seed: 3.3, real: true, ring: true }); // anneau à droite de l'éclatement (vidéo 0:42)
     addRift(O.r2p, 540, 43.6, 47.6, { fi: .8, fo: .8, seed: 12.4, ring: true }); // v106 : anneau-portail avec sa méduse et son voile (vidéo 0:44-0:47)
     addRift(O.r2p, 540, 46.9, 57.6, { fi: .6, fo: 2.4, flash: [48.6], seed: 12.4 }); // puis l'étoile et son cône de lumière (O.beam, vidéo 0:48-0:56)
     O.rbp = skyPos(-15, 24, 1200); addRift(O.rbp, 720, 82.4, 88.4, { fi: 1, fo: 1, seed: 4.4, ring: true, rainbow: true }); // grand anneau arc-en-ciel (vidéo 1:24-1:30) — v106 : remplace l'ancien portail-sprite
@@ -1098,7 +1100,7 @@
       pa.needsUpdate = true; O.sock.rotation.y = .35 * Math.sin(t * .21) + .1 * Math.sin(t * .9);
     }
     // éteint pendant le décollage (sinon il fait une 2e traînée), il revient vers 82-88 s (vidéo A : visible à 93, 102, 111, 162 s)
-    var bo = live * (1 - win(t, 9.8, 88, 1.5, 6)) * (1 - win(t, 163, 177.6, 1.2, 1)) * (.84 + .1 * Math.sin(t * 2.1) + .06 * Math.sin(t * 5.3));
+    var bo = live * (1 - win(t, 9.8, 88, 1.5, 6)) * (1 - win(t, 157.5, 177.6, 1.2, 1)) * (.84 + .1 * Math.sin(t * 2.1) + .06 * Math.sin(t * 5.3));
     O.baseBeam.visible = O.baseBeamCore.visible = bo > .01;
     O.baseBeam.material.opacity = .16 * bo; O.baseBeamCore.material.opacity = .3 * bo; L.setOp(O.baseBeamGlow, .2 * bo);
     // projecteur : balayage lent jusqu'au décollage
