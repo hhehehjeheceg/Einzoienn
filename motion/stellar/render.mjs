@@ -20,7 +20,7 @@ const browser = await chromium.launch({ args: ARGS });
 const page = await browser.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
 page.on('pageerror', e => { console.error('PAGE ERROR', e.message); process.exit(1); });
 page.on('console', m => { if (m.type() === 'error') console.error('CONSOLE', m.text()); });
-await page.goto(`http://127.0.0.1:${PORT}/stellar.html?render=1&sub=${process.env.SUB || 3}`);
+await page.goto(`http://127.0.0.1:${PORT}/stellar.html?render=1&sub=${process.env.SUB || 3}&h=${process.env.RES || 1920}`);
 await page.waitForFunction(() => window.ready === true, null, { timeout: 60000 });
 const settle = () => page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
 async function grab(f, blur = true) {
@@ -48,7 +48,7 @@ if (mode === 'cues') {
   spawnSync('ffmpeg', ['-v', 'error', '-y', ...inputs, '-filter_complex', fc, '-map', '[o]', '-frames:v', '1', path.join(dir, process.env.SHEET || 'sheet.png')], { stdio: 'inherit' });
 } else if (mode === 'chunk' || mode === 'draft') {
   const draft = mode === 'draft', a = +rest[0], b = +rest[1], name = rest[2];
-  const enc = draft ? ['-vf', 'scale=540:-2,format=yuv420p', '-c:v', 'libx264', '-crf', '23', '-preset', 'veryfast', path.join(OUT, name + '.mp4')]
+  const enc = draft ? ['-vf', 'scale=480:-2,format=yuv420p', '-c:v', 'libx264', '-crf', '23', '-preset', 'veryfast', path.join(OUT, name + '.mp4')]
     : ['-c:v', 'libx264rgb', '-crf', '0', '-preset', 'ultrafast', path.join(OUT, name + '.mkv')];
   const ff = spawn('ffmpeg', ['-v', 'error', '-y', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-', ...enc], { stdio: ['pipe', 'inherit', 'inherit'] });
   const t0 = Date.now();

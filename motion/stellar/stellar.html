@@ -19,7 +19,7 @@ html,body{margin:0;height:100%;background:#05060f;overflow:hidden;font-family:In
 #hud span{font-variant-numeric:tabular-nums;min-width:120px;text-align:right}
 body.render #hud{display:none}
 body.render #stage{inset:0;display:block}
-body.render #c{width:1080px;height:1920px;max-width:none}
+body.render #c{width:auto;height:auto;max-width:none}
 </style>
 </head>
 <body>
@@ -35,11 +35,13 @@ import * as THREE from './src/three.module.min.js';
 // =====================================================================================================
 const W = 1080, H = 1920, FPS = 30, T = 60, TAU = Math.PI * 2;
 const RENDER = new URLSearchParams(location.search).has('render');
+// output resolution: the film is laid out at 1080 x 1920 (W, H) and drawn at RS of that (?h=854 -> 480 x 854)
+const PH = +(new URLSearchParams(location.search).get('h') || H), RS = PH / H, PW = Math.round(W * RS / 2) * 2;
 if (RENDER) document.body.classList.add('render');
-const out_cv = document.getElementById('c');
+const out_cv = document.getElementById('c'); out_cv.width = PW; out_cv.height = PH;
 const main = out_cv.getContext('2d');
 function mk(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return { c, g: c.getContext('2d') }; }
-const L2D = mk(W, H);            // 2D layer (type, cards, fx), composited over the 3D layer
+const L2D = mk(PW, PH);            // 2D layer (type, cards, fx), composited over the 3D layer
 let ctx = L2D.g;
 function withCtx(g, fn) { const p = ctx; ctx = g; try { fn(); } finally { ctx = p; } }
 
@@ -233,11 +235,11 @@ function beatPunch(t) {
 //  nebula + starfield, low-poly island with POI props, the battle bus under its balloon, clouds,
 //  blueprint build pieces, and the chrome Stellar star.
 // =====================================================================================================
-const glc = document.createElement('canvas'); glc.width = W; glc.height = H;
+const glc = document.createElement('canvas'); glc.width = PW; glc.height = PH;
 const R = new THREE.WebGLRenderer({ canvas: glc, antialias: true, preserveDrawingBuffer: true, alpha: false });
-R.setPixelRatio(1); R.setSize(W, H, false);
+R.setPixelRatio(1); R.setSize(PW, PH, false);
 R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = .92;
-const GLB = mk(W, H);   // holds a copy of a first GL pass when two 3D scenes cross-fade
+const GLB = mk(PW, PH);   // holds a copy of a first GL pass when two 3D scenes cross-fade
 
 // ---------------------------------------------------------------- 2D value noise + fbm (seeded)
 const NP = (() => { const r = mulberry32(2020), p = new Float32Array(1024); for (let i = 0; i < 1024; i++) p[i] = r(); return p; })();
@@ -1011,7 +1013,7 @@ function goldFlood(p, t) {
 function d_midas(t) {
   const k = lt(t, 'midas'), drain = io5(seg(k, 1.0, 1.33));
   // gold tint over the 3D island, draining down at the end
-  ctx.drawImage(glc, 0, 0);   // tint the 3D island itself
+  ctx.drawImage(glc, 0, 0, W, H);   // tint the 3D island itself
   if (drain < 1) {
     ctx.save(); ctx.globalCompositeOperation = 'color'; ctx.fillStyle = rgb(C.gold, .85 * (1 - drain)); ctx.fillRect(0, 0, W, H); ctx.restore();
     ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = `rgba(90,52,8,${.75 * (1 - drain)})`; ctx.fillRect(0, 0, W, H); ctx.restore();
@@ -1110,7 +1112,7 @@ function d_fade(t, glImg) {
   const g = POL.g; g.fillStyle = '#f6f3ec'; g.fillRect(0, 0, 760, 900);
   const desat = io(seg(k, 1.6, 3.0));
   g.filter = `saturate(${1 - desat * .85}) sepia(${desat * .35}) brightness(${1 - desat * .1})`;
-  g.drawImage(glImg, 140, 420, 800, 800, 40, 40, 680, 680); g.filter = 'none';
+  g.drawImage(glImg, 140 * RS, 420 * RS, 800 * RS, 800 * RS, 40, 40, 680, 680); g.filter = 'none';
   g.font = '500 34px JBM, monospace'; g.fillStyle = '#4a4438'; g.textAlign = 'left'; g.letterSpacing = '2px'; g.fillText('fév. 2020', 52, 800);
   const drift = io(seg(k, 0, 4.67)), sc = lerp(1.0, .78, drift), rot = lerp(-.05, .04, drift);
   const sh = seg(k, 3.0, 4.4);   // shatter progress
@@ -1429,40 +1431,40 @@ const CUTS = [S.bus[0], S.secret[0], S.sides[0], S.fade[0], S.logo[0], S.og[0], 
 const hitAt = t => HITS.reduce((s, [b, a]) => s + a * pulse(t, b, .16), 0);
 const whipAt = t => CUTS.reduce((s, c) => s + Math.exp(-Math.abs(t - c) / .05), 0);
 
-const COMP = mk(W, H), BL = mk(W / 4, H / 4), VIG = mk(W, H);
-{ const g = VIG.g, gr = g.createRadialGradient(W / 2, H * .48, H * .25, W / 2, H / 2, H * .75); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = gr; g.fillRect(0, 0, W, H); }
+const COMP = mk(PW, PH), BL = mk(PW / 4, PH / 4), VIG = mk(PW, PH);
+{ const g = VIG.g, gr = g.createRadialGradient(PW / 2, PH * .48, PH * .25, PW / 2, PH / 2, PH * .75); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = gr; g.fillRect(0, 0, PW, PH); }
 
 function frame(t) {
   const glRes = glShot(t);
   const c = COMP.g; c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.filter = 'none';
-  if (glRes) c.drawImage(glc, 0, 0); else { c.fillStyle = rgb(C.night); c.fillRect(0, 0, W, H); }
-  L2D.g.setTransform(1, 0, 0, 1, 0, 0); L2D.g.clearRect(0, 0, W, H);
+  if (glRes) c.drawImage(glc, 0, 0); else { c.fillStyle = rgb(C.night); c.fillRect(0, 0, PW, PH); }
+  L2D.g.setTransform(1, 0, 0, 1, 0, 0); L2D.g.clearRect(0, 0, PW, PH); L2D.g.setTransform(RS, 0, 0, RS, 0, 0);
   ctx = L2D.g; draw2D(t, glc);
   c.drawImage(L2D.c, 0, 0);
   // camera on the composite
-  const h = hitAt(t), z = 1 + beatPunch(t) + h * .05, sx = (hash(Math.floor(t * 60) * 3 + 1) - .5) * 46 * h, sy = (hash(Math.floor(t * 60) * 3 + 2) - .5) * 46 * h;
+  const h = hitAt(t), z = 1 + beatPunch(t) + h * .05, sx = (hash(Math.floor(t * 60) * 3 + 1) - .5) * 46 * h * RS, sy = (hash(Math.floor(t * 60) * 3 + 2) - .5) * 46 * h * RS;
   main.setTransform(1, 0, 0, 1, 0, 0); main.globalAlpha = 1; main.globalCompositeOperation = 'source-over'; main.filter = 'none';
-  main.fillStyle = '#000'; main.fillRect(0, 0, W, H);
-  main.save(); main.translate(W / 2 + sx, H / 2 + sy); main.rotate((hash(Math.floor(t * 60) * 7) - .5) * .02 * h); main.scale(z, z); main.drawImage(COMP.c, -W / 2, -H / 2); main.restore();
+  main.fillStyle = '#000'; main.fillRect(0, 0, PW, PH);
+  main.save(); main.translate(PW / 2 + sx, PH / 2 + sy); main.rotate((hash(Math.floor(t * 60) * 7) - .5) * .02 * h); main.scale(z, z); main.drawImage(COMP.c, -PW / 2, -PH / 2); main.restore();
   // whip zoom-blur around cuts
   const wp = Math.min(1, whipAt(t));
-  if (wp > .02) for (let j = 1; j <= 4; j++) { const s = 1 + j * .028 * wp; main.globalAlpha = .22 * wp; main.drawImage(COMP.c, W / 2 - W * s / 2, H / 2 - H * s / 2, W * s, H * s); }
+  if (wp > .02) for (let j = 1; j <= 4; j++) { const s = 1 + j * .028 * wp; main.globalAlpha = .22 * wp; main.drawImage(COMP.c, PW / 2 - PW * s / 2, PH / 2 - PH * s / 2, PW * s, PH * s); }
   main.globalAlpha = 1;
   // chroma ghost on hits
-  if (h > .05) { main.globalCompositeOperation = 'screen'; main.globalAlpha = Math.min(.35, h * .3); main.drawImage(COMP.c, 14 * h, 0); main.drawImage(COMP.c, -14 * h, 0); main.globalAlpha = 1; main.globalCompositeOperation = 'source-over'; }
+  if (h > .05) { main.globalCompositeOperation = 'screen'; main.globalAlpha = Math.min(.35, h * .3); main.drawImage(COMP.c, 14 * h * RS, 0); main.drawImage(COMP.c, -14 * h * RS, 0); main.globalAlpha = 1; main.globalCompositeOperation = 'source-over'; }
   // bloom
-  BL.g.filter = 'blur(10px)'; BL.g.drawImage(main.canvas, 0, 0, W / 4, H / 4); BL.g.filter = 'none';
-  main.globalCompositeOperation = 'screen'; main.globalAlpha = .28; main.drawImage(BL.c, 0, 0, W, H);
+  BL.g.filter = `blur(${10 * RS}px)`; BL.g.drawImage(main.canvas, 0, 0, PW / 4, PH / 4); BL.g.filter = 'none';
+  main.globalCompositeOperation = 'screen'; main.globalAlpha = .28; main.drawImage(BL.c, 0, 0, PW, PH);
   main.globalAlpha = 1; main.globalCompositeOperation = 'source-over';
   main.drawImage(VIG.c, 0, 0);
   // grain
   main.globalCompositeOperation = 'overlay'; main.globalAlpha = .1;
-  const gt = GRAIN[((Math.floor(t * FPS) % 8) + 8) % 8]; for (let y = 0; y < H; y += 256) for (let x = 0; x < W; x += 256) main.drawImage(gt, x, y);
+  const gt = GRAIN[((Math.floor(t * FPS) % 8) + 8) % 8]; for (let y = 0; y < PH; y += 256) for (let x = 0; x < PW; x += 256) main.drawImage(gt, x, y);
   main.globalAlpha = 1; main.globalCompositeOperation = 'source-over';
 }
 
 // ---- motion blur: SUB samples spread over a 180 deg shutter, never across a hard cut
-const ACC = mk(W, H);
+const ACC = mk(PW, PH);
 const SUB = +(new URLSearchParams(location.search).get('sub') || 3), SHUT = .5;
 async function renderFrame(f) {
   const tc = f / FPS;

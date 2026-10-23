@@ -4,11 +4,13 @@
 // =====================================================================================================
 const W = 1080, H = 1920, FPS = 30, T = 60, TAU = Math.PI * 2;
 const RENDER = new URLSearchParams(location.search).has('render');
+// output resolution: the film is laid out at 1080 x 1920 (W, H) and drawn at RS of that (?h=854 -> 480 x 854)
+const PH = +(new URLSearchParams(location.search).get('h') || H), RS = PH / H, PW = Math.round(W * RS / 2) * 2;
 if (RENDER) document.body.classList.add('render');
-const out_cv = document.getElementById('c');
+const out_cv = document.getElementById('c'); out_cv.width = PW; out_cv.height = PH;
 const main = out_cv.getContext('2d');
 function mk(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return { c, g: c.getContext('2d') }; }
-const L2D = mk(W, H);            // 2D layer (type, cards, fx), composited over the 3D layer
+const L2D = mk(PW, PH);            // 2D layer (type, cards, fx), composited over the 3D layer
 let ctx = L2D.g;
 function withCtx(g, fn) { const p = ctx; ctx = g; try { fn(); } finally { ctx = p; } }
 

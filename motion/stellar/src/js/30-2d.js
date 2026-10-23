@@ -200,7 +200,7 @@ function goldFlood(p, t) {
 function d_midas(t) {
   const k = lt(t, 'midas'), drain = io5(seg(k, 1.0, 1.33));
   // gold tint over the 3D island, draining down at the end
-  ctx.drawImage(glc, 0, 0);   // tint the 3D island itself
+  ctx.drawImage(glc, 0, 0, W, H);   // tint the 3D island itself
   if (drain < 1) {
     ctx.save(); ctx.globalCompositeOperation = 'color'; ctx.fillStyle = rgb(C.gold, .85 * (1 - drain)); ctx.fillRect(0, 0, W, H); ctx.restore();
     ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = `rgba(90,52,8,${.75 * (1 - drain)})`; ctx.fillRect(0, 0, W, H); ctx.restore();
@@ -299,7 +299,7 @@ function d_fade(t, glImg) {
   const g = POL.g; g.fillStyle = '#f6f3ec'; g.fillRect(0, 0, 760, 900);
   const desat = io(seg(k, 1.6, 3.0));
   g.filter = `saturate(${1 - desat * .85}) sepia(${desat * .35}) brightness(${1 - desat * .1})`;
-  g.drawImage(glImg, 140, 420, 800, 800, 40, 40, 680, 680); g.filter = 'none';
+  g.drawImage(glImg, 140 * RS, 420 * RS, 800 * RS, 800 * RS, 40, 40, 680, 680); g.filter = 'none';
   g.font = '500 34px JBM, monospace'; g.fillStyle = '#4a4438'; g.textAlign = 'left'; g.letterSpacing = '2px'; g.fillText('fév. 2020', 52, 800);
   const drift = io(seg(k, 0, 4.67)), sc = lerp(1.0, .78, drift), rot = lerp(-.05, .04, drift);
   const sh = seg(k, 3.0, 4.4);   // shatter progress

@@ -3,11 +3,11 @@
 //  nebula + starfield, low-poly island with POI props, the battle bus under its balloon, clouds,
 //  blueprint build pieces, and the chrome Stellar star.
 // =====================================================================================================
-const glc = document.createElement('canvas'); glc.width = W; glc.height = H;
+const glc = document.createElement('canvas'); glc.width = PW; glc.height = PH;
 const R = new THREE.WebGLRenderer({ canvas: glc, antialias: true, preserveDrawingBuffer: true, alpha: false });
-R.setPixelRatio(1); R.setSize(W, H, false);
+R.setPixelRatio(1); R.setSize(PW, PH, false);
 R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = .92;
-const GLB = mk(W, H);   // holds a copy of a first GL pass when two 3D scenes cross-fade
+const GLB = mk(PW, PH);   // holds a copy of a first GL pass when two 3D scenes cross-fade
 
 // ---------------------------------------------------------------- 2D value noise + fbm (seeded)
 const NP = (() => { const r = mulberry32(2020), p = new Float32Array(1024); for (let i = 0; i < 1024; i++) p[i] = r(); return p; })();

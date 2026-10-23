@@ -37,40 +37,40 @@ const CUTS = [S.bus[0], S.secret[0], S.sides[0], S.fade[0], S.logo[0], S.og[0], 
 const hitAt = t => HITS.reduce((s, [b, a]) => s + a * pulse(t, b, .16), 0);
 const whipAt = t => CUTS.reduce((s, c) => s + Math.exp(-Math.abs(t - c) / .05), 0);
 
-const COMP = mk(W, H), BL = mk(W / 4, H / 4), VIG = mk(W, H);
-{ const g = VIG.g, gr = g.createRadialGradient(W / 2, H * .48, H * .25, W / 2, H / 2, H * .75); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = gr; g.fillRect(0, 0, W, H); }
+const COMP = mk(PW, PH), BL = mk(PW / 4, PH / 4), VIG = mk(PW, PH);
+{ const g = VIG.g, gr = g.createRadialGradient(PW / 2, PH * .48, PH * .25, PW / 2, PH / 2, PH * .75); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = gr; g.fillRect(0, 0, PW, PH); }
 
 function frame(t) {
   const glRes = glShot(t);
   const c = COMP.g; c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.filter = 'none';
-  if (glRes) c.drawImage(glc, 0, 0); else { c.fillStyle = rgb(C.night); c.fillRect(0, 0, W, H); }
-  L2D.g.setTransform(1, 0, 0, 1, 0, 0); L2D.g.clearRect(0, 0, W, H);
+  if (glRes) c.drawImage(glc, 0, 0); else { c.fillStyle = rgb(C.night); c.fillRect(0, 0, PW, PH); }
+  L2D.g.setTransform(1, 0, 0, 1, 0, 0); L2D.g.clearRect(0, 0, PW, PH); L2D.g.setTransform(RS, 0, 0, RS, 0, 0);
   ctx = L2D.g; draw2D(t, glc);
   c.drawImage(L2D.c, 0, 0);
   // camera on the composite
-  const h = hitAt(t), z = 1 + beatPunch(t) + h * .05, sx = (hash(Math.floor(t * 60) * 3 + 1) - .5) * 46 * h, sy = (hash(Math.floor(t * 60) * 3 + 2) - .5) * 46 * h;
+  const h = hitAt(t), z = 1 + beatPunch(t) + h * .05, sx = (hash(Math.floor(t * 60) * 3 + 1) - .5) * 46 * h * RS, sy = (hash(Math.floor(t * 60) * 3 + 2) - .5) * 46 * h * RS;
   main.setTransform(1, 0, 0, 1, 0, 0); main.globalAlpha = 1; main.globalCompositeOperation = 'source-over'; main.filter = 'none';
-  main.fillStyle = '#000'; main.fillRect(0, 0, W, H);
-  main.save(); main.translate(W / 2 + sx, H / 2 + sy); main.rotate((hash(Math.floor(t * 60) * 7) - .5) * .02 * h); main.scale(z, z); main.drawImage(COMP.c, -W / 2, -H / 2); main.restore();
+  main.fillStyle = '#000'; main.fillRect(0, 0, PW, PH);
+  main.save(); main.translate(PW / 2 + sx, PH / 2 + sy); main.rotate((hash(Math.floor(t * 60) * 7) - .5) * .02 * h); main.scale(z, z); main.drawImage(COMP.c, -PW / 2, -PH / 2); main.restore();
   // whip zoom-blur around cuts
   const wp = Math.min(1, whipAt(t));
-  if (wp > .02) for (let j = 1; j <= 4; j++) { const s = 1 + j * .028 * wp; main.globalAlpha = .22 * wp; main.drawImage(COMP.c, W / 2 - W * s / 2, H / 2 - H * s / 2, W * s, H * s); }
+  if (wp > .02) for (let j = 1; j <= 4; j++) { const s = 1 + j * .028 * wp; main.globalAlpha = .22 * wp; main.drawImage(COMP.c, PW / 2 - PW * s / 2, PH / 2 - PH * s / 2, PW * s, PH * s); }
   main.globalAlpha = 1;
   // chroma ghost on hits
-  if (h > .05) { main.globalCompositeOperation = 'screen'; main.globalAlpha = Math.min(.35, h * .3); main.drawImage(COMP.c, 14 * h, 0); main.drawImage(COMP.c, -14 * h, 0); main.globalAlpha = 1; main.globalCompositeOperation = 'source-over'; }
+  if (h > .05) { main.globalCompositeOperation = 'screen'; main.globalAlpha = Math.min(.35, h * .3); main.drawImage(COMP.c, 14 * h * RS, 0); main.drawImage(COMP.c, -14 * h * RS, 0); main.globalAlpha = 1; main.globalCompositeOperation = 'source-over'; }
   // bloom
-  BL.g.filter = 'blur(10px)'; BL.g.drawImage(main.canvas, 0, 0, W / 4, H / 4); BL.g.filter = 'none';
-  main.globalCompositeOperation = 'screen'; main.globalAlpha = .28; main.drawImage(BL.c, 0, 0, W, H);
+  BL.g.filter = `blur(${10 * RS}px)`; BL.g.drawImage(main.canvas, 0, 0, PW / 4, PH / 4); BL.g.filter = 'none';
+  main.globalCompositeOperation = 'screen'; main.globalAlpha = .28; main.drawImage(BL.c, 0, 0, PW, PH);
   main.globalAlpha = 1; main.globalCompositeOperation = 'source-over';
   main.drawImage(VIG.c, 0, 0);
   // grain
   main.globalCompositeOperation = 'overlay'; main.globalAlpha = .1;
-  const gt = GRAIN[((Math.floor(t * FPS) % 8) + 8) % 8]; for (let y = 0; y < H; y += 256) for (let x = 0; x < W; x += 256) main.drawImage(gt, x, y);
+  const gt = GRAIN[((Math.floor(t * FPS) % 8) + 8) % 8]; for (let y = 0; y < PH; y += 256) for (let x = 0; x < PW; x += 256) main.drawImage(gt, x, y);
   main.globalAlpha = 1; main.globalCompositeOperation = 'source-over';
 }
 
 // ---- motion blur: SUB samples spread over a 180 deg shutter, never across a hard cut
-const ACC = mk(W, H);
+const ACC = mk(PW, PH);
 const SUB = +(new URLSearchParams(location.search).get('sub') || 3), SHUT = .5;
 async function renderFrame(f) {
   const tc = f / FPS;
