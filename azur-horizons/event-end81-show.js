@@ -1241,7 +1241,7 @@
     du.touch.value = win(t, 215.9, 222.8, .3, .6) * (.22 + .05 * Math.sin(t * 19));
     du.flash.value = Math.max(du.flash.value, ramp(t, 219, 223) * (1 - ramp(t, 223, 223.4)) * .55); // elle s'illumine blanc-rose avant d'exploser
     L.setOp(O.domeCore, amt * (.12 + .05 * Math.sin(t * 6)) + win(t, 182.8, 184.6, .2, 1) * .6); O.domeCore.scale.setScalar(30 + 8 * Math.sin(t * 4) + 40 * win(t, 182.8, 184.6, .2, 1));
-    L.setOp(O.domeGlow, amt * .1); O.domeGlow.material.color.setHex(du.cyan.value > .5 ? 0x7fe4ff : 0xb070ff);
+    L.setOp(O.domeGlow, amt * .16); O.domeGlow.material.color.setHex(du.cyan.value > .5 ? 0x7fe4ff : 0xd08cff);
     O.zpLight.intensity = amt * (2 + 3 * du.flash.value);
     // bulle de l'onde de choc (183 → 185,6)
     var bk = cl((t - 183.05) / 2.6), bu = O.bubble.material.uniforms; O.bubble.visible = bk > 0 && bk < 1;
@@ -1251,6 +1251,7 @@
     O.orb.visible = O.orbIn.visible = ov > .004;
     if (O.orb.visible) {
       var ou = O.orb.material.uniforms; ou.time.value = t; ou.amt.value = .35 * ov; ou.flash.value = .12 + .1 * Math.sin(t * 3);
+      ou.cyan.value = .85 - .7 * ramp(t, 176.8, 179) + .5 * ramp(t, 219, 223); O.orbIn.material.uniforms.cyan.value = .2 * (1 - ramp(t, 176.8, 179)) + .6 * ramp(t, 219, 223); // v105 : rose-lavande quand la bulle s'ouvre (vidéo 180-218 s), puis cyan-blanc avant l'explosion
       var iu = O.orbIn.material.uniforms; iu.time.value = t * 1.7; iu.amt.value = .25 * ov;
       O.orb.scale.setScalar(42 * pul); O.orb.rotation.y = t * .3; O.orbIn.scale.setScalar(25 * pul); O.orbIn.rotation.y = -t * .5;
     }

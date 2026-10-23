@@ -499,7 +499,7 @@ World.prototype.removeHuman=function(id){ for(var i=0;i<this.players.length;i++)
 World.prototype.command=function(id,input){
  var p=this._find(id);if(!p||!input||typeof input!=='object')return false;var q={},invalid=false;
  if('moveX'in input){if(finite(input.moveX))q.moveX=clamp(input.moveX,-1,1);else invalid=true;}if('moveZ'in input){if(finite(input.moveZ))q.moveZ=clamp(input.moveZ,-1,1);else invalid=true;}
- if('yaw'in input){if(finite(input.yaw))q.yaw=normAng(input.yaw);else invalid=true;}if('pitch'in input){if(finite(input.pitch))q.pitch=clamp(input.pitch,-1.35,1.35);else invalid=true;}if('moveY'in input){if(finite(input.moveY))q.moveY=clamp(input.moveY,-1,1);else invalid=true;}if('emoteStyle'in input){if(input.emote!==true||typeof input.emoteStyle!=='string'||EMOTE_STYLES.indexOf(input.emoteStyle)<0)invalid=true;}
+ if('yaw'in input){if(finite(input.yaw))q.yaw=normAng(input.yaw);else invalid=true;}if('pitch'in input){if(finite(input.pitch))q.pitch=clamp(input.pitch,-1.35,1.35);else invalid=true;}if('moveY'in input){if(finite(input.moveY))q.moveY=clamp(input.moveY,-1,1);else invalid=true;}if('emoteStyle'in input){if(input.emote!==true||typeof input.emoteStyle!=='string'||EMOTE_STYLES.indexOf(input.emoteStyle)<0&&!(root.AZ_EMOTE_EXTRA&&root.AZ_EMOTE_EXTRA[input.emoteStyle]))invalid=true;}
  for(var sk of ['shotYaw','shotPitch'])if(sk in input){if(finite(input[sk]))q[sk]=sk==='shotYaw'?normAng(input[sk]):clamp(input[sk],-1.35,1.35);else invalid=true;}
  ['fire','sprint','aim','fly','crouch'].forEach(function(k){if(k in input){if(typeof input[k]==='boolean')q[k]=input[k];else invalid=true;}});if(invalid)return false;
  if('yaw'in q && !('shotYaw'in q)){delete p._input.shotYaw;delete p._input.shotPitch;}
@@ -711,7 +711,7 @@ World.prototype._finishFishing=function(p){
 World.prototype._cancelEmote=function(p){if(p.emote>0){p.emote=0;return true;}return false;};
 World.prototype._startEmote=function(p,style){
  if(!p.alive||p.downed||!p.grounded||p.swimming||p.flying||p.falling||p.gliding||p.jumping||p.vehicleId||p.reload>0||p.useTime>0||p._cool>0||((this._clock||0)-p._combatAt)<1)return false;
- p.emoteStyle=style||'salut';p.emoteDuration=EMOTE_LOOP[p.emoteStyle]?12:5;p.emote=p.emoteDuration;this._emit('emote',p.x,p.y,p.z,{playerId:p.id,style:p.emoteStyle,duration:6});return true;
+ p.emoteStyle=style||'salut';p.emoteDuration=EMOTE_LOOP[p.emoteStyle]?12:(root.AZ_EMOTE_EXTRA&&root.AZ_EMOTE_EXTRA[p.emoteStyle])||5;p.emote=p.emoteDuration;this._emit('emote',p.x,p.y,p.z,{playerId:p.id,style:p.emoteStyle,duration:6});return true;
 };
 World.prototype._updatePlayer=function(p,dt){
  if(!p.alive)return;if(p.equipment&&p.equipment.character==='char-midas')for(var gi=0;gi<p.inventory.length;gi++){var gIt=p.inventory[gi];if(gIt&&gIt.kind==='weapon')gIt.gold=true;}if(p._cool>0)p._cool-=dt;if(p._botBurstPause>0)p._botBurstPause=Math.max(0,p._botBurstPause-dt);if(p.emote>0)p.emote=Math.max(0,p.emote-dt);if(p._harvestCool>0)p._harvestCool-=dt;if(p._jumpBuffer>0)p._jumpBuffer-=dt;if(p._recoil>0)p._recoil=Math.max(0,p._recoil-dt*1.2);if(p.reload>0){p.reload-=dt;if(p.reload<=0)this._finishReload(p);}

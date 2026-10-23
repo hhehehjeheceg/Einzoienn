@@ -157,8 +157,10 @@
     if (t >= 183.5 && t < 224) {
       // l'onde du Point Zéro soulève tout le monde ; on flotte bras écartés au-dessus de l'île
       if (st.mode !== 'zeroshock' && st.mode !== 'float') { st.liftFrom = p.y; }
-      var lk = U.easeOut((t - 183.5) / 5.2), target = Math.max(ground, st.liftFrom || p.y) + 245 * lk + 260 * U.sm(ramp(t, 204.5, 212.5)) + 5 * Math.sin(t * .8); // v85 : très haut au-dessus de l'île quand les fusées plongent (vidéo 210-216)
-      floatTo(p, target, 60, 40); setMode(t < 189 ? 'zeroshock' : 'float', t); st.float = ramp(t, 183.6, 185);
+      // v105 (vidéo 183 → 186,5 s) : l'onde arrache le joueur d'un coup — on voit toute l'île dès 186 s — puis il flotte
+      // en apesanteur et dérive lentement plus haut jusqu'à la plongée des fusées (≈ 490 m au-dessus du sol à 212 s)
+      var lk = U.easeOut(cl((t - 183.5) / 2.8)), target = Math.max(ground, st.liftFrom || p.y) + 340 * lk + 150 * U.sm(ramp(t, 187, 212)) + 4 * Math.sin(t * .7);
+      floatTo(p, target, t < 187 ? 240 : 60, 40); setMode(t < 189 ? 'zeroshock' : 'float', t); st.float = ramp(t, 183.6, 185);
       var dx = s.ZP.x - p.x, dz = s.ZP.z - p.z, d = Math.hypot(dx, dz), want = 300;
       if (d > want) { var pull = Math.min(6, (d - want) * .05) * dt; p.x += dx / d * pull; p.z += dz / d * pull; }
       return;
@@ -170,9 +172,11 @@
       if (st.far) { if (st.mode !== 'none' && st.mode !== 'gone') { release(p); setMode('none', t); } return; }
       if (t < 246.2) {
         // souffle de l'explosion puis lente dérive vers la lumière
-        var base = Math.max(H(p.x, p.z), c.y) + 230 + 260 * (1 - ramp(t, 225, 240)) - 70 * ramp(t, 232, 246) + 22 * win(t, 224, 230, .4, 4);
-        floatTo(p, base, 40, 14); setMode(t < 228 ? 'blast' : 'drift', t); st.float = 1;
-        var spd = lerp(2, 30, ramp(t, 228, 246)) * dt; if (d2 > 30) { p.x += dx2 / d2 * spd; p.z += dz2 / d2 * spd; }
+        // v105 (vidéo 224,5 → 246 s) : le souffle projette le joueur dans l'espace (l'île n'est plus qu'un disque sous lui),
+        // puis il dérive lentement vers la lumière au centre de l'île
+        var base = Math.max(H(p.x, p.z), c.y) + 300 + 1350 * U.easeOut(cl((t - 224.3) / 3.2)) - 900 * U.sm(ramp(t, 229, 246));
+        floatTo(p, base, 650, 70); setMode(t < 228 ? 'blast' : 'drift', t); st.float = 1;
+        var spd = lerp(3, 42, ramp(t, 228, 246)) * dt; if (d2 > 30) { p.x += dx2 / d2 * spd; p.z += dz2 / d2 * spd; }
         st.suckFrom = null;
       } else {
         // aspiré en spirale dans le tourbillon
@@ -233,6 +237,7 @@
     var idle = ramp(t - steerUser, 2.5, 4.5); if (idle <= 0) return;
     var dx = tgt.x - p.x, dz = tgt.z - p.z, dy = tgt.y + 25 - (p.y + 1.8), hd = Math.hypot(dx, dz) || 1;
     var yawGoal = Math.atan2(-dx, -dz), pitchGoal = Math.max(-1.05, Math.min(1.12, Math.atan2(dy, hd) * pk));
+    if (t >= 183.5 && t < 188.6 && !ride) pitchGoal = -.2; // v105 (vidéo 184-188 s) : derrière le joueur, l'horizon en haut de l'image, pas une plongée sur le dôme
     var k = (1 - Math.exp(-Math.min(.1, dt || .016) * 1.6)) * idle;
     var dyaw = yawGoal - G.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw));
     G.yaw += dyaw * k; G.pitch += (pitchGoal - G.pitch) * k;
