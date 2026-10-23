@@ -210,14 +210,14 @@
     return draw(1024, 1024, function (g) {
       var R = rng(seed); g.translate(512, 512); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
       var cols = [[170, 90, 255], [255, 80, 200], [110, 160, 255], [200, 120, 255], [255, 140, 230], [140, 200, 255]];
-      for (var i = 0; i < (wide ? 70 : 150); i++) {
+      for (var i = 0; i < (wide ? 40 : 60); i++) {
         var a = R() * 6.283, r0 = 20 + R() * 60, len = (wide ? 260 : 180) + R() * 260, bend = (R() - .5) * .9, c = cols[Math.floor(R() * cols.length)], al = .25 + R() * .5;
         g.strokeStyle = 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + al.toFixed(2) + ')'; g.lineWidth = (wide ? 3 : 1) + R() * (wide ? 9 : 3);
         g.beginPath(); for (var k = 0; k <= 24; k++) { var u = k / 24, rr = r0 + len * u, aa = a + bend * u * u + .05 * Math.sin(u * 9 + i); var x = Math.cos(aa) * rr, y = Math.sin(aa) * rr; if (k) g.lineTo(x, y); else g.moveTo(x, y); }
         g.globalAlpha = 1; g.stroke();
       }
       g.globalAlpha = 1;
-      for (var j = 0; j < (wide ? 14 : 0); j++) { var aj = R() * 6.283, rj = 120 + R() * 300, x2 = Math.cos(aj) * rj, y2 = Math.sin(aj) * rj, s2 = 60 + R() * 120, cj = cols[Math.floor(R() * cols.length)], q = g.createRadialGradient(x2, y2, 0, x2, y2, s2); q.addColorStop(0, 'rgba(' + cj[0] + ',' + cj[1] + ',' + cj[2] + ',.16)'); q.addColorStop(1, 'rgba(' + cj[0] + ',' + cj[1] + ',' + cj[2] + ',0)'); g.fillStyle = q; g.fillRect(x2 - s2, y2 - s2, s2 * 2, s2 * 2); }
+      for (var j = 0; j < (wide ? 30 : 10); j++) { var aj = R() * 6.283, rj = 120 + R() * 300, x2 = Math.cos(aj) * rj, y2 = Math.sin(aj) * rj, s2 = 60 + R() * 120, cj = cols[Math.floor(R() * cols.length)], q = g.createRadialGradient(x2, y2, 0, x2, y2, s2); q.addColorStop(0, 'rgba(' + cj[0] + ',' + cj[1] + ',' + cj[2] + ',.3)'); q.addColorStop(1, 'rgba(' + cj[0] + ',' + cj[1] + ',' + cj[2] + ',0)'); g.fillStyle = q; g.fillRect(x2 - s2, y2 - s2, s2 * 2, s2 * 2); }
       var cg = g.createRadialGradient(0, 0, 0, 0, 0, 512); cg.addColorStop(0, 'rgba(0,0,0,0)'); cg.addColorStop(.75, 'rgba(0,0,0,0)'); cg.addColorStop(1, 'rgba(0,0,0,1)');
       g.globalCompositeOperation = 'destination-out'; g.fillStyle = cg; g.fillRect(-512, -512, 1024, 1024);
     });
