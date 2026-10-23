@@ -960,8 +960,7 @@
   function rkAlt(t) { var u = t - 10; return u <= 0 ? 0 : u < 2 ? 4 * u * u : u < 23.3 ? 16 + 16 * (u - 2) + 8.03 * (u - 2) * (u - 2) : 3999.9 + 358.1 * (u - 23.3) + 21.5 * (u - 23.3) * (u - 23.3); } // v103 : ≈ 4 000 m à la faille, ≈ 6 500 m à l'explosion
   // v101 : après l'éclair de sa faille (33,3 s) elle ne disparaît plus : elle le traverse et continue d'accélérer, bien visible,
   // jusqu'à l'explosion de foudre de 38,6 s (≈ 2 300 m). Avant, un simple point bleu la remplaçait à ce moment-là.
-  // v100 : elle grandit doucement après le décollage (×2,3 ≈ 64 m) pour se lire de loin au bout de sa traînée
-  function rkGrow(t) { return 1 + 2.5 * U.sm(ramp(t, 10.5, 20)) + 6.5 * U.sm(ramp(t, 24, 38.6)); } // v103 : ×10 à l'explosion (on la voit de loin)
+  function rkGrow(t) { return 1; } // v104 : la fusée garde toujours sa taille réelle (demande du joueur : elle ne grossit plus jamais)
   // agrandissement des effets de la faille d'entrée : elle est plus loin de la colline qu'avant (265 m de haut)
   function rkS() { var a = tmp3.copy(BASE).addScaledVector(UP, 265.7).distanceTo(P), b = rocketPos(33.3, tmp3).distanceTo(P); return Math.max(1, b / Math.max(1, a)); }
   function rocketPos(t, out) {
@@ -1024,7 +1023,7 @@
     var capOff = ramp(t, 10, 12.5), ud = rk.userData;
     if (ud.capGlow) L.setOp(ud.capGlow, .55 * (1 - capOff));
     if (ud.cap && ud.cap.material) { if (ud.capEi == null) ud.capEi = ud.cap.material.emissiveIntensity; ud.cap.material.emissiveIntensity = ud.capEi * (1 - .85 * capOff); }
-    rk.scale.setScalar(rkGrow(t)); // v100 : taille réelle au sol (on peut monter dessus), puis elle grandit en montant
+    rk.scale.setScalar(rkGrow(t)); // taille réelle, toujours (on peut monter dessus)
     O.rLight.position.copy(rk.position); O.rLight.intensity = rk.visible ? ign * fl * (6 - 4 * far) : 0;
     // v97 : la fusée reste éclairée pendant toute la montée (lumière côté caméra ; un seul feu de plus pour ne pas alourdir tout l'éclairage)
     if (O.rkFill) {
