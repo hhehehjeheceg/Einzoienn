@@ -245,7 +245,7 @@
     const u = group.userData, inst = u && u.ch1; if (!inst || !inst.anim) return;
     if (p.emote > 0 || p.downed || p.vehicleId || !p.alive) return;
     const E = root.AZEvent; if (E && E.active && E.playerInfo && E.playerInfo.mode && E.playerInfo.mode !== "none" && options.local) return; // « La Fin » pilote déjà le corps
-    if (E && E.v96 && E.v96.phase && options.local) return;
+    if (E && E.v96 && E.v96.phase && E.v96.phase !== "dim" && options.local) return; // v110 : dans une autre dimension on marche normalement
     const s = stateOf(group); s.t += dt;
     const g = root.AZUR, an = inst.anim;
     // ---------------------------------------------------------------- mesures

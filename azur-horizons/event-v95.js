@@ -237,6 +237,7 @@
 
   /* ---- les phases du voyage */
   function endRide(p, keepFloat) {
+    if (RIDE.dim) { try { root.AZDims110.dispose(RIDE.dim); } catch (e) {} RIDE.dim = null; }
     RIDE.phase = null; RIDE.hasC = false; V6.phase = null; V6.m2 = false;
     showGrp(true); if (RW) RW.g.visible = false;
     if (p && keepFloat) { p._eventFloat = true; p._eventVerticalVelocity = 0; p._vy = 0; p.grounded = false; p.falling = true; }
@@ -245,8 +246,9 @@
   function ride(p, dt) {
     if (!isMe(p) || !p.alive || !p.deployed || p.vehicleId) return false;
     var t = VT(); dt = Math.min(.1, Math.max(0, +dt || 0));
-    if (RIDE.phase === "rk" ? t > 39 : RIDE.phase && (RIDE.phase === "riftfree" ? t < 150 : (t < 118 || t > 224.5))) { endRide(p, false); return false; }
+    if (RIDE.phase === "rk" ? t > 39 : RIDE.phase && (RIDE.phase === "riftfree" || RIDE.phase === "dim" ? t < 150 : (t < 118 || t > 224.5))) { endRide(p, false); return false; }
     if (RIDE.phase === "riftfree") return riftFree(p, dt, t);
+    if (RIDE.phase === "dim") return dimFree(p, dt, t);
     // v97 : debout sur la fusée du lancement → elle nous emporte jusqu'à la faille
     // v98 : elle nous rattrape aussi en l'air (planeur, chute, saut) dès qu'on est juste au-dessus d'une de ses surfaces
     if (!RIDE.phase && t < 38) {
@@ -364,6 +366,55 @@
     // sous les îles : une faille s'ouvre sous nos pieds et nous renvoie sur l'île
     if (!RIDE.exitT && p.y < W.y + (RW.exitRel != null ? RW.exitRel : -560)) { RIDE.exitT = t; RIDE.px = p.x; RIDE.py = p.y - 26; RIDE.pz = p.z; }
     if ((RIDE.exitT && t - RIDE.exitT > 1.1) || t >= 252) { backToIsland(p, t); return false; }
+    // v110 : on entre dans un portail ouvert → on part dans sa dimension
+    var odd = RW.odd;
+    if (odd && !RIDE.exitT && !(RIDE.noPortal > t) && root.AZDims110) for (var q = 0; q < odd.items.length; q++) {
+      var it = odd.items[q]; if (!it.on || !it.portal || (it.a || 0) < .55) continue;
+      var c = it.obj.position, n = _n.set(0, 0, 1).applyQuaternion(it.obj.quaternion), dx = p.x - (W.x + c.x), dy = p.y + 1 - (W.y + c.y), dz = p.z - (W.z + c.z);
+      var dn = dx * n.x + dy * n.y + dz * n.z, ix = dx - n.x * dn, iy = dy - n.y * dn, iz = dz - n.z * dn;
+      if (Math.abs(dn) < 2.4 && Math.hypot(ix, iy, iz) < it.obj.scale.x * .85) { enterDim(p, it, t, dn >= 0 ? 1 : -1); return true; }
+    }
+    return true;
+  }
+  /* ---- v110 : dans une autre dimension (event-dims-v110.js) : on marche, court, saute ; le portail de retour reste
+   * ouvert derrière nous ; on y rentre pour revenir dans le monde des failles, devant le portail d'où l'on vient,
+   * qui se referme alors. */
+  var _n = new root.THREE.Vector3();
+  function enterDim(p, it, t, side) {
+    var D = null; try { D = root.AZDims110.build(it.portal.uniforms.kind.value, E.end81 && E.end81.X); } catch (e) { if (root.console) console.warn("[AZUR dims]", e); }
+    if (!D) return;
+    var g = root.AZUR, sc = g && g.view && g.view.scene; if (!sc) { root.AZDims110.dispose(D); return; }
+    sc.add(D.g); RIDE.dim = D; RIDE.dimSrc = it; RIDE.dimSide = side; it.hold = true;
+    enter("dim", p); RIDE.tpT = t; RIDE.fvx = 0; RIDE.fvz = 0; RIDE.vy = 0; RIDE.fg = false;
+    p.x = D.spawn.x; p.y = D.spawn.y + .6; p.z = D.spawn.z; p._lastX = p.x; p._lastZ = p.z; p.yaw = 0; if (g) { g.yaw = 0; g.pitch = -.08; }
+  }
+  function exitDim(p, t) {
+    var it = RIDE.dimSrc, D = RIDE.dim; if (D) { try { root.AZDims110.dispose(D); } catch (e) {} } RIDE.dim = null;
+    if (!it || !W) { backToIsland(p, t); return; }
+    var c = it.obj.position, n = _n.set(0, 0, 1).applyQuaternion(it.obj.quaternion), sd = RIDE.dimSide || 1;
+    p.x = W.x + c.x + n.x * sd * 7; p.y = W.y + c.y - 1 + n.y * sd * 7; p.z = W.z + c.z + n.z * sd * 7; p._lastX = p.x; p._lastZ = p.z;
+    var yw = Math.atan2(-n.x * sd, -n.z * sd); p.yaw = yw; var g = root.AZUR; if (g) { g.yaw = yw; g.pitch = -.1; }
+    it.hold = false; it.life = (t - it.t0) + 2.8; // le portail se referme derrière nous
+    enter("riftfree", p); RIDE.tpT = t; RIDE.fg = false; RIDE.vy = 1; RIDE.fvx = 0; RIDE.fvz = 0; RIDE.noPortal = t + 3.5;
+  }
+  function dimFree(p, dt, t) {
+    var D = RIDE.dim, Z = root.AZDims110; if (!D || !Z) { endRide(p, false); return false; }
+    if (t >= 250) { exitDim(p, t); backToIsland(p, t); return false; } // la fin de l'événement : retour sur l'île
+    var i = p._input || {}, mx = Math.max(-1, Math.min(1, +i.moveX || 0)), mz = Math.max(-1, Math.min(1, +i.moveZ || 0)), len = Math.max(1, Math.hypot(mx, mz));
+    var want = (i.sprint ? 7.2 : 5), yaw = p.yaw || 0;
+    var wx = (-Math.sin(yaw) * mz + Math.cos(yaw) * mx) / len * want, wz = (-Math.cos(yaw) * mz - Math.sin(yaw) * mx) / len * want;
+    var acc = RIDE.fg ? 16 : 4; RIDE.fvx += (wx - RIDE.fvx) * Math.min(1, acc * dt); RIDE.fvz += (wz - RIDE.fvz) * Math.min(1, acc * dt);
+    if (RIDE.fg && p._jumpBuffer > 0) { p._jumpBuffer = 0; RIDE.vy = D.jump; RIDE.fg = false; p.jumping = true; }
+    var gy = Z.ground(D, p.x, p.z);
+    var nxz = Z.collide(D, p.x, p.z, p.x + RIDE.fvx * dt, p.z + RIDE.fvz * dt, p.y), nx = nxz[0], nz = nxz[1], ng = Z.ground(D, nx, nz);
+    if (RIDE.fg) { if (ng < gy - .8) { RIDE.fg = false; RIDE.vy = 0; } else p.y = ng; } // on quitte une bosse : on retombe
+    if (!RIDE.fg) { RIDE.vy -= D.grav * dt; p.y += RIDE.vy * dt; if (p.y <= ng) { p.y = ng; RIDE.vy = 0; RIDE.fg = true; p.jumping = false; } }
+    if (D.bounce && RIDE.fg && ng < D.origin.y + D.lava + .05) { RIDE.vy = 10; RIDE.fg = false; p.jumping = true; p.y += .1; } // la lave fait rebondir
+    p.x = nx; p.z = nz; p._lastX = p.x; p._lastZ = p.z;
+    p.grounded = RIDE.fg; p.falling = !RIDE.fg; p.gliding = false; p.autoGlider = false; p.swimming = false; p.flying = false; p.airborneFromBus = false;
+    p._eventFloat = false; p._eventVerticalVelocity = 0; p._vy = RIDE.fg ? 0 : RIDE.vy; p._coyote = .12; p._vx = RIDE.fvx; p._vz = RIDE.fvz;
+    p.distance = (+p.distance || 0) + Math.hypot(RIDE.fvx, RIDE.fvz) * dt;
+    if (t - RIDE.tpT > 1.5 && D.portalW && Math.hypot(p.x - D.portalW.x, p.y + 1 - D.portalW.y, p.z - D.portalW.z) < 3.4) { exitDim(p, t); return true; } // retour par le portail
     return true;
   }
   function backToIsland(p, t) {
@@ -390,6 +441,7 @@
     if (ph === "rift") return t < 154.2 ? 1 - rmp(t, 153.05, 154.2) : rmp(t, 191.7, 192.6);
     if (ph === "m2" && t < 193.8) return 1 - rmp(t, 192.6, 193.8);
     if (ph === "riftfree" && RIDE.exitT) return rmp(t, RIDE.exitT + .5, RIDE.exitT + 1.1);
+    if ((ph === "dim" || ph === "riftfree") && RIDE.tpT && t - RIDE.tpT < .9) return 1 - rmp(t, RIDE.tpT, RIDE.tpT + .9); // passage d'un portail
     return 0;
   }
 
@@ -400,7 +452,7 @@
   var prevPre = M.preUpdate;
   M.preUpdate = function (dt) {
     // pendant le voyage, la chorégraphie de fin (soulèvement par l'onde du Point Zéro) ne s'applique pas : on est sur la roche
-    var late = RIDE.phase === "rift" || RIDE.phase === "riftfree" || RIDE.phase === "m2" || RIDE.phase === "thrown", V93 = E.v93, saved = V93 ? V93.freeRoam : false;
+    var late = RIDE.phase === "rift" || RIDE.phase === "riftfree" || RIDE.phase === "dim" || RIDE.phase === "m2" || RIDE.phase === "thrown", V93 = E.v93, saved = V93 ? V93.freeRoam : false;
     if (late && V93) V93.freeRoam = true;
     var r;
     try { r = prevPre.apply(this, arguments); } finally { if (late && V93) V93.freeRoam = saved; }
@@ -416,9 +468,10 @@
         }
         if (RIDE.phase) {
           if (RIDE.phase === "rift" || RIDE.phase === "riftfree" || RIDE.phase === "m2") V.pose = null;
-          E.cameraZoom = RIDE.phase === "m2" ? 1.45 : RIDE.phase === "rift" ? 1.2 : RIDE.phase === "riftfree" ? 1 : 1.1;
+          E.cameraZoom = RIDE.phase === "m2" ? 1.45 : RIDE.phase === "rift" ? 1.2 : RIDE.phase === "riftfree" || RIDE.phase === "dim" ? 1 : 1.1;
         }
         updateRift(t, d);
+        if (RIDE.phase === "dim" && RIDE.dim && root.AZDims110) { var pd = me(); root.AZDims110.update(RIDE.dim, t, d, root.AZUR && root.AZUR.view && root.AZUR.view.camera, pd); }
         setFlash(flashFor(t));
       } else if (RIDE.phase) { endRide(null, false); setFlash(0); }
     } catch (e) { if (!V.err) { V.err = 1; if (root.console) console.warn("[AZUR v95]", e); } }

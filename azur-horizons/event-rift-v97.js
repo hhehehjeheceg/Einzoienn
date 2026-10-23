@@ -244,43 +244,74 @@
    * fantôme, voitures, arbres à l'envers, escaliers qui ne mènent nulle part, coffre géant, lampadaire… et des
    * PORTAILS ronds qui montrent chacun une autre dimension (désert, océan, lave, glace, ville de nuit, jungle,
    * espace, monde bonbon). Tout apparaît en fondu autour du joueur, dérive, tourne, puis s'efface. */
+  /* v110 — portails améliorés : la dimension se voit EN PROFONDEUR (parallaxe : le ciel bouge moins vite que les
+   * collines quand on tourne autour), anneau d'énergie épais qui tourbillonne, lèvres qui ondulent, paillettes,
+   * aspiration lumineuse au centre ; kind 8 = le monde des failles (portail de retour). */
+  var PORTAL_VS = "varying vec2 vUv;varying vec3 vV;void main(){vUv=uv;vec4 wp=modelMatrix*vec4(position,1.);vec3 d=normalize(wp.xyz-cameraPosition);vV=normalize(vec3(dot(d,modelMatrix[0].xyz),dot(d,modelMatrix[1].xyz),dot(d,modelMatrix[2].xyz)));gl_Position=projectionMatrix*viewMatrix*wp;}";
   var PORTAL_FS = [
-    "varying vec2 vUv;uniform float time,amt,kind,seed;",
+    "varying vec2 vUv;varying vec3 vV;uniform float time,amt,kind,seed;",
     "float h1(float n){return fract(sin(n)*43758.5453);}",
-    "float n1(float x){float i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(h1(i),h1(i+1.),f);}",
     "float h2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}",
     "float n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h2(i),h2(i+vec2(1,0)),f.x),mix(h2(i+vec2(0,1)),h2(i+vec2(1,1)),f.x),f.y);}",
     "float fb(vec2 p){return .55*n2(p)+.28*n2(p*2.1)+.14*n2(p*4.3);}",
-    "void main(){vec2 p=vUv*2.-1.;float r=length(p);if(r>1.)discard;",
-    " float K=kind,tt=time;vec2 q=p;float hz=-.08+.03*sin(tt*.3+seed);",
-    " vec3 top,bot,gnd,acc;float sun=0.,mount=0.;",
-    " if(K<.5){top=vec3(.95,.55,.25);bot=vec3(1.,.85,.55);gnd=vec3(.92,.66,.35);acc=vec3(1.,.95,.7);}",          // désert
-    " else if(K<1.5){top=vec3(.2,.5,.95);bot=vec3(.65,.85,1.);gnd=vec3(.05,.35,.6);acc=vec3(1.);}",                 // océan
-    " else if(K<2.5){top=vec3(.18,.02,.02);bot=vec3(.6,.12,.05);gnd=vec3(.12,.04,.03);acc=vec3(1.,.45,.1);}",          // lave
-    " else if(K<3.5){top=vec3(.45,.7,1.);bot=vec3(.85,.95,1.);gnd=vec3(.9,.95,1.);acc=vec3(.7,.9,1.);}",               // glace
-    " else if(K<4.5){top=vec3(.02,.02,.1);bot=vec3(.15,.08,.3);gnd=vec3(.04,.04,.08);acc=vec3(1.,.85,.4);}",           // ville de nuit
-    " else if(K<5.5){top=vec3(.35,.75,.95);bot=vec3(.75,.95,.8);gnd=vec3(.12,.45,.15);acc=vec3(.9,1.,.5);}",           // jungle
-    " else if(K<6.5){top=vec3(.01,.0,.04);bot=vec3(.08,.02,.15);gnd=vec3(.0);acc=vec3(.8,.5,1.);}",                    // espace
-    " else {top=vec3(1.,.55,.8);bot=vec3(1.,.85,.95);gnd=vec3(.7,.95,.85);acc=vec3(1.,1.,.6);}",                       // bonbon
-    " vec3 c=mix(bot,top,smoothstep(hz,.95,q.y));",
-    " vec2 sp=vec2(.38,.42);float sd=length(q-sp);c+=acc*(smoothstep(.16,.13,sd)*(K>3.5&&K<4.5?.6:1.)+.25*exp(-sd*5.))*(K>5.5&&K<6.5?.0:1.);",
-    " float cl=fb(vec2(q.x*2.+tt*.05+seed,q.y*4.));c=mix(c,mix(c,vec3(1.),.5),smoothstep(.55,.8,cl)*smoothstep(hz+.1,.8,q.y)*(K<6.?1.:0.));",
-    " if(K>5.5&&K<6.5){float st=step(.985,h2(floor(q*80.+seed)));c+=vec3(st);c+=vec3(.6,.25,.9)*smoothstep(.5,.85,fb(q*2.+tt*.02))*.6+vec3(.2,.4,1.)*smoothstep(.6,.9,fb(q*3.-tt*.03))*.4;}",
-    " float m=hz+.16*fb(vec2(q.x*2.5+seed,1.))+.06*sin(q.x*9.+seed);",
-    " if(K>3.5&&K<4.5){float bx=floor(q.x*14.+seed*3.),bh=hz+.05+.35*h1(bx*7.1);m=bh;}",
-    " if(q.y<m){vec3 gc=gnd*(.75+.25*smoothstep(m-.3,m,q.y));",
-    "  if(K>.5&&K<1.5)gc=mix(gnd,vec3(.3,.7,1.),.3+.3*sin(q.x*30.+q.y*90.-tt*3.));",
-    "  if(K>1.5&&K<2.5)gc+=vec3(1.,.35,.05)*pow(1.-abs(fb(q*6.+tt*.1)-.5)*2.,8.)*1.5;",
-    "  if(K>3.5&&K<4.5){vec2 w=fract(q*vec2(40.,60.));float lit=step(.55,h2(floor(q*vec2(40.,60.))+seed))*step(.2,w.x)*step(.25,w.y);gc+=acc*lit*.9;}",
-    "  if(K>4.5&&K<5.5)gc*=.7+.3*n2(q*30.);",
+    "vec3 scene(vec2 q,vec2 par,float K,float tt){",
+    " vec3 top,bot,gnd,acc;",
+    " if(K<.5){top=vec3(.35,.62,1.);bot=vec3(1.,.86,.6);gnd=vec3(.95,.75,.45);acc=vec3(1.,.97,.85);}",
+    " else if(K<1.5){top=vec3(.2,.55,1.);bot=vec3(.72,.9,1.);gnd=vec3(.95,.88,.65);acc=vec3(1.);}",
+    " else if(K<2.5){top=vec3(.16,.02,.02);bot=vec3(.55,.14,.05);gnd=vec3(.14,.1,.1);acc=vec3(1.,.5,.15);}",
+    " else if(K<3.5){top=vec3(.04,.1,.3);bot=vec3(.4,.55,.8);gnd=vec3(.92,.96,1.);acc=vec3(.85,.92,1.);}",
+    " else if(K<4.5){top=vec3(.01,.02,.08);bot=vec3(.12,.07,.26);gnd=vec3(.05,.05,.09);acc=vec3(1.,.86,.5);}",
+    " else if(K<5.5){top=vec3(.3,.7,.95);bot=vec3(.8,.96,.82);gnd=vec3(.15,.48,.16);acc=vec3(1.,1.,.75);}",
+    " else if(K<6.5){top=vec3(.0,.0,.02);bot=vec3(.04,.02,.12);gnd=vec3(.42,.42,.46);acc=vec3(.95,.65,.35);}",
+    " else if(K<7.5){top=vec3(.6,.84,1.);bot=vec3(1.,.82,.94);gnd=vec3(1.,.74,.88);acc=vec3(1.,1.,.8);}",
+    " else {top=vec3(.05,.01,.12);bot=vec3(.3,.08,.5);gnd=vec3(.2,.05,.35);acc=vec3(.7,.5,1.);}",
+    " vec2 qs=q+par*.55,qm=q+par*.3,qg=q+par*.12;float hz=-.1+.03*sin(tt*.3+seed);",
+    " vec3 c=mix(bot,top,smoothstep(hz,1.,qs.y));",
+    " if(K>2.5&&K<3.5){float ar=sin(qs.x*5.+tt*.4+sin(qs.y*3.+tt*.3)*2.)*.5+.5;c+=vec3(.2,1.,.6)*pow(ar,5.)*smoothstep(.1,.5,qs.y)*.8;}",
+    " if((K>3.5&&K<4.5)||(K>2.5&&K<3.5)||(K>5.5&&K<6.5)||K>7.5){c+=vec3(step(.985,h2(floor(qs*90.+seed))))*.9;}",
+    " if(K>7.5){float sp=atan(qs.y,qs.x)*3.-length(qs)*9.+tt*1.2;c+=vec3(.6,.4,1.)*pow(.5+.5*sin(sp),5.)*.6;}",
+    " vec2 sp2=vec2(.4,.45)+par*.55;float sd=length(qs-sp2);c+=acc*(smoothstep(.15,.12,sd)+.3*exp(-sd*4.5));",
+    " if(K>5.5&&K<6.5){float pd=length(qs-vec2(-.35,.35));c=mix(c,vec3(.85,.55,.3)*(.6+.4*smoothstep(.3,.0,pd)),smoothstep(.31,.29,pd));c+=vec3(.9,.8,.6)*smoothstep(.02,.0,abs(length((qs-vec2(-.35,.35))*vec2(1.,3.))-.48))*.6;}",
+    " if(K<6.){float cl=fb(vec2(qs.x*2.+tt*.05+seed,qs.y*4.));c=mix(c,vec3(1.),smoothstep(.55,.8,cl)*smoothstep(hz+.1,.8,qs.y)*.6);}",
+    " if(K>6.5&&K<7.5){float rb=length(qs-vec2(0.,-.6));float band=smoothstep(.05,.0,abs(rb-.9));c=mix(c,vec3(.5+.5*sin(rb*40.),.5+.5*sin(rb*40.+2.),.5+.5*sin(rb*40.+4.)),band*.7);}",
+    " float mf=hz+.2*fb(vec2(qm.x*2.+seed,1.))+.07*sin(qm.x*7.+seed);",
+    " if(K>3.5&&K<4.5){float bx=floor(qm.x*12.+seed*3.);mf=hz+.06+.4*h1(bx*7.1);}",
+    " if(qm.y<mf){vec3 mc=mix(gnd,bot,.45)*(.8+.2*smoothstep(mf-.3,mf,qm.y));",
+    "  if(K>3.5&&K<4.5){vec2 w=fract(qm*vec2(36.,54.));mc+=acc*step(.55,h2(floor(qm*vec2(36.,54.))+seed))*step(.25,w.x)*step(.3,w.y)*.9;}",
+    "  if(K>1.5&&K<2.5&&qm.x>.0&&qm.x<.35)mc+=vec3(1.,.4,.1)*smoothstep(mf-.15,mf,qm.y)*.7;",
+    "  c=mc;}",
+    " float ng=hz-.12+.05*fb(vec2(qg.x*4.+seed,2.));",
+    " if(qg.y<ng){vec3 gc=gnd*(.7+.3*n2(qg*25.));",
+    "  if(K>.5&&K<1.5)gc=mix(vec3(.05,.35,.6),vec3(.4,.8,1.),.5+.5*sin(qg.x*30.+qg.y*90.-tt*2.5));",
+    "  if(K>1.5&&K<2.5)gc+=vec3(1.,.35,.05)*pow(1.-abs(fb(qg*6.+tt*.1)-.5)*2.,8.)*1.6;",
+    "  if(K>4.5&&K<5.5)gc*=.6+.5*n2(qg*40.);",
+    "  if(K>6.5&&K<7.5)gc=mix(gc,vec3(1.),.4*step(.5,fract((qg.x+qg.y)*12.)));",
     "  c=gc;}",
-    " if(K>.5&&K<1.5&&q.y<hz)c=mix(vec3(.05,.3,.55),vec3(.4,.75,1.),.5+.5*sin(q.x*25.+q.y*80.-tt*2.5));",
-    " float a=atan(p.y,p.x),sw=.5+.5*sin(a*6.+tt*3.-r*14.);",
-    " vec3 ring=mix(vec3(.55,.3,1.),vec3(.4,.9,1.),sw);",
-    " c=mix(c,ring,smoothstep(.8,.97,r));c+=ring*pow(smoothstep(.7,.99,r),3.)*.8;",
-    " c*=1.-.25*smoothstep(.55,.95,r)*(1.-smoothstep(.95,1.,r));",
-    " gl_FragColor=vec4(c,amt*(1.-smoothstep(.97,1.,r)));}"
+    " return c;}",
+    "void main(){vec2 p=vUv*2.-1.;float a=atan(p.y,p.x),tt=time;",
+    " float lip=.93+.035*sin(a*7.+tt*2.3)+.02*sin(a*13.-tt*3.1);float r=length(p)/lip;if(r>1.08)discard;",
+    " vec2 par=-vV.xy/max(.35,abs(vV.z))*.35;",
+    " vec2 q=p*.95;q+=.02*vec2(sin(p.y*9.+tt*2.),cos(p.x*9.+tt*1.7))*smoothstep(.6,1.,r);",
+    " vec3 c=scene(q,par,kind,tt);",
+    " float sw=.5+.5*sin(a*5.+tt*4.-r*16.),sw2=.5+.5*sin(a*9.-tt*6.+r*20.);",
+    " vec3 r1=kind>7.5?vec3(.8,.4,1.):mix(vec3(.55,.3,1.),vec3(.35,.95,1.),sw),ring=mix(r1,vec3(1.,.8,1.),sw2*.22);",
+    " float rim=smoothstep(.78,.94,r)*(1.-smoothstep(1.,1.08,r));",
+    " c=mix(c,ring*.85,smoothstep(.86,.98,r));c+=ring*rim*.55+ring*pow(smoothstep(.6,1.,r),4.)*.3;",
+    " c+=vec3(1.)*pow(max(0.,1.-r*1.4),6.)*.25*(.6+.4*sin(tt*3.));",
+    " float sp=step(.97,h2(floor(vec2(a*20.,r*14.-tt*2.)+seed)))*smoothstep(.75,1.,r);c+=vec3(1.)*sp;",
+    " c*=1.-.3*smoothstep(.5,.85,r)*(1.-smoothstep(.85,.97,r));",
+    " gl_FragColor=vec4(c,amt*(1.-smoothstep(1.,1.08,r)));}"
   ].join("\n");
+  function portalMaterial(kind, seed) {
+    var m = new T.ShaderMaterial({ transparent: true, depthWrite: false, side: T.DoubleSide, fog: false, uniforms: { time: { value: 0 }, amt: { value: 0 }, kind: { value: kind || 0 }, seed: { value: seed || 0 } }, vertexShader: PORTAL_VS, fragmentShader: PORTAL_FS });
+    m.toneMapped = false; return m;
+  }
+  function portalSparks() { // paillettes qui tournent autour de l'anneau
+    var N = 90, pos = new Float32Array(N * 3); for (var i = 0; i < N; i++) { var a = i / N * 6.283, r = 1.02 + hs(i * 3.3) * .18; pos[i * 3] = Math.cos(a) * r; pos[i * 3 + 1] = Math.sin(a) * r; pos[i * 3 + 2] = (hs(i * 7.7) - .5) * .15; }
+    var g = new T.BufferGeometry(); g.setAttribute("position", new T.BufferAttribute(pos, 3));
+    var m = new T.PointsMaterial({ color: 0xe8dcff, size: 3.5, sizeAttenuation: false, transparent: true, opacity: .9, blending: T.AdditiveBlending, depthWrite: false, fog: false }); m.toneMapped = false;
+    var pts = new T.Points(g, m); pts.frustumCulled = false; return pts;
+  }
   function lam(c, e) { var m = new T.MeshLambertMaterial({ color: c, emissive: new T.Color(c).multiplyScalar(e == null ? .35 : e), transparent: true, opacity: 0, depthWrite: true, fog: false }); return m; }
   function oddBox(g, w, h, d, m, x, y, z) { var b = new T.Mesh(new T.BoxGeometry(w, h, d), m); b.position.set(x || 0, y || 0, z || 0); b.frustumCulled = false; g.add(b); return b; }
   function oddHouse(i) {
@@ -335,9 +366,10 @@
     // portails vers d'autres dimensions
     var pg = new T.CircleGeometry(1, 64); R.keep.push(pg);
     for (var q = 0; q < 4; q++) {
-      var pm = new T.ShaderMaterial({ transparent: true, depthWrite: false, side: T.DoubleSide, fog: false, uniforms: { time: { value: 0 }, amt: { value: 0 }, kind: { value: q }, seed: { value: q * 3.7 } }, vertexShader: "varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}", fragmentShader: PORTAL_FS });
+      var pm = portalMaterial(q, q * 3.7);
       R.keep.push(pm); var pmesh = new T.Mesh(pg, pm); pmesh.frustumCulled = false; pmesh.renderOrder = 6;
-      var pit = item("portail", pmesh, { mats: [], glow: 0xb38cff, size: 34 }); pit.portal = pm;
+      var spk = portalSparks(); pmesh.add(spk); R.keep.push(spk.geometry, spk.material);
+      var pit = item("portail", pmesh, { mats: [], glow: 0xb38cff, size: 34 }); pit.portal = pm; pit.sparks = spk;
     }
   }
   var WEIGHTS = { portail: 3, maison: 2, bus: 1, personnage: 1.2, voiture: 1, arbre: 1, escalier: .8, coffre: .8, lampadaire: .8 };
@@ -349,12 +381,12 @@
     if (!pick) { var tot = 0; free.forEach(function (it) { tot += WEIGHTS[it.kind] || 1; }); var r = Math.random() * tot; for (var i = 0; i < free.length; i++) { r -= WEIGHTS[free[i].kind] || 1; if (r <= 0) { pick = free[i]; break; } } pick = pick || free[0]; }
     // devant la caméra le plus souvent (pour qu'on le voie), à 45-200 m
     var fw = new T.Vector3(0, 0, -1); if (cam) fw.applyQuaternion(cam.quaternion); fw.y = 0; if (fw.lengthSq() < 1e-4) fw.set(0, 0, -1); fw.normalize();
-    var ang = Math.atan2(fw.z, fw.x) + (Math.random() - .5) * (Math.random() < .75 ? 1.8 : 6.28), d = pick.kind === "portail" ? 70 + Math.random() * 90 : 45 + Math.random() * 155;
-    pick.obj.position.set(me.x + Math.cos(ang) * d, me.y - 40 + Math.random() * 100, me.z + Math.sin(ang) * d);
+    var ang = Math.atan2(fw.z, fw.x) + (Math.random() - .5) * (Math.random() < .75 ? 1.8 : 6.28), d = pick.kind === "portail" ? 50 + Math.random() * 60 : 45 + Math.random() * 155;
+    pick.obj.position.set(me.x + Math.cos(ang) * d, pick.kind === "portail" ? me.y - 25 + Math.random() * 30 : me.y - 40 + Math.random() * 100, me.z + Math.sin(ang) * d); // les portails à portée (on peut y entrer)
     pick.obj.rotation.set(pick.kind === "arbre" ? Math.PI : (Math.random() - .5) * .8, Math.random() * 6.28, (Math.random() - .5) * .8);
-    var sc = pick.kind === "portail" ? 16 + Math.random() * 14 : pick.kind === "personnage" ? 1 : .8 + Math.random() * .7; pick.obj.scale.setScalar(sc); pick.sc = sc;
+    var sc = pick.kind === "portail" ? 20 + Math.random() * 14 : pick.kind === "personnage" ? 1 : .8 + Math.random() * .7; pick.obj.scale.setScalar(sc); pick.sc = sc;
     pick.vel.set((Math.random() - .5) * 3, (Math.random() - .5) * 2, (Math.random() - .5) * 3); pick.spin.set((Math.random() - .5) * .25, (Math.random() - .5) * .35, (Math.random() - .5) * .25);
-    if (pick.kind === "portail") { pick.spin.set(0, 0, 0); var kd = Math.floor(Math.random() * 8); pick.portal.uniforms.kind.value = kd; pick.portal.uniforms.seed.value = Math.random() * 20; pick.glow.material.color.setHex(DIM_GLOW[kd]); }
+    if (pick.kind === "portail") { pick.spin.set(0, 0, 0); pick.vel.multiplyScalar(.3); pick.obj.lookAt(R.g.position.x + me.x, R.g.position.y + pick.obj.position.y, R.g.position.z + me.z); /* tourné vers le joueur une fois : en tournant autour, la dimension se voit en profondeur */ var kd = Math.floor(Math.random() * 8); pick.portal.uniforms.kind.value = kd; pick.portal.uniforms.seed.value = Math.random() * 20; pick.glow.material.color.setHex(DIM_GLOW[kd]); }
     if (pick.kind === "personnage") pick.spin.set(0, .4, 0);
     pick.on = true; pick.t0 = t; pick.life = 13 + Math.random() * 11; pick.obj.visible = true;
   }
@@ -366,12 +398,13 @@
     if (t >= P.next && act < 8 && me) { spawnOdd(R, t, me, cam, P.n === 0 ? "portail" : P.n === 1 ? "maison" : P.n === 2 ? "bus" : null); P.n++; P.next = t + (P.n < 4 ? 2.5 : 3 + Math.random() * 4.5); }
     for (var i = 0; i < P.items.length; i++) {
       var it = P.items[i]; if (!it.on) continue;
+      if (it.hold) it.life = Math.max(it.life, t - it.t0 + 3); // on est passé dedans : il reste ouvert jusqu'à notre retour
       var age = t - it.t0, a = ramp(age, 0, 1.6) * (1 - ramp(age, it.life - 2.2, it.life));
       if (age > it.life) { it.on = false; it.obj.visible = false; L.setOp(it.glow, 0); continue; }
       if (it.glitch) { var gl = hs(Math.floor(t * 11) + i * 7); a *= gl > .18 ? 1 : .25; if (gl < .06) it.obj.position.x += (hs(t + i) - .5) * 3; }
       it.obj.position.addScaledVector(it.vel, dt); it.obj.rotation.x += it.spin.x * dt; it.obj.rotation.y += it.spin.y * dt; it.obj.rotation.z += it.spin.z * dt;
       for (var m = 0; m < it.mats.length; m++) it.mats[m].opacity = it.base[m] * a;
-      if (it.portal) { it.portal.uniforms.time.value = t; it.portal.uniforms.amt.value = a; if (cam) it.obj.lookAt(cam.position); }
+      if (it.portal) { it.portal.uniforms.time.value = t; it.portal.uniforms.amt.value = a; if (it.sparks) { it.sparks.rotation.z = t * .6; it.sparks.material.opacity = .9 * a; } it.a = a; }
       if (it.mixer) it.mixer.update(dt);
       it.glow.position.copy(it.obj.position); it.glow.scale.setScalar((it.size * (it.sc || 1)) * (it.portal ? 1.6 : 2.2)); L.setOp(it.glow, a * (it.portal ? .45 : .3));
     }
@@ -392,5 +425,5 @@
     R.keep.forEach(function (o) { try { if (o && o.dispose) o.dispose(); } catch (e) {} });
   }
 
-  root.AZRiftWorld97 = { build: build, update: update, dispose: dispose, freeze: freeze };
+  root.AZRiftWorld97 = { build: build, update: update, dispose: dispose, freeze: freeze, portalMaterial: portalMaterial, portalSparks: portalSparks };
 })(typeof globalThis !== "undefined" ? globalThis : this);
