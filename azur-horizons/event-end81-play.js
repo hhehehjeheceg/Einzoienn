@@ -161,8 +161,9 @@
       // en apesanteur et dérive lentement plus haut jusqu'à la plongée des fusées (≈ 490 m au-dessus du sol à 212 s)
       var lk = U.sm(ramp(t, 184, 188.2)), target = Math.max(ground, st.liftFrom || p.y) + 340 * lk + 150 * U.sm(ramp(t, 188.2, 212)) + 4 * Math.sin(t * .7); // v105b : l'onde frappe à 184 s (vidéo), 50 m à 185 s, 220 m à 186,5 s
       floatTo(p, target, t < 189 ? 240 : 60, 40); setMode(t < 189 ? 'zeroshock' : 'float', t); st.float = ramp(t, 183.6, 185);
-      var dx = s.ZP.x - p.x, dz = s.ZP.z - p.z, d = Math.hypot(dx, dz), want = 300;
+      var dx = s.ZP.x - p.x, dz = s.ZP.z - p.z, d = Math.hypot(dx, dz), want = 700; // v106 : la bulle reste devant, sous le joueur à ≈ 35° (vidéo 3:33-3:43)
       if (d > want) { var pull = Math.min(6, (d - want) * .05) * dt; p.x += dx / d * pull; p.z += dz / d * pull; }
+      else if (d < 550 && d > 1) { var push = Math.min(t < 189 ? 25 : 4, (550 - d) * .2) * dt; if (E.__snap) push = 550 - d; p.x -= dx / d * push; p.z -= dz / d * push; } // l'onde l'écarte : la bulle devant lui, pas dessous
       return;
     }
     if (t >= 224 && t < 253.6) {
@@ -218,13 +219,14 @@
     lookPrev = G.look; G.look = function () { steerUser = VT(); return lookPrev.apply(this, arguments); };
   }
   function unwrapLook() { if (G && lookPrev) G.look = lookPrev; lookPrev = null; }
-  var PITCH_KEYS = [[183.5, -.12], [184.6, -.15], [185.5, -.38], [187.8, -.38], [188.8, .7], [189.8, 1.08], [192.5, 1.02], [196, .95], [199, .8], [203, .6], [206, .45], [209, .25], [211, .05], [212.6, -.3], [214, -.42], [224, -.42]];
+  var PITCH_KEYS = [[183.5, -.12], [184.6, -.15], [185.5, -.38], [187.8, -.38], [188.8, .7], [189.8, 1.08], [192.5, 1.02], [196, .95], [199, .8], [203, .6], [206, .45], [209, .25], [211, .05], [212.6, -.3], [214, -.5], [216.5, -.72], [224, -.72]];
   function keyPitch(t) {
     var K = PITCH_KEYS; if (t <= K[0][0]) return K[0][1];
     for (var i = 1; i < K.length; i++) if (t < K[i][0]) { var a = K[i - 1], b = K[i], u = U.sm((t - a[0]) / (b[0] - a[0])); return a[1] + (b[1] - a[1]) * u; }
     return K[K.length - 1][1];
   }
   function steerCam(t, p, dt) {
+    if (t < steerUser - 2) steerUser = -999; // retour en arrière dans le film (revoir l'événement) : la caméra guidée reprend tout de suite
     var s = S(); if (!G || !s || !s.ZP || !s.STAR || p.vehicleId) return;
     // v97 : jamais en vol (planeur, chute) ni quand le joueur se déplace : la caméra donne la direction
     var mi = p._input || {}; if (p.gliding || (p.falling && !p._eventFloat) || Math.abs(+mi.moveX || 0) + Math.abs(+mi.moveZ || 0) > .05) { steerUser = Math.max(steerUser, VT() - 1.5); return; }

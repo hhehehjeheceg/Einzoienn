@@ -39,6 +39,7 @@
 
   /* -------------------------------------------------------------- GLSL */
   var NOISE = [
+    'float sq(float x){return x*x;}',
     'float h12(vec2 p){vec3 p3=fract(vec3(p.xyx)*.1031);p3+=dot(p3,p3.yzx+33.33);return fract((p3.x+p3.y)*p3.z);}',
     'float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h12(i),h12(i+vec2(1.,0.)),f.x),mix(h12(i+vec2(0.,1.)),h12(i+vec2(1.,1.)),f.x),f.y);}',
     'float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*vn(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return v;}',
@@ -205,6 +206,22 @@
       }
     });
   }
+  function novaTex(seed, wide) { // v106 : la supernova de la fin (vidéo 3:46) — filaments courbes violets / roses / bleus
+    return draw(1024, 1024, function (g) {
+      var R = rng(seed); g.translate(512, 512); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
+      var cols = [[170, 90, 255], [255, 80, 200], [110, 160, 255], [200, 120, 255], [255, 140, 230], [140, 200, 255]];
+      for (var i = 0; i < (wide ? 70 : 150); i++) {
+        var a = R() * 6.283, r0 = 20 + R() * 60, len = (wide ? 260 : 180) + R() * 260, bend = (R() - .5) * .9, c = cols[Math.floor(R() * cols.length)], al = .25 + R() * .5;
+        g.strokeStyle = 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + al.toFixed(2) + ')'; g.lineWidth = (wide ? 3 : 1) + R() * (wide ? 9 : 3);
+        g.beginPath(); for (var k = 0; k <= 24; k++) { var u = k / 24, rr = r0 + len * u, aa = a + bend * u * u + .05 * Math.sin(u * 9 + i); var x = Math.cos(aa) * rr, y = Math.sin(aa) * rr; if (k) g.lineTo(x, y); else g.moveTo(x, y); }
+        g.globalAlpha = 1; g.stroke();
+      }
+      g.globalAlpha = 1;
+      for (var j = 0; j < (wide ? 14 : 0); j++) { var aj = R() * 6.283, rj = 120 + R() * 300, x2 = Math.cos(aj) * rj, y2 = Math.sin(aj) * rj, s2 = 60 + R() * 120, cj = cols[Math.floor(R() * cols.length)], q = g.createRadialGradient(x2, y2, 0, x2, y2, s2); q.addColorStop(0, 'rgba(' + cj[0] + ',' + cj[1] + ',' + cj[2] + ',.16)'); q.addColorStop(1, 'rgba(' + cj[0] + ',' + cj[1] + ',' + cj[2] + ',0)'); g.fillStyle = q; g.fillRect(x2 - s2, y2 - s2, s2 * 2, s2 * 2); }
+      var cg = g.createRadialGradient(0, 0, 0, 0, 0, 512); cg.addColorStop(0, 'rgba(0,0,0,0)'); cg.addColorStop(.75, 'rgba(0,0,0,0)'); cg.addColorStop(1, 'rgba(0,0,0,1)');
+      g.globalCompositeOperation = 'destination-out'; g.fillStyle = cg; g.fillRect(-512, -512, 1024, 1024);
+    });
+  }
   function raysTex(seed, magenta) { // rayons de lumière radiaux fins
     return draw(512, 512, function (g) {
       var R = rng(seed); g.translate(256, 256); g.globalCompositeOperation = 'lighter';
@@ -305,7 +322,7 @@
     X.boltV = [boltVTex(3), boltVTex(17), boltVTex(29), boltVTex(41)];
     X.arcs = [arcsTex(5), arcsTex(19), arcsTex(31)];
     X.crack = [crackTex(7), crackTex(13)];
-    X.rays = raysTex(9, false); X.raysM = raysTex(21, true);
+    X.rays = raysTex(9, false); X.raysM = raysTex(21, true); X.nova = novaTex(33, false); X.nova2 = novaTex(47, true);
     X.ring = portalRingTex(); X.globe = globeTex(); X.moon = moonTex(); X.hole = holeTex(); X.scorch = scorchTex(); X.shard = shardTex(); X.lava = lavaTex();
     return X;
   };
@@ -334,7 +351,7 @@
         'vec3 hor=vec3(.11,.30,.50),mid=vec3(.07,.12,.22),zen=vec3(.04,.06,.11);',
         'vec3 c=mix(hor,mid,smoothstep(-.02,.24,h));c=mix(c,zen,smoothstep(.24,.95,h));',
         'float md=max(dot(d,normalize(moonDir)),0.);',
-        'c+=(vec3(.20,.62,.80)*pow(md,26.)*.55+vec3(.03,.30,.50)*pow(md,6.)*.55+vec3(.02,.10,.2)*pow(md,2.)*.35)*glow;',
+        'c+=(vec3(.20,.62,.80)*pow(md,26.)*.55+vec3(.03,.30,.50)*pow(md,6.)*.55+vec3(.02,.10,.2)*sq(md)*.35)*glow;',
         'vec2 q=vec2(atan(d.z,d.x)*2.2,h*3.4);',
         'float n=fbm(q*1.3+vec2(time*.003,0.));float neb=smoothstep(.42,.86,n)*(1.-smoothstep(.0,1.,abs(h-.32)*1.6));',
         'float wisp=smoothstep(.5,.85,fbm(vec2(q.x*.9+q.y*1.6,q.y*4.2-q.x*.5)+3.7))*pow(md,3.);',
@@ -442,11 +459,11 @@
     ' float R=mix(.5,.56,rainbow)*mix(.35,1.,open),w=.16+.08*fbm3(vec2(a*2.+seed,time*.2))+.06*rainbow;',
     ' float wisp=fbm(vec2(a*3.2+seed*2.,r*6.-time*.35));',
     // anneau bleu saturé, épais et flou (pas un néon blanc) ; un fil clair seulement sur le bord intérieur
-    ' float ring=exp(-pow((r-R)/w,2.)*2.)*(.45+.9*wisp);',
+    ' float ring=exp(-sq((r-R)/w)*2.)*(.45+.9*wisp);',
     ' float halo=exp(-max(r-R,0.)*mix(3.,1.5,rainbow))*step(R*.9,r)*mix(.55,.9,rainbow);',
     ' float ball=exp(-r*r*2.2)*.3*rainbow;',
     ' float hue=fract(a/6.2832*1.5+time*.03+seed);vec3 irid=.5+.5*cos(6.2832*(hue+vec3(0.,.33,.67)));',
-    ' float fringe=exp(-pow((r-(R-w*.7))/(w*.6),2.))*(.4+.6*wisp);',
+    ' float fq=(r-(R-w*.7))/(w*.6);float fringe=exp(-fq*fq)*(.4+.6*wisp);',
     ' vec3 col=vec3(.16,.42,1.)*ring*1.5+vec3(.7,.85,1.)*pow(ring,6.)*.45+vec3(.12,.3,1.)*halo+vec3(.2,.45,1.)*ball;',
     ' col+=irid*fringe*mix(.1,.45,rainbow);',
     // l'étoile au centre et ses filaments qui retombent (méduse), ou de longs éclairs (anneau arc-en-ciel)
@@ -456,7 +473,7 @@
     '  float bendA=mix(.9*(hs(fi+9.)-.5),0.,rainbow)*r;',
     '  float jag=(sin(r*38.+fi*3.+time*3.)*.012+sin(r*91.+fi*1.7+floor(time*6.))*.005)*(1.+2.*rainbow);',
     '  float d=abs(r*sin(a-ang-bendA)-jag*r);',
-    '  fil+=vec3(.75,.85,1.)*exp(-d*d/(.00003+.00016*r))*smoothstep(Lf,Lf*.25,r)*step(0.,cos(a-ang-bendA))*(.8+.4*rainbow);}',
+    '  fil+=vec3(.75,.85,1.)*exp(-d*d/(.00003+.00016*r))*(1.-smoothstep(Lf*.25,Lf,r))*step(0.,cos(a-ang-bendA))*(.8+.4*rainbow);}',
     ' col+=vec3(.95,.98,1.)*core+fil;',
     ' col+=vec3(1.,.42,.82)*exp(-dot(p-vec2(0.,-.1),p-vec2(0.,-.1))*7.)*.5*rainbow;',
     // voile violet et paillettes qui pendent sous l'anneau
@@ -538,8 +555,8 @@
         '   float L=(.4+.36*hs(fi+51.))*mix(.25,1.,open);float th=fi*.6283+(hs(fi+53.)-.5)*.45+.3;',
         '   float knee=L*(.3+.3*hs(fi+55.)),bend=(hs(fi+57.)-.5)*1.2+.8*sign(hs(fi+59.)-.5);',
         '   float kr=max(r-knee,0.)/max(L,.1);float ang=th+bend*kr*(1.+kr)*.32*step(.3,hs(fi+61.))+.02*sin(r*9.+fi*2.3+time*1.2);',
-        '   float d=abs(r*sgA(a-ang));float k=r/max(L,.001);float w=.011*(1.-.6*k)+.0025;',
-        '   float fade=smoothstep(.02,.06,r)*(1.-smoothstep(.7,1.,k));',
+        '   float d=abs(r*sgA(a-ang));float k=r/max(L,.001);float w=.011*max(1.-.6*k,0.)+.0025;',
+        '   float fade=smoothstep(.02,.06,r)*(1.-smoothstep(.7,1.,k));if(fade<=0.)continue;',
         '   jc+=(vec3(.82,.92,1.)*exp(-d*d/(w*w*.5))+vec3(.18,.62,1.)*exp(-d/(w*2.6))*.38)*fade;}',
         '  vec2 vq=p-vec2(-.04,-.06);float vy=-(vq.y*.82+vq.x*.57),vx=vq.x*.82-vq.y*.57;',
         '  float vw=.07+.42*max(vy,0.),veil=smoothstep(-.06,.12,vy)*(1.-smoothstep(.3,.78,vy))*(1.-smoothstep(vw*.25,vw,abs(vx)));',
@@ -635,7 +652,7 @@
         'float rays2=pow(vn(vec2(x*31.-time*.9,y*.4)),3.)*.8;',
         'float top=.22+.42*fold;',
         'float body=smoothstep(0.,.07,y)*(1.-smoothstep(top*.55,top,y));',
-        'float edge=exp(-pow((y-.06)*16.,2.))*1.2;',
+        'float edge=exp(-sq((y-.06)*16.))*1.2;',
         'vec3 g=vec3(.12,1.,.52),c2=vec3(.10,.86,.78),v=vec3(.45,.32,1.);',
         'vec3 col=mix(g,c2,smoothstep(.05,.45,y));col=mix(col,v,smoothstep(.45,.95,y)*.75);',
         'float side=smoothstep(0.,.06,vUv.x)*(1.-smoothstep(.94,1.,vUv.x));',
@@ -652,7 +669,7 @@
       uniforms: { time: { value: 0 }, amt: { value: 0 }, flash: { value: 0 }, cyan: { value: 0 }, ripple: { value: 0 }, ripT: { value: 0 }, hot: { value: 0 },
         ripDir: { value: new T.Vector3(0, 1, 0) }, dentDir: { value: new T.Vector3(0, 1, 0) }, dent: { value: 0 }, dentW: { value: .42 }, wob: { value: 0 }, touch: { value: 0 } },
       /* v93 : la membrane réagit — creux là où la météorite appuie (dent), ondulation qui part du point de contact (wob) */
-      vertexShader: 'uniform vec3 dentDir;uniform float dent,dentW,wob,time;varying vec3 vN;varying vec3 vV;varying vec3 vP;varying float vDt;void main(){vP=position;vec3 n0=normalize(position);float ang=acos(clamp(dot(n0,dentDir),-1.,1.));float pr=exp(-pow(ang/dentW,2.));vec3 q=position*(1.-dent*pr*(1.+.12*sin(time*23.)));q*=1.+wob*sin(ang*7.-time*9.)*exp(-ang*.9)*.06;vDt=pr*step(.001,dent);vec4 mv=modelViewMatrix*vec4(q,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',
+      vertexShader: 'uniform vec3 dentDir;uniform float dent,dentW,wob,time;varying vec3 vN;varying vec3 vV;varying vec3 vP;varying float vDt;float sq(float x){return x*x;}void main(){vP=position;vec3 n0=normalize(position);float ang=acos(clamp(dot(n0,dentDir),-1.,1.));float pr=exp(-sq(ang/dentW));vec3 q=position*(1.-dent*pr*(1.+.12*sin(time*23.)));q*=1.+wob*sin(ang*7.-time*9.)*exp(-ang*.9)*.06;vDt=pr*step(.001,dent);vec4 mv=modelViewMatrix*vec4(q,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',
       fragmentShader: [
         'varying vec3 vN;varying vec3 vV;varying vec3 vP;varying float vDt;uniform float time,amt,flash,cyan,ripple,ripT,hot,touch;uniform vec3 ripDir;', NOISE,
         'void main(){vec3 p=normalize(vP);float f=1.-abs(dot(normalize(vN),normalize(vV)));float rim=pow(f,2.2);',
@@ -661,8 +678,8 @@
         'float streak=pow(sw,2.6)*2.2+pow(sw2,4.)*1.5;',
         'vec3 pur=vec3(.62,.38,1.),pink=vec3(1.,.48,.86),cy=vec3(.45,.92,1.),wh=vec3(.9,.97,1.);',
         'vec3 c=mix(mix(pur,pink,sw),mix(cy,wh,sw2*.6),cyan);',
-        'float base=exp(-h*7.)*1.3;float top=exp(-pow(acos(h)*3.,2.))*hot;',
-        'float d=acos(clamp(dot(p,ripDir),-1.,1.));float rp=ripple*(exp(-pow((d-ripT)*7.,2.))+.55*exp(-pow((d-ripT*.62)*9.,2.)));',
+        'float base=exp(-h*7.)*1.3;float top=exp(-sq(acos(h)*3.))*hot;',
+        'float d=acos(clamp(dot(p,ripDir),-1.,1.));float rp=ripple*(exp(-sq((d-ripT)*7.))+.55*exp(-sq((d-ripT*.62)*9.)));',
         'float tg=touch*(exp(-d*d*9.)*(1.1+.5*sin(time*31.))+vDt*.8+exp(-d*2.2)*pow(streak,1.5)*.9);',
         'float a=(rim*.6+streak*.2+base*.08)*amt+flash*(.3+rim*.5)+rp*.6+top*.9+tg*.75;',
         'vec3 col=c*(.65+streak*.45)+wh*(flash*.6+rp*.8+tg)+vec3(1.,.25,.2)*top+vec3(1.,.55,.3)*touch*exp(-d*d*30.)*.8;',
