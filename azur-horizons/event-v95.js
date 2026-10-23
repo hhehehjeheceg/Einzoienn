@@ -213,7 +213,7 @@
     var on = RIDE.phase === "rift" || RIDE.phase === "riftfree"; RW.g.visible = on; if (!on) { E.shakeExtra = 0; return; }
     RW.g.position.copy(W);
     var fr2 = RIDE.phase === "riftfree";
-    root.AZRiftWorld97.update(RW, t, dt, root.AZUR && root.AZUR.view && root.AZUR.view.camera, fr2 ? { free: true, since: RIDE.freeT, portal: RIDE.exitT ? { x: RIDE.px - W.x, y: RIDE.py - W.y, z: RIDE.pz - W.z, k: rmp(t, RIDE.exitT, RIDE.exitT + .8) } : null } : null);
+    root.AZRiftWorld97.update(RW, t, dt, root.AZUR && root.AZUR.view && root.AZUR.view.camera, fr2 ? { free: true, since: RIDE.freeT, me: (function () { var pm = me(); return pm ? { x: pm.x - W.x, y: pm.y - W.y, z: pm.z - W.z } : null; })(), portal: RIDE.exitT ? { x: RIDE.px - W.x, y: RIDE.py - W.y, z: RIDE.pz - W.z, k: rmp(t, RIDE.exitT, RIDE.exitT + .8) } : null } : null);
     E.shakeExtra = RW.shake || 0;
   }
   function disposeRift() {
@@ -376,6 +376,8 @@
   }
   // outil de test (comparaisons et vérifications automatiques) : met le joueur debout au sommet de la météorite
   V6.testBoard = function () { var g = root.AZUR, p = g && g.world && g.world.players.find(function (q) { return q.id === g.myId; }); if (!p) return false; enter("m1", p); RIDE.ox = 0; RIDE.oz = 0; RIDE.oy = 0; RIDE.vy = 0; RIDE.hasC = false; return true; };
+  // outil de vérification automatique : met le joueur debout au sommet de la météorite
+  V6.testBoard = function () { var p = me(); if (!p) return false; enter("m1", p); RIDE.ox = 0; RIDE.oz = 0; RIDE.oy = 0; RIDE.vy = 0; RIDE.hasC = false; return true; };
   var prevRider = E.stepMeteorRider;
   E.stepMeteorRider = function (p, dt) {
     try { if (ride(p, dt)) return true; } catch (e) { if (!V.err6) { V.err6 = 1; if (root.console) console.warn("[AZUR v96]", e); } endRide(p, false); }

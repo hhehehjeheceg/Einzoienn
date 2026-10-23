@@ -78,6 +78,7 @@
     // v108 : la faille qui s'ouvre sous le joueur resté dans ce monde et le renvoie sur l'île
     R.portal = new T.Mesh(k(new T.PlaneGeometry(1, 1)), k(L.riftMaterial(9.3, false))); R.portal.frustumCulled = false; R.portal.visible = false; R.portal.renderOrder = 5; g.add(R.portal);
     R.portalGlow = L.sprite(g, X.soft, 0xc9a6ff, 60, true, 0);
+    try { buildOdd(R, X); } catch (e) { R.odd = null; if (root.console) console.warn("[AZUR rift v109]", e); }
     var u = R.rockMat.uniforms; if (u) { u.front.value.set(0, -1, 0); u.lightDir.value.set(.35, 1, .25); u.rimCol.value.setHex(0xa66bff); u.heat.value = .9; u.pale.value = 0; u.energy.value = .9; }
     R.under = L.sprite(g, X.soft, 0xb06bff, 80, true, .55); R.under.position.set(0, -16, 0);
     R.arcs = []; for (var a = 0; a < 7; a++) { var s = L.sprite(g, X.arcs[a % 3], 0xcdb0ff, 22, true, 0); R.arcs.push(s); }
@@ -233,8 +234,148 @@
     R.dust.position.y = (fall * 1.4) % 200;
     R.streaks.position.y = (fall * 2.2) % 200; R.streaks.material.opacity = .3 + .5 * Math.min(1, dsp - 1 + storm * .3);
     R.shake = Math.min(1.2, shake);
+    try { updateOdd(R, t, dt, free, opt && opt.me, cam); } catch (e) {}
   }
 
+
+  /* ===================================================== v109 : CE QUI APPARAÎT QUAND ON RESTE BLOQUÉ
+   * Resté dans le monde des failles (descendu de la météorite), on voit surgir de temps en temps des morceaux
+   * d'autres dimensions : maisons qui flottent, un bus aux couleurs d'un autre monde qui grésille, un personnage
+   * fantôme, voitures, arbres à l'envers, escaliers qui ne mènent nulle part, coffre géant, lampadaire… et des
+   * PORTAILS ronds qui montrent chacun une autre dimension (désert, océan, lave, glace, ville de nuit, jungle,
+   * espace, monde bonbon). Tout apparaît en fondu autour du joueur, dérive, tourne, puis s'efface. */
+  var PORTAL_FS = [
+    "varying vec2 vUv;uniform float time,amt,kind,seed;",
+    "float h1(float n){return fract(sin(n)*43758.5453);}",
+    "float n1(float x){float i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(h1(i),h1(i+1.),f);}",
+    "float h2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}",
+    "float n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h2(i),h2(i+vec2(1,0)),f.x),mix(h2(i+vec2(0,1)),h2(i+vec2(1,1)),f.x),f.y);}",
+    "float fb(vec2 p){return .55*n2(p)+.28*n2(p*2.1)+.14*n2(p*4.3);}",
+    "void main(){vec2 p=vUv*2.-1.;float r=length(p);if(r>1.)discard;",
+    " float K=kind,tt=time;vec2 q=p;float hz=-.08+.03*sin(tt*.3+seed);",
+    " vec3 top,bot,gnd,acc;float sun=0.,mount=0.;",
+    " if(K<.5){top=vec3(.95,.55,.25);bot=vec3(1.,.85,.55);gnd=vec3(.92,.66,.35);acc=vec3(1.,.95,.7);}",          // désert
+    " else if(K<1.5){top=vec3(.2,.5,.95);bot=vec3(.65,.85,1.);gnd=vec3(.05,.35,.6);acc=vec3(1.);}",                 // océan
+    " else if(K<2.5){top=vec3(.18,.02,.02);bot=vec3(.6,.12,.05);gnd=vec3(.12,.04,.03);acc=vec3(1.,.45,.1);}",          // lave
+    " else if(K<3.5){top=vec3(.45,.7,1.);bot=vec3(.85,.95,1.);gnd=vec3(.9,.95,1.);acc=vec3(.7,.9,1.);}",               // glace
+    " else if(K<4.5){top=vec3(.02,.02,.1);bot=vec3(.15,.08,.3);gnd=vec3(.04,.04,.08);acc=vec3(1.,.85,.4);}",           // ville de nuit
+    " else if(K<5.5){top=vec3(.35,.75,.95);bot=vec3(.75,.95,.8);gnd=vec3(.12,.45,.15);acc=vec3(.9,1.,.5);}",           // jungle
+    " else if(K<6.5){top=vec3(.01,.0,.04);bot=vec3(.08,.02,.15);gnd=vec3(.0);acc=vec3(.8,.5,1.);}",                    // espace
+    " else {top=vec3(1.,.55,.8);bot=vec3(1.,.85,.95);gnd=vec3(.7,.95,.85);acc=vec3(1.,1.,.6);}",                       // bonbon
+    " vec3 c=mix(bot,top,smoothstep(hz,.95,q.y));",
+    " vec2 sp=vec2(.38,.42);float sd=length(q-sp);c+=acc*(smoothstep(.16,.13,sd)*(K>3.5&&K<4.5?.6:1.)+.25*exp(-sd*5.))*(K>5.5&&K<6.5?.0:1.);",
+    " float cl=fb(vec2(q.x*2.+tt*.05+seed,q.y*4.));c=mix(c,mix(c,vec3(1.),.5),smoothstep(.55,.8,cl)*smoothstep(hz+.1,.8,q.y)*(K<6.?1.:0.));",
+    " if(K>5.5&&K<6.5){float st=step(.985,h2(floor(q*80.+seed)));c+=vec3(st);c+=vec3(.6,.25,.9)*smoothstep(.5,.85,fb(q*2.+tt*.02))*.6+vec3(.2,.4,1.)*smoothstep(.6,.9,fb(q*3.-tt*.03))*.4;}",
+    " float m=hz+.16*fb(vec2(q.x*2.5+seed,1.))+.06*sin(q.x*9.+seed);",
+    " if(K>3.5&&K<4.5){float bx=floor(q.x*14.+seed*3.),bh=hz+.05+.35*h1(bx*7.1);m=bh;}",
+    " if(q.y<m){vec3 gc=gnd*(.75+.25*smoothstep(m-.3,m,q.y));",
+    "  if(K>.5&&K<1.5)gc=mix(gnd,vec3(.3,.7,1.),.3+.3*sin(q.x*30.+q.y*90.-tt*3.));",
+    "  if(K>1.5&&K<2.5)gc+=vec3(1.,.35,.05)*pow(1.-abs(fb(q*6.+tt*.1)-.5)*2.,8.)*1.5;",
+    "  if(K>3.5&&K<4.5){vec2 w=fract(q*vec2(40.,60.));float lit=step(.55,h2(floor(q*vec2(40.,60.))+seed))*step(.2,w.x)*step(.25,w.y);gc+=acc*lit*.9;}",
+    "  if(K>4.5&&K<5.5)gc*=.7+.3*n2(q*30.);",
+    "  c=gc;}",
+    " if(K>.5&&K<1.5&&q.y<hz)c=mix(vec3(.05,.3,.55),vec3(.4,.75,1.),.5+.5*sin(q.x*25.+q.y*80.-tt*2.5));",
+    " float a=atan(p.y,p.x),sw=.5+.5*sin(a*6.+tt*3.-r*14.);",
+    " vec3 ring=mix(vec3(.55,.3,1.),vec3(.4,.9,1.),sw);",
+    " c=mix(c,ring,smoothstep(.8,.97,r));c+=ring*pow(smoothstep(.7,.99,r),3.)*.8;",
+    " c*=1.-.25*smoothstep(.55,.95,r)*(1.-smoothstep(.95,1.,r));",
+    " gl_FragColor=vec4(c,amt*(1.-smoothstep(.97,1.,r)));}"
+  ].join("\n");
+  function lam(c, e) { var m = new T.MeshLambertMaterial({ color: c, emissive: new T.Color(c).multiplyScalar(e == null ? .35 : e), transparent: true, opacity: 0, depthWrite: true, fog: false }); return m; }
+  function oddBox(g, w, h, d, m, x, y, z) { var b = new T.Mesh(new T.BoxGeometry(w, h, d), m); b.position.set(x || 0, y || 0, z || 0); b.frustumCulled = false; g.add(b); return b; }
+  function oddHouse(i) {
+    var g = new T.Group(), cols = [0xf2c6a0, 0x9fd8ff, 0xd7f5a8, 0xffb3d1], wall = lam(cols[i % 4]), roof = lam(0x5b3a6e, .25), win = lam(0xfff1a0, 1.1), door = lam(0x6b3f2a, .2);
+    oddBox(g, 8, 6, 7, wall, 0, 3, 0);
+    var rf = new T.Mesh(new T.ConeGeometry(6.4, 4, 4), roof); rf.rotation.y = Math.PI / 4; rf.position.y = 8; rf.frustumCulled = false; g.add(rf);
+    oddBox(g, 1.6, 2.6, .2, door, 0, 1.3, 3.55); oddBox(g, 1.4, 1.2, .2, win, -2.6, 3.8, 3.55); oddBox(g, 1.4, 1.2, .2, win, 2.6, 3.8, 3.55); oddBox(g, .2, 1.2, 1.4, win, 4.05, 3.8, 0);
+    oddBox(g, 1, 2.2, 1, roof, 2.2, 9, -1.2); // cheminée
+    return g;
+  }
+  function oddCar(i) { var g = new T.Group(), body = lam([0xe04848, 0x3fa7ff, 0x55d07a][i % 3]), dark = lam(0x1d1f26, .1), glass = lam(0xbfe8ff, .6);
+    oddBox(g, 4.4, 1.1, 2, body, 0, .9, 0); oddBox(g, 2.4, .9, 1.8, glass, -.2, 1.9, 0);
+    for (var w = 0; w < 4; w++) { var wh = new T.Mesh(new T.CylinderGeometry(.42, .42, .3, 14), dark); wh.rotation.x = Math.PI / 2; wh.position.set(w < 2 ? 1.4 : -1.4, .42, w % 2 ? .95 : -.95); wh.frustumCulled = false; g.add(wh); }
+    return g; }
+  function oddTree() { var g = new T.Group(), trunk = lam(0x7a5236, .2), leaf = lam(0x3fae5a, .3); var tk = new T.Mesh(new T.CylinderGeometry(.35, .5, 4, 8), trunk); tk.position.y = 2; g.add(tk);
+    for (var l = 0; l < 3; l++) { var cn = new T.Mesh(new T.ConeGeometry(2.6 - l * .6, 3, 9), leaf); cn.position.y = 4 + l * 1.7; g.add(cn); } g.traverse(function (o) { o.frustumCulled = false; }); return g; }
+  function oddStairs() { var g = new T.Group(), m = lam(0xd9d2c5, .3); for (var k = 0; k < 9; k++) oddBox(g, 3, .5, 1.1, m, 0, k * .55, k * 1.05); oddBox(g, .15, 6, .15, lam(0x8a7f70, .2), 1.6, 3, 4); return g; }
+  function oddChest() { var g = new T.Group(), wood = lam(0x8a5a2b, .25), gold = lam(0xffd24a, 1); oddBox(g, 4, 2.2, 2.6, wood, 0, 1.1, 0); var lid = oddBox(g, 4, .8, 2.6, wood, 0, 2.6, -.6); lid.rotation.x = -.7; oddBox(g, 4.1, .3, 2.7, gold, 0, 2.1, 0); oddBox(g, .6, .8, .2, gold, 0, 1.6, 1.35); return g; }
+  function oddLamp() { var g = new T.Group(); var pl = new T.Mesh(new T.CylinderGeometry(.12, .18, 7, 8), lam(0x2c3440, .2)); pl.position.y = 3.5; g.add(pl); var bulb = new T.Mesh(new T.SphereGeometry(.55, 12, 8), lam(0xfff3b0, 1.4)); bulb.position.set(.9, 7, 0); g.add(bulb); oddBox(g, 1.2, .15, .3, lam(0x2c3440, .2), .5, 7.3, 0); g.traverse(function (o) { o.frustumCulled = false; }); return g; }
+  function oddGhost() { // repli si le personnage 3D n'est pas prêt : silhouette lumineuse
+    var g = new T.Group(), m = lam(0x9fe8ff, .9); var b = new T.Mesh(new T.CapsuleGeometry ? new T.CapsuleGeometry(.4, .9, 4, 8) : new T.CylinderGeometry(.4, .4, 1.6, 8), m); b.position.y = 1.2; g.add(b);
+    var hd = new T.Mesh(new T.SphereGeometry(.3, 12, 8), m); hd.position.y = 2.05; g.add(hd);
+    for (var s = -1; s <= 1; s += 2) { var ar = new T.Mesh(new T.CylinderGeometry(.1, .1, .9, 6), m); ar.position.set(s * .55, 1.35, 0); ar.rotation.z = s * .9; g.add(ar); var lg = new T.Mesh(new T.CylinderGeometry(.13, .13, .9, 6), m); lg.position.set(s * .2, .45, 0); g.add(lg); }
+    g.traverse(function (o) { o.frustumCulled = false; }); return g;
+  }
+  function mats(o) { var a = []; o.traverse(function (c) { if (c.material) (Array.isArray(c.material) ? c.material : [c.material]).forEach(function (m) { if (a.indexOf(m) < 0) a.push(m); }); }); return a; }
+  function buildOdd(R, X) {
+    var g = R.g, P = R.odd = { items: [], next: 0, n: 0 };
+    function item(kind, obj, opt) { opt = opt || {}; obj.visible = false; g.add(obj); var it = { kind: kind, obj: obj, mats: opt.mats || mats(obj), on: false, t0: 0, life: 0, vel: new T.Vector3(), spin: new T.Vector3(), base: [], glow: L.sprite(g, X.soft, opt.glow || 0xb38cff, 30, true, 0), size: opt.size || 10 };
+      it.mats.forEach(function (m) { m.transparent = true; it.base.push(m.opacity == null || m.opacity === 0 ? 1 : m.opacity); m.opacity = 0; }); P.items.push(it); return it; }
+    for (var h = 0; h < 3; h++) item("maison", oddHouse(h), { glow: 0xffc9a0, size: 14 });
+    for (var c = 0; c < 2; c++) item("voiture", oddCar(c), { glow: 0x9fd8ff, size: 7 });
+    for (var tr = 0; tr < 2; tr++) item("arbre", oddTree(), { glow: 0x9fffb0, size: 10 });
+    item("escalier", oddStairs(), { glow: 0xe8dcc8, size: 10 }); item("coffre", oddChest(), { glow: 0xffd24a, size: 8 }); item("lampadaire", oddLamp(), { glow: 0xfff3b0, size: 8 });
+    // le bus d'une autre dimension : couleurs inversées, il grésille
+    if (L.models && L.models.battleBus) {
+      var bus = new T.Group(); bus.add(L.models.battleBus(X)); var bm = [];
+      bus.traverse(function (o) { if (o.isMesh && o.material && !o.isSprite) { var m2 = o.material.clone(); if (m2.color) { var hsl = {}; m2.color.getHSL(hsl); m2.color.setHSL((hsl.h + .42) % 1, Math.min(1, hsl.s + .3), hsl.l); } if (m2.emissive) { m2.emissive.copy(m2.color).multiplyScalar(.5); m2.emissiveIntensity = 1; } o.material = m2; bm.push(m2); } if (o.isSprite) o.visible = false; o.frustumCulled = false; });
+      item("bus", bus, { mats: bm, glow: 0x7fffd0, size: 18 }).glitch = true;
+    }
+    // un personnage d'une autre dimension (vrai modèle 3D si disponible, sinon silhouette)
+    var ghost = item("personnage", oddGhost(), { glow: 0x9fe8ff, size: 6 }); ghost.glitch = true;
+    try {
+      var CM = root.AZCh1Models;
+      if (CM && CM.getTemplate && CM.instantiate) CM.getTemplate("char-corail").then(function (tpl) {
+        var inst = CM.instantiate(tpl), grp = new T.Group(); grp.add(inst.model); inst.model.scale.multiplyScalar(2.2);
+        var cm = []; inst.model.traverse(function (o) { o.frustumCulled = false; if (o.isMesh && o.material) { var m3 = o.material.clone(); m3.transparent = true; if (m3.color) m3.color.lerp(new T.Color(0x9fe8ff), .55); if (m3.emissive) { m3.emissive.setHex(0x3a7aff); m3.emissiveIntensity = .8; } o.material = m3; cm.push(m3); } });
+        var clip = CM.clip && CM.clip("Idle_Loop"); if (clip) { ghost.mixer = new T.AnimationMixer(inst.model); ghost.mixer.clipAction(clip).play(); }
+        g.remove(ghost.obj); ghost.obj = grp; grp.visible = false; g.add(grp); ghost.mats = cm; ghost.base = cm.map(function () { return 1; }); cm.forEach(function (m4) { m4.opacity = 0; });
+      }).catch(function () {});
+    } catch (e) {}
+    // portails vers d'autres dimensions
+    var pg = new T.CircleGeometry(1, 64); R.keep.push(pg);
+    for (var q = 0; q < 4; q++) {
+      var pm = new T.ShaderMaterial({ transparent: true, depthWrite: false, side: T.DoubleSide, fog: false, uniforms: { time: { value: 0 }, amt: { value: 0 }, kind: { value: q }, seed: { value: q * 3.7 } }, vertexShader: "varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}", fragmentShader: PORTAL_FS });
+      R.keep.push(pm); var pmesh = new T.Mesh(pg, pm); pmesh.frustumCulled = false; pmesh.renderOrder = 6;
+      var pit = item("portail", pmesh, { mats: [], glow: 0xb38cff, size: 34 }); pit.portal = pm;
+    }
+  }
+  var WEIGHTS = { portail: 3, maison: 2, bus: 1, personnage: 1.2, voiture: 1, arbre: 1, escalier: .8, coffre: .8, lampadaire: .8 };
+  var DIM_GLOW = [0xffb060, 0x6fc8ff, 0xff5020, 0xd8f0ff, 0xffd060, 0x8fff9a, 0xb07bff, 0xff9ad8];
+  function spawnOdd(R, t, me, cam, first) {
+    var P = R.odd, free = P.items.filter(function (it) { return !it.on; }); if (!free.length) return;
+    var pick = null;
+    if (first) pick = free.filter(function (it) { return it.kind === first; })[0];
+    if (!pick) { var tot = 0; free.forEach(function (it) { tot += WEIGHTS[it.kind] || 1; }); var r = Math.random() * tot; for (var i = 0; i < free.length; i++) { r -= WEIGHTS[free[i].kind] || 1; if (r <= 0) { pick = free[i]; break; } } pick = pick || free[0]; }
+    // devant la caméra le plus souvent (pour qu'on le voie), à 45-200 m
+    var fw = new T.Vector3(0, 0, -1); if (cam) fw.applyQuaternion(cam.quaternion); fw.y = 0; if (fw.lengthSq() < 1e-4) fw.set(0, 0, -1); fw.normalize();
+    var ang = Math.atan2(fw.z, fw.x) + (Math.random() - .5) * (Math.random() < .75 ? 1.8 : 6.28), d = pick.kind === "portail" ? 70 + Math.random() * 90 : 45 + Math.random() * 155;
+    pick.obj.position.set(me.x + Math.cos(ang) * d, me.y - 40 + Math.random() * 100, me.z + Math.sin(ang) * d);
+    pick.obj.rotation.set(pick.kind === "arbre" ? Math.PI : (Math.random() - .5) * .8, Math.random() * 6.28, (Math.random() - .5) * .8);
+    var sc = pick.kind === "portail" ? 16 + Math.random() * 14 : pick.kind === "personnage" ? 1 : .8 + Math.random() * .7; pick.obj.scale.setScalar(sc); pick.sc = sc;
+    pick.vel.set((Math.random() - .5) * 3, (Math.random() - .5) * 2, (Math.random() - .5) * 3); pick.spin.set((Math.random() - .5) * .25, (Math.random() - .5) * .35, (Math.random() - .5) * .25);
+    if (pick.kind === "portail") { pick.spin.set(0, 0, 0); var kd = Math.floor(Math.random() * 8); pick.portal.uniforms.kind.value = kd; pick.portal.uniforms.seed.value = Math.random() * 20; pick.glow.material.color.setHex(DIM_GLOW[kd]); }
+    if (pick.kind === "personnage") pick.spin.set(0, .4, 0);
+    pick.on = true; pick.t0 = t; pick.life = 13 + Math.random() * 11; pick.obj.visible = true;
+  }
+  function updateOdd(R, t, dt, free, me, cam) {
+    var P = R.odd; if (!P) return;
+    if (!free) { P.items.forEach(function (it) { if (it.on || it.obj.visible) { it.on = false; it.obj.visible = false; L.setOp(it.glow, 0); } }); P.next = 0; P.n = 0; return; }
+    if (!P.next) P.next = t + 1.2;
+    var act = P.items.filter(function (it) { return it.on; }).length;
+    if (t >= P.next && act < 8 && me) { spawnOdd(R, t, me, cam, P.n === 0 ? "portail" : P.n === 1 ? "maison" : P.n === 2 ? "bus" : null); P.n++; P.next = t + (P.n < 4 ? 2.5 : 3 + Math.random() * 4.5); }
+    for (var i = 0; i < P.items.length; i++) {
+      var it = P.items[i]; if (!it.on) continue;
+      var age = t - it.t0, a = ramp(age, 0, 1.6) * (1 - ramp(age, it.life - 2.2, it.life));
+      if (age > it.life) { it.on = false; it.obj.visible = false; L.setOp(it.glow, 0); continue; }
+      if (it.glitch) { var gl = hs(Math.floor(t * 11) + i * 7); a *= gl > .18 ? 1 : .25; if (gl < .06) it.obj.position.x += (hs(t + i) - .5) * 3; }
+      it.obj.position.addScaledVector(it.vel, dt); it.obj.rotation.x += it.spin.x * dt; it.obj.rotation.y += it.spin.y * dt; it.obj.rotation.z += it.spin.z * dt;
+      for (var m = 0; m < it.mats.length; m++) it.mats[m].opacity = it.base[m] * a;
+      if (it.portal) { it.portal.uniforms.time.value = t; it.portal.uniforms.amt.value = a; if (cam) it.obj.lookAt(cam.position); }
+      if (it.mixer) it.mixer.update(dt);
+      it.glow.position.copy(it.obj.position); it.glow.scale.setScalar((it.size * (it.sc || 1)) * (it.portal ? 1.6 : 2.2)); L.setOp(it.glow, a * (it.portal ? .45 : .3));
+    }
+  }
   // v108 : les îles s'arrêtent en escalier devant le joueur qui a quitté la météorite (on peut s'y poser)
   var STAIR = [[38, 0, -30, 34], [98, 48, -100, 30], [150, -46, -180, 40], [72, -112, -265, 28]];
   function freeze(R, rx, ry, rz, yaw) {
