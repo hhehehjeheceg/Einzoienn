@@ -298,6 +298,15 @@
     }
     if (mvx || mvz) {
       var nx = RIDE.ox + mvx, nz = RIDE.oz + mvz, ns = surf(f, nx, nz), lim = f.rk ? -1e9 : f.sh.max * f.k * .22;
+      // v111 : dans le monde des failles, on se lâche dès qu'on avance vers l'extérieur près du bord — un rebord, une bosse
+      // raide ou une marche qui descend ne retiennent plus (c'était le « mur invisible » au bout de la météorite)
+      if (RIDE.phase === "rift" && f.sh) {
+        var r0 = Math.hypot(RIDE.ox, RIDE.oz), r1 = Math.hypot(nx, nz), hyp = Math.max(1e-3, Math.hypot(mvx, mvz));
+        var steep = ns != null && (ns - s) / hyp >= 2.2 && !(RIDE.oy > ns - s), drop = ns == null ? 99 : s - ns;
+        if (r1 > r0 && (ns == null || drop > 1 || steep || r1 > f.sh.max * f.k * .5)) {
+          p.x = f.c.x + nx; p.z = f.c.z + nz; p.y = f.c.y + s + RIDE.oy + .3; enterFree(p, t); RIDE.fvx = mvx / Math.max(dt, 1e-3) * .6; RIDE.fvz = mvz / Math.max(dt, 1e-3) * .6; return true;
+        }
+      }
       var canLeave = f.rk ? t < 9.6 : RIDE.phase === "m1" || RIDE.phase === "rift"; // la fusée en vol : on ne tombe pas du bord — v108 : dans le monde des failles, on peut descendre de la météorite
       if (ns == null || (!canLeave && ns < lim)) {
         if (canLeave && ns == null && RIDE.phase === "rift") { p.x = f.c.x + RIDE.ox + mvx; p.z = f.c.z + RIDE.oz + mvz; p.y = f.c.y + s + RIDE.oy; enterFree(p, t); return true; } // v108 : on quitte la météorite, on flotte
@@ -429,6 +438,9 @@
   V6.testBoard = function () { var g = root.AZUR, p = g && g.world && g.world.players.find(function (q) { return q.id === g.myId; }); if (!p) return false; enter("m1", p); RIDE.ox = 0; RIDE.oz = 0; RIDE.oy = 0; RIDE.vy = 0; RIDE.hasC = false; return true; };
   // outil de vérification automatique : met le joueur debout au sommet de la météorite
   V6.testBoard = function () { var p = me(); if (!p) return false; enter("m1", p); RIDE.ox = 0; RIDE.oz = 0; RIDE.oy = 0; RIDE.vy = 0; RIDE.hasC = false; return true; };
+  // outils de vérification automatique : poser le joueur au sommet de la météorite, lire l'état du voyage
+  V6.testBoard = function () { var p = me(); if (!p) return false; enter("m1", p); RIDE.ox = 0; RIDE.oz = 0; RIDE.oy = 0; RIDE.vy = 0; RIDE.hasC = false; return true; };
+  V6.dbg = function () { var f = RIDE.phase ? frame(RIDE.phase, VT()) : null; return { phase: RIDE.phase, ox: +RIDE.ox.toFixed(1), oz: +RIDE.oz.toFixed(1), oy: +RIDE.oy.toFixed(2), max: f && f.sh ? +f.sh.max.toFixed(1) : null, s: f ? surf(f, RIDE.ox, RIDE.oz) : null }; };
   var prevRider = E.stepMeteorRider;
   E.stepMeteorRider = function (p, dt) {
     try { if (ride(p, dt)) return true; } catch (e) { if (!V.err6) { V.err6 = 1; if (root.console) console.warn("[AZUR v96]", e); } endRide(p, false); }
