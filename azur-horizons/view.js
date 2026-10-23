@@ -998,6 +998,9 @@
         if (!driven) { const shs = .5 * (window.AZEvent?.cameraShoulder ?? 1); desired.x += Math.cos(yaw) * shs; desired.z -= Math.sin(yaw) * shs; }
         else desired.y += 1.05 + Math.min(1.2, Math.abs(driven.speed || 0) * .045);
         desired.y = Math.max(desired.y, S.heightAt(desired.x, desired.z) + .34, -1.3);
+        // v97 : en regardant vers le haut, la caméra descend jusqu'aux pieds mais jamais sous le sol où l'on se tient
+        // (toit, construction, météorite) — sinon elle passait dans la roche
+        if (!driven && p.grounded) desired.y = Math.max(desired.y, p.y + .3);
         this._camS.copy(desired).sub(target);
         const boomLength = this._camS.length();
         this.ray.set(target, this._camS.normalize());

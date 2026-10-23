@@ -951,8 +951,8 @@
       this.yaw -= dx * sens;
       this.pitch = clamp(
         this.pitch - dy * sens * (this.profile.settings.invertY ? -1 : 1),
-        -1.22,
-        1.15,
+        -1.45,
+        1.5, // v97 : on peut regarder presque à la verticale (avant : 66° max vers le haut)
       );
     }
     resetControls() {

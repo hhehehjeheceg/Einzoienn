@@ -127,7 +127,7 @@
     var fw = (E.v93 && E.v93.FWD) || 0, dx = s.P.x + s.F.x * fw - p.x, dz = s.P.z + s.F.z * fw - p.z, d = Math.hypot(dx, dz); // v93 : vers la pente face au dépôt
     if (idle && d > 6) { var sp = Math.min(d, (p.gliding ? 16 : 22)) * dt; p.x += dx / d * sp; p.z += dz / d * sp; p._lastX = p.x; p._lastZ = p.z; }
     if (p.gliding && t < 16 && idle) { var g = H(p.x, p.z); if (p.y - g > 3) p.y -= Math.min(p.y - g - 2, 9 * dt); }
-    if (!st.landedSeen && idle) faceBase(p);
+    // v97 : plus de recadrage forcé de la caméra pendant la descente (elle tournait toute seule en planeur)
   }
 
   /* -------------------------------------------------------- chorégraphie */
@@ -209,6 +209,8 @@
   function unwrapLook() { if (G && lookPrev) G.look = lookPrev; lookPrev = null; }
   function steerCam(t, p, dt) {
     var s = S(); if (!G || !s || !s.ZP || !s.STAR || p.vehicleId) return;
+    // v97 : jamais en vol (planeur, chute) ni quand le joueur se déplace : la caméra donne la direction
+    var mi = p._input || {}; if (p.gliding || (p.falling && !p._eventFloat) || Math.abs(+mi.moveX || 0) + Math.abs(+mi.moveZ || 0) > .05) { steerUser = Math.max(steerUser, VT() - 1.5); return; }
     var tgt = null, pk = .8, O2 = E.end81 && E.end81.O, an = E.anchors || {};
     // v85 — quand le joueur ne touche à rien, la caméra suit l'action comme dans la vidéo
     var ride = E.v96 && E.v96.phase; // v96 : debout sur la météorite → on regarde où elle va (la faille, puis le dôme)

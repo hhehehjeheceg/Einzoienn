@@ -186,103 +186,24 @@
   function surf(f, ox, oz) { var h = f.sh.top(ox / f.k, oz / f.k); return h == null ? null : h * f.k; }
   function isMe(p) { var g = root.AZUR; return !!(g && p && p.id === g.myId); }
 
-  /* ---- le monde des failles : un puits fermé autour de la roche (rien du reste du monde n'y est visible) */
-  var RW_VS = "varying vec3 vD;void main(){vD=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}";
-  var RW_FS = [
-    "varying vec3 vD;uniform float time,exitK,enterK,rush;",
-    "float hs(vec3 p){p=fract(p*.3183099+vec3(.1,.2,.3));p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}",
-    "float ns(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hs(i),hs(i+vec3(1,0,0)),f.x),mix(hs(i+vec3(0,1,0)),hs(i+vec3(1,1,0)),f.x),f.y),mix(mix(hs(i+vec3(0,0,1)),hs(i+vec3(1,0,1)),f.x),mix(hs(i+vec3(0,1,1)),hs(i+vec3(1,1,1)),f.x),f.y),f.z);}",
-    "float fb(vec3 p){return .57*ns(p)+.28*ns(p*2.07)+.14*ns(p*4.31);}",
-    "void main(){vec3 d=normalize(vD);float a=atan(d.z,d.x),h=d.y,ca=cos(a),sa=sin(a);",
-    // le puits défile vers le haut : on tombe vers la sortie (en bas)
-    " float fl=time*(.22+1.3*rush);",
-    " float n=fb(vec3(ca*1.6,sa*1.6,h*2.6+fl));",
-    " float n2=fb(vec3(ca*4.+n*1.4,sa*4.,h*6.+fl*1.6));",
-    " vec3 c=mix(vec3(.035,.008,.09),vec3(.30,.07,.50),smoothstep(.25,.85,n));",
-    " c=mix(c,vec3(.10,.22,.85),smoothstep(.5,.85,n2)*.65);",
-    " c+=vec3(.85,.25,.75)*smoothstep(.62,.9,fb(vec3(ca*2.5,sa*2.5,h*3.5-fl*.7)))*.35;",
-    // fissures lumineuses : les bords des failles, bleu-blanc
-    " float seam=pow(1.-smoothstep(0.,.045,abs(n2-.52)),3.);c+=vec3(.55,.82,1.)*seam*(.7+.5*sin(time*3.+a*5.));",
-    // traits de vitesse
-    " float u=(a+3.14159)*26.,ln=floor(u),lh=fract(sin(ln*91.7)*4375.5);",
-    " float sk=pow(1.-abs(fract(u)*2.-1.),7.)*step(.5,lh)*smoothstep(.55,1.,fract(h*1.6+time*(.5+lh)*(1.+3.*rush)+lh));",
-    " c+=vec3(.75,.6,1.)*sk*(.25+1.1*rush)*(1.-abs(h)*.6);",
-    // lumière de la sortie (en bas) et trace de l'entrée (en haut)
-    " float dn=max(0.,-h),up=max(0.,h);",
-    " c+=vec3(.55,.75,1.)*pow(dn,6.)*(.35+2.2*exitK)+vec3(1.)*pow(dn,30.)*exitK*5.;",
-    " c+=vec3(.75,.45,1.)*pow(up,10.)*enterK*2.5;",
-    " gl_FragColor=vec4(c,1.);}"
-  ].join("\n");
-  function glowTex() {
-    var cv = document.createElement("canvas"); cv.width = cv.height = 128; var x = cv.getContext("2d"), g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
-    g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(.25, "rgba(255,255,255,.55)"); g.addColorStop(1, "rgba(255,255,255,0)");
-    x.fillStyle = g; x.fillRect(0, 0, 128, 128); var t = new root.THREE.CanvasTexture(cv); return t;
-  }
+  /* ---- le monde des failles : construit et animé par event-rift-v97.js (AZRiftWorld97) */
   function buildRift() {
-    var T = root.THREE, g = root.AZUR, sc = g && g.view && g.view.scene, O = E.end81 && E.end81.O, M1 = O && O.met;
-    if (!T || !sc || !M1 || !M1.rock) return null;
-    var R = { g: new T.Group(), keep: [] }; R.g.name = "az96-rift-world"; R.g.visible = false;
-    function k(o) { R.keep.push(o); return o; }
-    R.sky = new T.Mesh(k(new T.SphereGeometry(900, 64, 40)), k(new T.ShaderMaterial({ side: T.BackSide, fog: false, uniforms: { time: { value: 0 }, exitK: { value: 0 }, enterK: { value: 1 }, rush: { value: 0 } }, vertexShader: RW_VS, fragmentShader: RW_FS })));
-    R.sky.frustumCulled = false; R.g.add(R.sky);
-    // la météorite, copie exacte de la roche (même forme que les collisions)
-    var rk = M1.rock, gs = M1.g.scale.x;
-    R.rockMat = k(rk.material.clone());
-    R.rock = new T.Mesh(rk.geometry, R.rockMat); R.rock.position.copy(rk.position).multiplyScalar(gs); R.rock.quaternion.copy(rk.quaternion); R.rock.scale.copy(rk.scale).multiplyScalar(gs);
-    R.rock.frustumCulled = false; R.g.add(R.rock);
-    var u = R.rockMat.uniforms; if (u) { u.front.value.set(0, -1, 0); u.lightDir.value.set(.35, 1, .25); u.rimCol.value.setHex(0xa66bff); u.heat.value = .9; u.pale.value = 0; u.energy.value = .9; }
-    // débris qui remontent le long du puits
-    var dg = k(new T.IcosahedronGeometry(1, 1)), pa = dg.attributes.position;
-    for (var i = 0; i < pa.count; i++) { var x = pa.getX(i), y = pa.getY(i), z = pa.getZ(i), f = 1 + .28 * Math.sin(3.1 * x + 1) * Math.sin(4.3 * y + 2) * Math.sin(5.2 * z + .5); pa.setXYZ(i, x * f, y * f * .8, z * f); }
-    dg.computeVertexNormals();
-    R.debMat = k(rk.material.clone()); var du = R.debMat.uniforms; if (du) { du.heat.value = .12; du.front.value.set(0, -1, 0); du.lightDir.value.set(.2, -1, .3); du.rimCol.value.setHex(0x7f8cff); du.energy.value = .8; du.pale.value = 0; }
-    R.deb = [];
-    for (var d = 0; d < 34; d++) {
-      var h1 = Math.abs(Math.sin(d * 12.9898) * 43758.5453) % 1, h2 = Math.abs(Math.sin(d * 78.233) * 12543.13) % 1, h3 = Math.abs(Math.sin(d * 39.425) * 3758.77) % 1;
-      var m = new T.Mesh(dg, R.debMat); m.frustumCulled = false; m.userData = { a: h1 * 6.283, r: 70 + h2 * 520, s: 2.5 + Math.pow(h3, 2) * 26, v: 25 + h3 * 90, y0: h2 * 1400, sp: (h1 - .5) * 1.2 };
-      R.g.add(m); R.deb.push(m);
-    }
-    // poussière d'étincelles (motif répété tous les 200 m pour défiler sans couture)
-    var N = 2400, pos = new Float32Array(N * 3);
-    for (var q = 0; q < N; q++) {
-      var a = (Math.abs(Math.sin(q * 3.17) * 9137.1) % 1) * 6.283, rr = 30 + (Math.abs(Math.sin(q * 7.71) * 3917.3) % 1) * 600, yy = ((Math.abs(Math.sin(q * 1.93) * 7713.9) % 1) * 200) + 200 * (q % 8) - 800;
-      pos[q * 3] = Math.cos(a) * rr; pos[q * 3 + 1] = yy; pos[q * 3 + 2] = Math.sin(a) * rr;
-    }
-    var pg = k(new T.BufferGeometry()); pg.setAttribute("position", new T.BufferAttribute(pos, 3));
-    R.dust = new T.Points(pg, k(new T.PointsMaterial({ color: 0xcdb8ff, size: 2.2, sizeAttenuation: true, transparent: true, opacity: .85, blending: T.AdditiveBlending, depthWrite: false, fog: false })));
-    R.dust.frustumCulled = false; R.g.add(R.dust);
-    // lueur violette sous la roche et lumière de la sortie
-    var gt = k(glowTex());
-    R.under = new T.Sprite(k(new T.SpriteMaterial({ map: gt, color: 0xb06bff, transparent: true, opacity: .55, blending: T.AdditiveBlending, depthWrite: false, fog: false })));
-    R.under.scale.setScalar(70); R.under.position.set(0, -14, 0); R.g.add(R.under);
-    R.exit = new T.Sprite(k(new T.SpriteMaterial({ map: gt, color: 0xe6f2ff, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, fog: false })));
-    R.exit.scale.setScalar(300); R.exit.position.set(0, -820, 0); R.g.add(R.exit);
-    sc.add(R.g); R.sc = sc;
-    return R;
+    var g = root.AZUR, sc = g && g.view && g.view.scene, O = E.end81 && E.end81.O, M1 = O && O.met, RWM = root.AZRiftWorld97;
+    if (!sc || !M1 || !M1.rock || !RWM) return null;
+    var R = RWM.build(M1.rock, M1.g.scale.x, E.end81.X); if (!R) return null;
+    R.g.visible = false; sc.add(R.g); return R;
   }
   function updateRift(t, dt) {
-    if (!RW || !W) return;
-    var on = RIDE.phase === "rift"; RW.g.visible = on; if (!on) return;
+    if (!RW || !W) { E.shakeExtra = 0; return; }
+    var on = RIDE.phase === "rift"; RW.g.visible = on; if (!on) { E.shakeExtra = 0; return; }
     RW.g.position.copy(W);
-    var rush = rmp(t, 153.05, 153.6) * (1 - rmp(t, 154, 158)) + rmp(t, 188.5, 192.4), exitK = rmp(t, 176, 190) * .6 + rmp(t, 189.5, 192.5) * .9;
-    var u = RW.sky.material.uniforms; u.time.value = t; u.rush.value = rush; u.exitK.value = exitK; u.enterK.value = 1 - rmp(t, 153.5, 162);
-    var cam = root.AZUR && root.AZUR.view && root.AZUR.view.camera;
-    if (RW.rockMat.uniforms) { RW.rockMat.uniforms.time.value = t; if (cam) RW.rockMat.uniforms.camPos.value.copy(cam.position); }
-    if (RW.debMat.uniforms) { RW.debMat.uniforms.time.value = t; if (cam) RW.debMat.uniforms.camPos.value.copy(cam.position); }
-    var sp = 1 + 2.6 * rush;
-    RIDE.fall = (RIDE.fall || 0) + dt * 60 * sp; var fall = RIDE.fall;
-    for (var i = 0; i < RW.deb.length; i++) {
-      var m = RW.deb[i], d = m.userData, y = ((d.y0 + fall * d.v / 60) % 1400) - 700;
-      m.position.set(Math.cos(d.a + t * .02 * d.sp) * d.r, y, Math.sin(d.a + t * .02 * d.sp) * d.r); m.scale.setScalar(d.s); m.rotation.set(t * .3 * d.sp, t * .2 + i, t * .17 * d.sp);
-    }
-    RW.dust.position.y = (fall * 1.4) % 200;
-    RW.under.material.opacity = .45 + .15 * Math.sin(t * 2.3) + .3 * rush;
-    RW.exit.material.opacity = Math.min(1, exitK * 1.1); RW.exit.scale.setScalar(300 + 900 * exitK);
+    root.AZRiftWorld97.update(RW, t, dt, root.AZUR && root.AZUR.view && root.AZUR.view.camera);
+    E.shakeExtra = RW.shake || 0;
   }
   function disposeRift() {
-    if (!RW) return;
+    E.shakeExtra = 0; if (!RW) return;
     if (RW.g.parent) RW.g.parent.remove(RW.g);
-    RW.keep.forEach(function (o) { try { o.dispose(); } catch (e) {} });
+    try { root.AZRiftWorld97.dispose(RW); } catch (e) {}
     RW = null;
   }
   function showGrp(vis) {

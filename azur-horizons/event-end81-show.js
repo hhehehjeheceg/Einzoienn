@@ -1460,7 +1460,7 @@
       }
     }
     for (var j = used; j < O.wpool.length; j++) O.wpool[j].visible = false;
-    E.shake = shake;
+    E.shake = Math.max(shake, E.shakeExtra || 0); // v97 : + secousses du monde des failles
   }
 
   /* ================================================ v95 : trou noir */
@@ -1731,7 +1731,7 @@
     if (G) { O.prevTOD = G.timeOfDay; G.timeOfDay = 'night'; }
     hideWorldSky(true); hookRender();
     O.volcHidden = []; try { api.scene().traverse(function (o) { if (o.isPoints && o.visible && o.material && o.material.vertexShader && o.material.vertexShader.indexOf('t*320.') >= 0) { O.volcHidden.push(o); o.visible = false; } }); } catch (e) {}
-    E.end81 = { S: L.S, skyPos: skyPos, O: O, TRAILS: TRAILS, FLASHES: FLASHES, RIFTS: RIFTS, meteorPos: meteorPos, met2Pos: met2Pos };
+    E.end81 = { S: L.S, skyPos: skyPos, O: O, TRAILS: TRAILS, FLASHES: FLASHES, RIFTS: RIFTS, meteorPos: meteorPos, met2Pos: met2Pos, X: X };
   }
   function update() {
     if (!on) return;
