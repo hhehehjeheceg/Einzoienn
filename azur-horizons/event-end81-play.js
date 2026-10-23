@@ -238,7 +238,7 @@
     var dx = tgt.x - p.x, dz = tgt.z - p.z, dy = tgt.y + 25 - (p.y + 1.8), hd = Math.hypot(dx, dz) || 1;
     var yawGoal = Math.atan2(-dx, -dz), pitchGoal = Math.max(-1.05, Math.min(1.12, Math.atan2(dy, hd) * pk));
     if (t >= 183.5 && t < 188.6 && !ride) pitchGoal = -.2; // v105 (vidéo 184-188 s) : derrière le joueur, l'horizon en haut de l'image, pas une plongée sur le dôme
-    var k = (1 - Math.exp(-Math.min(.1, dt || .016) * 1.6)) * idle;
+    var k = E.__snapCam ? 1 : (1 - Math.exp(-Math.min(.1, dt || .016) * 1.6)) * idle; // __snapCam : outil de comparaison avec la vidéo (cadrage immédiat)
     var dyaw = yawGoal - G.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw));
     G.yaw += dyaw * k; G.pitch += (pitchGoal - G.pitch) * k;
   }
