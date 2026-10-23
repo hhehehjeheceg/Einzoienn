@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Stellar, trailer 9:16</title>
+<style>
+/*FONTS*/
+html,body{margin:0;height:100%;background:#05060f;overflow:hidden;font-family:InterV,sans-serif;color:#dfe3ff}
+#stage{position:absolute;inset:0 0 56px 0;display:flex;align-items:center;justify-content:center}
+#c{display:block;height:100%;aspect-ratio:9/16;max-width:100%}
+#hud{position:absolute;left:0;right:0;bottom:0;height:56px;display:flex;align-items:center;gap:14px;padding:0 18px;box-sizing:border-box;font-size:14px}
+#hud button{background:#7b5cff;color:#fff;border:0;border-radius:8px;width:44px;height:32px;font-size:15px;cursor:pointer}
+#hud input{flex:1;accent-color:#7b5cff}
+#hud span{font-variant-numeric:tabular-nums;min-width:120px;text-align:right}
+body.render #hud{display:none}
+body.render #stage{inset:0;display:block}
+body.render #c{width:1080px;height:1920px;max-width:none}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c" width="1080" height="1920"></canvas></div>
+<div id="hud"><button id="pp" title="Lecture / pause (Espace)">▶</button><input id="sc" type="range" min="0" max="1799" value="0"><span id="tc">0.00 s</span></div>
+<audio id="au" src="stellar-audio.m4a" preload="auto"></audio>
+<script type="module">
+import * as THREE from './src/three.module.min.js';
+/*SCRIPT*/
+</script>
+</body>
+</html>
