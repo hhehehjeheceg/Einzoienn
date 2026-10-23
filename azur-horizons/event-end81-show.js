@@ -615,7 +615,7 @@
     [O.b3Bolts, O.b3Core, O.b3Crack].forEach(function (s2) { s2.position.copy(O.b3p); });
     // failles fixes
     addRift(skyPos(46, 59, 1500), 1000, -42, 47.6, { fi: 2.5, fo: 3, seed: 9.9, wing: true, nw: 3, grow: [19.5, 23.5, .45] });
-    addRift(rocketPos(33.3, new T.Vector3()), 70, 32.8, 36.6, { fi: .4, fo: 1.4, flash: [33.3], seed: 8.1, real: true });
+    addRift(rocketPos(33.3, new T.Vector3()), 70 * rkS(), 32.8, 36.6, { fi: .4, fo: 1.4, flash: [33.3], seed: 8.1, real: true });
     addRift(O.b1x, 1700, 39.2, 52, { fi: 1.2, fo: 3, seed: 5.7, curl: 1.6, real: true });
     addRift(O.r2p, 540, 45.4, 57.6, { fi: 1, fo: 2.4, flash: [48.2], seed: 12.4 });
     // v89 : les quatre failles-méduses, relevées sur la vidéo (63 → 72 s) ; chaque éclat = une fusée qui en sort
@@ -953,7 +953,12 @@
   var RK_H = 268;
   /* v89 : altitude MESURÉE sur la vidéo (élévation de la flamme vue depuis la colline, image par image) :
    * décollage à 10 s, montée quasi régulière ~11,9 m/s, ~268 m quand elle entre dans la faille (33,6 s). */
-  function rkAlt(t) { var u = t - 10; return u <= 0 ? 0 : u < 2 ? 2.75 * u * u : 11 + 11.9 * (u - 2); }
+  /* v99 : la fusée monte beaucoup plus haut et accélère sans arrêt (16 m/s à 12 s → ~56 m/s à 33 s) ; les instants
+   * calés sur la musique ne bougent pas (allumage 8,3 s, décollage 10 s, faille 33,3 s). Elle entre dans la faille
+   * vers 780 m, juste sous l'éclair géant de 38,6 s (800 m, à 81° au-dessus de la colline comme dans la vidéo). */
+  function rkAlt(t) { var u = t - 10; return u <= 0 ? 0 : u < 2 ? 4 * u * u : 16 + 16 * (u - 2) + .93 * (u - 2) * (u - 2); }
+  // agrandissement des effets de la faille d'entrée : elle est plus loin de la colline qu'avant (265 m de haut)
+  function rkS() { var a = tmp3.copy(BASE).addScaledVector(UP, 265.7).distanceTo(P), b = rocketPos(33.3, tmp3).distanceTo(P); return Math.max(1, b / Math.max(1, a)); }
   function rocketPos(t, out) {
     return out.copy(BASE).addScaledVector(UP, 1.2 + rkAlt(Math.min(t, 33.6)));
   }
@@ -984,7 +989,7 @@
     }
     O.column = []; var N = low ? 130 : 230;
     for (var j = 0; j < N; j++) { var k = j / (N - 1); O.column.push({ k: k, te: 9.6 + k * 23.7, off: new T.Vector3((R2() - .5), (R2() - .5) * .5, (R2() - .5)), rot: R2() * 6.28, var: j % 4, s: .8 + R2() * .5 }); }
-    O.e1 = rocketPos(33.3, new T.Vector3());
+    O.e1 = rocketPos(33.3, new T.Vector3()); O.rkS = rkS();
     O.e1Flash = L.sprite(grp, X.star, 0xbfe6ff, 300, true, 0); O.e1Flash.position.copy(O.e1);
     O.rLight = new T.PointLight(0xffa860, 0, 600, 1.2); grp.add(O.rLight);
   }
@@ -1033,7 +1038,7 @@
     var col = O.column;
     if (t > 9.6 && t < 62) for (var j = 0; j < col.length; j++) {
       var c = col[j], age2 = t - c.te; if (age2 <= 0) continue;
-      rocketPos(c.te, tmp); var size = (6 + 7 * c.k) * c.s * (1 + age2 * .14); // v85 : traînée fine près de la fusée, qui s'élargit en vieillissant (vidéo)
+      rocketPos(c.te, tmp); var size = (6 + 7 * c.k) * c.s * (1 + age2 * .14) * (1 + rkAlt(c.te) / 420); // v99 : traînée plus large en altitude (on la voit de loin) // v85 : traînée fine près de la fusée, qui s'élargit en vieillissant (vidéo)
       tmp.addScaledVector(c.off, size * .3); tmp.x += R.x * age2 * .15; tmp.z += R.z * age2 * .15; tmp.y -= 2 + age2 * .2;
       var dis = ramp(t, 33.6 + (1 - c.k) * 1.5, 36.2 + (1 - c.k) * 3.2); // v85 : la traînée se disloque vite après l'entrée dans la faille (vidéo 34-39 s)
       var a2 = cl(age2 * 2.5) * (1 - dis) * .9;
@@ -1041,7 +1046,7 @@
       sys.add(tmp.x, tmp.y, tmp.z, size, .98, .84 + .06 * c.k, .95, a2, c.rot + age2 * .03, c.var, .25, hot * 1.6 + .25);
     }
     // entrée dans la faille : éclair bleu
-    L.setOp(O.e1Flash, win(t, 33.2, 35.4, .15, 1.6)); O.e1Flash.scale.setScalar(30 + 75 * ramp(t, 33.2, 34.4));
+    L.setOp(O.e1Flash, win(t, 33.2, 35.4, .15, 1.6)); O.e1Flash.scale.setScalar((30 + 75 * ramp(t, 33.2, 34.4)) * (O.rkS || 1));
     E.anchors = E.anchors || {}; if (!E.anchors.rocket1) E.anchors.rocket1 = new T.Vector3(); E.anchors.rocket1.copy(rk.visible ? rk.position : O.e1);
   }
 
@@ -1081,7 +1086,7 @@
     var flick = Math.floor((t + 600) * 13);
     // v85 — le point bleu laissé par la fusée reste en place (34,2 → 38,8), puis l'explosion part de là
     O.sparkTail.set(1, .55, win(t, 33.6, 38.4, .3, 1.2) * .55, t);
-    var rise = U.sm(ramp(t, 33.9, 38.85)); O.sparkPos.copy(O.b1p).lerp(O.b1x, rise); var rs = 1 + 2.3 * rise;
+    var rise = U.sm(ramp(t, 33.9, 38.85)); O.sparkPos.copy(O.b1p).lerp(O.b1x, rise); var rs0 = O.rkS || 1, rs = rs0 + (3.3 - rs0) * rise;
     O.spark.position.copy(O.sparkPos); L.setOp(O.spark, win(t, 34, 39, .3, .4)); O.spark.scale.setScalar((8 + 1.8 * Math.sin(t * 9)) * rs);
     O.sparkHalo.position.copy(O.sparkPos); L.setOp(O.sparkHalo, win(t, 33.4, 38.9, .2, .5) * (.35 + .65 * win(t, 33.4, 35.6, .1, 1.6))); O.sparkHalo.scale.setScalar((24 + 40 * win(t, 33.4, 35.6, .1, 1.6)) * rs);
     if (O.sparkTail) { O.sparkTail.off = O.sparkTail.off || new T.Vector3(); O.sparkTail.off.copy(O.sparkPos).sub(O.b1p); }
@@ -1089,8 +1094,8 @@
     // spirale d'éclats : s'ouvre pendant la montée (21 → 27), tourne, puis se referme en petit anneau (33,3 → 36,5)
     var spo = win(t, 20.8, 38.8, 2.2, 2.2) * (1 - ramp(cam.position.distanceTo(BASE), 45, 90)), spk = lerp(.35, 1, U.easeOut(ramp(t, 20.8, 27.5))) * lerp(1, .16, U.easeIn(ramp(t, 33.2, 36.2)));
     O.spiral.visible = spo > .005;
-    if (O.spiral.visible) { O.spiral.material.opacity = .6 * spo; O.spiral.scale.setScalar(150 * spk); O.spiral.rotation.z = -t * .09 - 2.2 * ramp(t, 33.2, 36.5); O.spiral.material.color.setHex(t < 33.3 ? 0xf2eaff : 0xd8e6ff); }
-    L.setOp(O.spiralCore, win(t, 20.8, 33.6, 2, .3) * .55); O.spiralCore.scale.setScalar(12 + 2 * Math.sin(t * 11));
+    if (O.spiral.visible) { O.spiral.material.opacity = .6 * spo; O.spiral.scale.setScalar(150 * spk * (O.rkS || 1)); O.spiral.rotation.z = -t * .09 - 2.2 * ramp(t, 33.2, 36.5); O.spiral.material.color.setHex(t < 33.3 ? 0xf2eaff : 0xd8e6ff); }
+    L.setOp(O.spiralCore, win(t, 20.8, 33.6, 2, .3) * .55); O.spiralCore.scale.setScalar((12 + 2 * Math.sin(t * 11)) * (O.rkS || 1));
     // explosion de foudre sphérique
     var b1 = win(t, 38.6, 42.6, .25, 2.2), g1 = U.easeOut((t - 38.6) / 1.8);
     L.setOp(O.b1Shell, b1 * .62 * ramp(t, 39.4, 40.3)); O.b1Shell.scale.setScalar((55 + 125 * g1) * 3.3); O.b1Shell.material.map = X.shell[flick % 2]; O.b1Shell.material.rotation = t * .1;
