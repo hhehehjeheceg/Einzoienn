@@ -487,7 +487,9 @@
     const types = LOCKER_TYPES();
     const filter = types.includes(g.lockerFilter) ? g.lockerFilter : "character";
     const emoteIdx = filter === "emote" ? clamp(Math.floor(Number(g.ch1sEmoteSlot) || 0), 0, 5) : -1;
-    const owned = M.catalog.filter((x) => x && x.type === filter && isOwned(p, x));
+    // v95 : champ CHERCHER (nom, ensemble) — la collection compte maintenant plus de 200 objets
+    const q = String(g.ch1sQuery || "").trim().toLowerCase();
+    const owned = M.catalog.filter((x) => x && x.type === filter && isOwned(p, x) && (!q || (x.name + " " + (x.set || "")).toLowerCase().includes(q)));
     owned.sort((a, b) => rank(b) - rank(a) || a.name.localeCompare(b.name, "fr"));
     const total = M.catalog.filter((x) => x && x.type === filter).length;
     const current = filter === "emote" ? byId(p.emoteSlots[emoteIdx]) : byId(p.equipment && p.equipment[filter]);
@@ -505,6 +507,8 @@
     const info = focus
       ? `<footer class="ch1s-pick-info r-${rarityKey(focus)}"><span class="ch1s-rarity">${RARITY[rarityKey(focus)]}</span><b>${esc(focus.name)}</b>` +
         `<p>${esc(focus.description || typeLabel(focus.type))}</p>` +
+        (focus.set ? `<p class="ch1s-set">Fait partie de l'ensemble <b>${esc(focus.set)}</b>.</p>` : "") +
+        `<p class="ch1s-since">Disponible depuis : <b>${esc(focus.collection || "Saison 1")}</b></p>` +
         (isEquipped(p, focus) && (filter !== "emote" || p.emoteSlots[emoteIdx] === focus.id)
           ? `<span class="ch1s-btn ch1s-equipped">✓ ÉQUIPÉ</span>`
           : filter === "emote"
@@ -527,7 +531,8 @@
         .join("") +
       `</nav>` +
       `<section class="ch1s-picker" aria-label="${esc(title)}">` +
-      `<header class="ch1s-picker-head"><h3>${esc(title)}</h3><span>${owned.length} / ${total} possédé${owned.length > 1 ? "s" : ""}</span></header>` +
+      `<header class="ch1s-picker-head"><span class="ch1s-sel">SÉLECTION</span><h3 class="ch1s-cat">${esc(title)}</h3><span>${owned.length} / ${total}</span></header>` +
+      `<label class="ch1s-search"><span aria-hidden="true">⌕</span><input type="search" data-ch1s-search placeholder="CHERCHER" value="${esc(g.ch1sQuery || "")}" aria-label="Chercher dans ${esc(title)}"></label>` +
       `<div class="ch1s-pick-grid" data-ch1s-keep="picker">${grid || `<p class="ch1s-empty">Rien ici pour l'instant. La boutique t'attend.</p>`}</div>` +
       info +
       `</section></div>`

@@ -566,6 +566,9 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     "char-recif": { mascot: "shark", fur: "#5b7d99", fur2: "#eef3f6", eye: "#151515" },
   };
 
+  // v95 : la grande collection (cosmetics-v95.js, chargé plus tôt) ajoute ses tenues et ses sacs à dos
+  Object.assign(LOOKS, root.AZ_EXTRA_LOOKS || {});
+  Object.assign(ACC, root.AZ_EXTRA_ACC || {});
   function expandMascot(L) {
     const f = L.fur, f2 = L.fur2;
     const acc = L.mascot === "bear" ? ["bear:" + f + ":" + f2 + ":" + L.eye] : L.mascot === "dino" ? ["dino:" + f + ":" + f2 + ":" + L.eye, "tail:" + f + ":" + f2, "spinespikes:" + f2] : ["shark:" + f + ":" + f2, "fin:" + f, "tail:" + f];
@@ -684,10 +687,13 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
 
   /* Gabarit d'une tenue : un squelette, tous les maillages liés dessus. Cloné par avatar. */
   const templates = {};
-  function templateKey(id, variant) { return variant != null ? "recruit#" + (variant % RECRUITS.length) : id; }
-  function getTemplate(id, variant) {
-    const key = templateKey(id, variant);
-    return templates[key] || (templates[key] = buildTemplate(lookSpec(id, variant)).catch((e) => { console.warn("[ch1-models]", key, e); delete templates[key]; throw e; }));
+  // v95 : le sac à dos équipé fait partie du modèle (accessoires rigides liés au buste) — clé = tenue + sac
+  const backAcc = (back) => { const C = root.AZCosmetics95; return back && C && C.backAcc ? C.backAcc(back) : null; };
+  function templateKey(id, variant, back) { const k = variant != null ? "recruit#" + (variant % RECRUITS.length) : id; return backAcc(back) ? k + "+" + back : k; }
+  function getTemplate(id, variant, back) {
+    const key = templateKey(id, variant, back), extra = backAcc(back);
+    const spec = () => { const S0 = lookSpec(id, variant); return extra ? Object.assign({}, S0, { acc: (S0.acc || []).concat(extra) }) : S0; };
+    return templates[key] || (templates[key] = buildTemplate(spec()).catch((e) => { console.warn("[ch1-models]", key, e); delete templates[key]; throw e; }));
   }
 
   function bindTo(src, skel, parent, mat) {
@@ -769,7 +775,7 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
       else if (kind === "goggles") f(kit, H, args[0], args[1], args[2] === "up");
       else if (kind === "nvg") f(kit, H, args[0]);
       else if (["vest", "hivis", "chestplate", "backpack", "tank"].includes(kind)) f(kit, args[0], args[1], L);
-      else if (kind === "tail") f(kit, args[0], args[1], L);
+      else if (kind === "tail" || f.c2) f(kit, args[0], args[1], L);
       else f(kit, args[0], L);
     }
     const boneIdx = {};
@@ -951,10 +957,12 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     const id = (eq && eq.character) || "char-kai";
     if (eq && eq.bot != null) {
       const n = Math.abs(eq.bot | 0);
+      const C = root.AZCosmetics95, extra = C && C.botSkins ? C.botSkins : [];
       if (n % 5 === 4) return { id: BOT_COSTUMES[Math.floor(n / 5) % BOT_COSTUMES.length], variant: null };
+      if (extra.length && n % 5 === 2) return { id: extra[Math.floor(n / 5) % extra.length], variant: null }; // v95 : les bots portent aussi les nouvelles tenues
       return { id: "char-kai", variant: n % RECRUITS.length };
     }
-    return { id: LOOKS[id] ? id : "char-kai", variant: null };
+    return { id: LOOKS[id] ? id : "char-kai", variant: null, back: eq && eq.back };
   }
 
   function hideOld(u) {
@@ -968,7 +976,7 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
   function attach(group) {
     const u = group.userData;
     if (!u || u.ch1 || !u.ch1Req) return false;
-    const key = templateKey(u.ch1Req.id, u.ch1Req.variant);
+    const key = templateKey(u.ch1Req.id, u.ch1Req.variant, u.ch1Req.back);
     const tp = templates[key];
     if (!tp || !tp.ready) return false;
     const inst = instantiate(tp.ready);
@@ -984,8 +992,8 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     if (!u || !u.torso) return;
     const r = resolveEq(eq || {});
     u.ch1Req = r;
-    const key = templateKey(r.id, r.variant);
-    const p = getTemplate(r.id, r.variant);
+    const key = templateKey(r.id, r.variant, r.back);
+    const p = getTemplate(r.id, r.variant, r.back);
     if (!p.ready) p.then((t) => { p.ready = t; }).catch(() => {});
     attach(group);
     void key;
@@ -1024,6 +1032,11 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     _gm.compose(_zero, _yaw, _tw.set(s, s, s)).premultiply(_gi);
     _gm.multiply(_tm.makeRotationFromQuaternion(_pi));
     inst.model.matrix.copy(_gm);
+    // v95 : émotes — tour sur soi, rebond, inclinaison du corps (au-dessus du clip)
+    if (p.emote > 0 && !p.gliding && !p.falling && root.AZEmotes95 && root.AZEmotes95.defs[p.emoteStyle]) {
+      const et5 = Math.max(0, (+p.emoteDuration || 6) - (+p.emote || 0)), bd = root.AZEmotes95.body(p.emoteStyle, et5);
+      if (bd) { _tm.makeTranslation(0, bd.y || 0, 0).multiply(_tm2.makeRotationFromEuler(_e.set(bd.rx || 0, bd.ry || 0, bd.rz || 0))); inst.model.matrix.multiply(_tm); }
+    }
     // v95 : culbutes dans le tourbillon de « La Fin » (pivot au niveau du bassin)
     if (root.AZEvent && root.AZEvent.active && root.AZEvent.v95 && root.AZEvent.v95.pose === "tumble" && options.local) {
       const tt = (root.AZEvent.v95.poseT || 0);
@@ -1058,7 +1071,7 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
     else if (evFloat > 0.5 && !p.downed) { base = "Swim_Idle_Loop"; scale = 0.6; fade = 0.6; pickLocomotion(an, p, st, false, dt, menu); } // « La Fin » : lévitation bras écartés
     else if (p.downed) { base = an.speed > 0.3 ? "Crawl_Fwd_Loop" : "Crawl_Idle_Loop"; pickLocomotion(an, p, st, false, dt, menu); }
     else if (p.swimming) { const r = pickLocomotion(an, p, st, false, dt, menu); base = an.speed > 0.4 ? "Swim_Fwd_Loop" : "Swim_Idle_Loop"; scale = an.speed > 0.4 ? Math.min(1.6, Math.max(0.7, an.speed / 2)) : 1; void r; }
-    else if (emote) { base = EMOTES[p.emoteStyle] || "Dance_Loop"; fade = 0.25; }
+    else if (emote) { const E5 = root.AZEmotes95, d5 = E5 && E5.defs[p.emoteStyle]; base = d5 ? d5.clip : EMOTES[p.emoteStyle] || "Dance_Loop"; if (d5 && d5.ts) scale = d5.ts; fade = 0.25; }
     else if ((evPose === "surprise" || evPose === "hit") && !airborne) { base = evPose === "hit" ? "Hit_Chest" : "Surprise"; fade = 0.12; scale = evPose === "hit" ? 1.4 : 1; pickLocomotion(an, p, st, false, dt, menu); }
     else if (p.gliding) { base = "Jump_Loop"; scale = 0.5; }
     else if (highAir) { base = "Jump_Loop"; scale = 0.55; fade = 0.3; } // chute libre : bras écartés, corps à plat (inclinaison plus haut)
@@ -1112,6 +1125,11 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
       u.blueprint.updateMatrix();
       const t = _tw.set(-0.16, -0.05, 0).applyMatrix4(u.blueprint.matrix);
       solveArm(...left, group.localToWorld(t).clone(), poleFor(-1), 1);
+    } else if (emote && root.AZEmotes95 && root.AZEmotes95.defs[p.emoteStyle]) {
+      // v95 : gestes des nouvelles émotes (cibles des mains dans le repère du personnage)
+      const et = Math.max(0, (+p.emoteDuration || 6) - (+p.emote || 0)), w = Math.min(1, et * 5);
+      const loc = (x, y, z) => group.localToWorld(_tw.set(x, y, z)).clone();
+      try { root.AZEmotes95.hands(p.emoteStyle, et, { right, left, solve: solveArm, loc, pole: poleFor, w, B, v: _tmpv }); } catch (e) {}
     } else if (emote && (p.emoteStyle === "salut" || p.emoteStyle === "robot")) {
       // gestes absents de la bibliothèque : salut de la main et danse du robot
       const et = Math.max(0, (+p.emoteDuration || 6) - (+p.emote || 0));
@@ -1155,7 +1173,7 @@ vec3 ch1Pat(float id,vec3 A,vec3 B,vec3 C,vec3 P,float sc){
   const TOOL_OFFSET = new T.Matrix4().compose(new T.Vector3(-0.03, 0.085, 0.0), new T.Quaternion().setFromEuler(new T.Euler(-Math.PI / 2 - 0.7, 0, 0)), new T.Vector3(1, 1, 1));
 
   const API = (root.AZCh1Models = {
-    LOOKS, RECRUITS, load, bodyInfo, getTemplate, instantiate, Animator, clip, lookSpec, resolveEq, request, attach, drive, templates,
+    LOOKS, RECRUITS, ACC, SKIN, HAIR, TEE, load, bodyInfo, getTemplate, instantiate, Animator, clip, lookSpec, resolveEq, request, attach, drive, templates,
     TOOL_OFFSET, preload() {
       return Promise.all([load("anims"), bodyInfo("m"), bodyInfo("f")]).then(() => {
         getTemplate("char-kai").then((t) => (templates["char-kai"].ready = t));

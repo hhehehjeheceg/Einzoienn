@@ -39,7 +39,10 @@ var FLIGHT=Object.freeze({freefallSpeed:26,diveSpeed:30,gravity:16,diveGravity:2
  freefallControlSpeed:26,diveControlSpeed:32,glideSpeed:36,glideFastSpeed:42,
  glideSink:4.6,glideFastSink:5.4,autoGliderHeight:135,busInitialSink:4,
  divePitchStart:.35,divePitchRange:.75});
-var EMOTE_STYLES=Object.freeze(['salut','danse','victoire','robot','etoile','toupie']);
+/* v95 : 36 émotes de plus (gestes définis dans cosmetics-v95.js) ; les danses tournent en boucle 12 s, comme dans le jeu d'origine */
+var EMOTE_V95=['bravo','biceps','pouce','oups','guitare','batteur','chef','vague','helico','pirouette','joie','boxe','kata','zen','patience','nage','ver','surplace','peche','bucheron','mineur','mecano','volant','surf','fievre','lunaire','pantin','allo','reverence','bisou','jongle','pluie','zombie','tornade','rameur','yoga'];
+var EMOTE_LOOP={guitare:1,batteur:1,chef:1,vague:1,helico:1,pirouette:1,joie:1,boxe:1,zen:1,nage:1,ver:1,surplace:1,surf:1,fievre:1,lunaire:1,pantin:1,jongle:1,pluie:1,zombie:1,tornade:1,rameur:1,yoga:1,danse:1,robot:1,toupie:1,bucheron:1,mineur:1,mecano:1,volant:1,peche:1};
+var EMOTE_STYLES=Object.freeze(['salut','danse','victoire','robot','etoile','toupie'].concat(EMOTE_V95));
 function smin(a,b,k){var h=Math.max(k-Math.abs(a-b),0)/k;return Math.min(a,b)-h*h*k*.25;}
 function coastDistance(x,z){
  if(MAPD){var sdm=mapSample(MAPD.sdf,x,z)*4,wob=4*Math.sin(x*.043-z*.031)+3*Math.sin((x+z)*.071)+2*Math.sin(x*.13+z*.09);return Math.max(0,MAP.shoreEnd-1.15*(sdm+wob));}
@@ -708,7 +711,7 @@ World.prototype._finishFishing=function(p){
 World.prototype._cancelEmote=function(p){if(p.emote>0){p.emote=0;return true;}return false;};
 World.prototype._startEmote=function(p,style){
  if(!p.alive||p.downed||!p.grounded||p.swimming||p.flying||p.falling||p.gliding||p.jumping||p.vehicleId||p.reload>0||p.useTime>0||p._cool>0||((this._clock||0)-p._combatAt)<1)return false;
- p.emoteStyle=style||'salut';p.emoteDuration=6;p.emote=6;this._emit('emote',p.x,p.y,p.z,{playerId:p.id,style:p.emoteStyle,duration:6});return true;
+ p.emoteStyle=style||'salut';p.emoteDuration=EMOTE_LOOP[p.emoteStyle]?12:5;p.emote=p.emoteDuration;this._emit('emote',p.x,p.y,p.z,{playerId:p.id,style:p.emoteStyle,duration:6});return true;
 };
 World.prototype._updatePlayer=function(p,dt){
  if(!p.alive)return;if(p.equipment&&p.equipment.character==='char-midas')for(var gi=0;gi<p.inventory.length;gi++){var gIt=p.inventory[gi];if(gIt&&gIt.kind==='weapon')gIt.gold=true;}if(p._cool>0)p._cool-=dt;if(p._botBurstPause>0)p._botBurstPause=Math.max(0,p._botBurstPause-dt);if(p.emote>0)p.emote=Math.max(0,p.emote-dt);if(p._harvestCool>0)p._harvestCool-=dt;if(p._jumpBuffer>0)p._jumpBuffer-=dt;if(p._recoil>0)p._recoil=Math.max(0,p._recoil-dt*1.2);if(p.reload>0){p.reload-=dt;if(p.reload<=0)this._finishReload(p);}

@@ -1,0 +1,102 @@
+/* AZUR v95 — casier et boutique façon menus du jeu de référence : grand fond bleu quadrillé, bandeau
+ * SÉLECTION + catégorie inclinée, champ CHERCHER, vignettes bleues à bandeau de rareté, contour jaune sur
+ * l'objet choisi, fiche d'objet (RARETÉ | TYPE, nom en capitales, ensemble, « disponible depuis »),
+ * boutons jaunes inclinés. Couleurs et mise en page seulement : aucune image ni logo du jeu d'origine. */
+:root {
+  --v95-blue1: #2a6ef0; --v95-blue2: #1446c4; --v95-blue3: #0c2f8f; --v95-cyan: #3bc4ff; --v95-yellow: #ffe94a;
+  --v95-uncommon: #6fd336; --v95-rare: #2fb8ff; --v95-epic: #c74dff; --v95-legend: #f5a623; --v95-common: #b4bfcc;
+}
+html body.ch1-ui[data-screen="menu"][data-tab="locker"],
+html body.ch1-ui[data-screen="menu"][data-tab="shop"] {
+  background: radial-gradient(ellipse at 60% 35%, #3f8cff 0%, #1d58d8 45%, #0d2f92 100%) !important;
+}
+html body.ch1-ui[data-screen="menu"][data-tab="locker"] #ui .scroll-panel.v6-panel,
+html body.ch1-ui[data-screen="menu"][data-tab="shop"] #ui .scroll-panel.v6-panel {
+  background:
+    repeating-linear-gradient(60deg, rgba(255, 255, 255, .045) 0 1px, transparent 1px 74px),
+    repeating-linear-gradient(-60deg, rgba(255, 255, 255, .045) 0 1px, transparent 1px 74px),
+    linear-gradient(180deg, rgba(42, 110, 240, .55), rgba(12, 47, 143, .55)) !important;
+}
+/* bandeau SÉLECTION + catégorie */
+.ch1s-picker {
+  background: linear-gradient(180deg, rgba(36, 104, 232, .92), rgba(18, 70, 196, .92)) !important;
+  border: 0 !important; border-radius: 0 !important; padding: 0 0 12px !important;
+  box-shadow: 0 10px 30px rgba(0, 10, 50, .35);
+}
+.ch1s-picker-head {
+  align-items: center !important; justify-content: flex-start !important; gap: 14px !important;
+  padding: 12px 16px 8px; background: linear-gradient(90deg, #2a7cff, #1a5ad6 70%, transparent);
+}
+.ch1s-picker-head .ch1s-sel {
+  font: italic 900 30px/1 BarlowCondensed, "Arial Narrow", Impact, sans-serif !important; letter-spacing: .01em; color: #fff !important;
+  text-shadow: 0 3px 0 rgba(0, 0, 30, .35);
+}
+.ch1s-picker-head .ch1s-cat {
+  margin: 0; padding: 6px 22px 5px 16px; background: var(--v95-cyan); color: #fff;
+  font: italic 900 22px/1 BarlowCondensed, "Arial Narrow", Impact, sans-serif; letter-spacing: .02em; text-transform: uppercase;
+  clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%); text-shadow: 0 2px 0 rgba(0, 30, 90, .35);
+}
+.ch1s-picker-head > span:last-child { margin-left: auto; color: #cfe2ff !important; font-weight: 800 !important; }
+/* CHERCHER */
+.ch1s-search {
+  display: flex; align-items: center; gap: 10px; margin: 6px 16px 10px; padding: 0 12px; height: 46px;
+  background: rgba(8, 40, 130, .55); border: 2px solid rgba(160, 200, 255, .55);
+}
+.ch1s-search span { font-size: 24px; color: #e6f0ff; }
+.ch1s-search input {
+  flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; outline: 0; color: #fff;
+  font: 800 20px/1 BarlowCondensed, "Arial Narrow", sans-serif; letter-spacing: .04em; text-transform: uppercase;
+}
+.ch1s-search input::placeholder { color: rgba(230, 240, 255, .7); }
+/* vignettes */
+.ch1s-pick-grid { padding: 0 16px; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 10px !important; overflow: auto !important; max-height: 56vh; }
+.ch1s-pick:not(.is-clear):not(.is-shop),
+.ch1s-slot:not(.is-empty) {
+  background: linear-gradient(180deg, #3d8bff 0%, #2165e0 70%, #1b55c8 100%) !important;
+  box-shadow: inset 0 -8px 0 var(--v95-rc, var(--v95-common)) !important; border-radius: 0 !important;
+}
+.ch1s-pick.r-commun, .ch1s-slot.r-commun { --v95-rc: var(--v95-common); }
+.ch1s-pick.r-peu-commun, .ch1s-slot.r-peu-commun { --v95-rc: var(--v95-uncommon); }
+.ch1s-pick.r-rare, .ch1s-slot.r-rare { --v95-rc: var(--v95-rare); }
+.ch1s-pick.r-epique, .ch1s-slot.r-epique { --v95-rc: var(--v95-epic); }
+.ch1s-pick.r-legendaire, .ch1s-slot.r-legendaire, .ch1s-pick.r-mythique { --v95-rc: var(--v95-legend); }
+.ch1s-pick .ch1s-rays, .ch1s-slot .ch1s-rays { opacity: .35; }
+.ch1s-pick.is-on, .ch1s-slot.is-open { outline: 4px solid var(--v95-yellow); outline-offset: -4px; box-shadow: inset 0 -8px 0 var(--v95-rc, var(--v95-common)), 0 0 18px rgba(255, 233, 74, .45) !important; }
+.ch1s-pick:hover { filter: brightness(1.12); }
+.ch1s-pick-name { font: italic 900 13px/1.05 BarlowCondensed, "Arial Narrow", sans-serif !important; text-transform: uppercase; text-shadow: 0 2px 0 rgba(0, 0, 40, .5); }
+.ch1s-new { background: var(--v95-yellow) !important; color: #1a1a1a !important; font-weight: 900 !important; }
+.ch1s-check { background: #22c55e !important; color: #fff !important; }
+.ch1s-pick.is-clear, .ch1s-pick.is-shop { background: rgba(10, 50, 150, .6) !important; box-shadow: inset 0 0 0 3px rgba(170, 205, 255, .5) !important; }
+/* fiche de l'objet */
+.ch1s-pick-info {
+  margin: 10px 16px 0 !important; padding: 0 !important; background: rgba(10, 36, 110, .78) !important; border-radius: 0 !important;
+  display: block !important; overflow: hidden;
+}
+.ch1s-pick-info .ch1s-rarity {
+  display: block; padding: 8px 14px 2px; font: 800 15px/1 Barlow, system-ui, sans-serif !important; letter-spacing: .08em; color: #fff;
+  background: var(--v95-rc, #4a7bd8);
+}
+.ch1s-pick-info.r-commun { --v95-rc: #8b97a6; } .ch1s-pick-info.r-peu-commun { --v95-rc: #4caf2a; } .ch1s-pick-info.r-rare { --v95-rc: #1f8fe8; }
+.ch1s-pick-info.r-epique { --v95-rc: #9a3ad8; } .ch1s-pick-info.r-legendaire { --v95-rc: #d9851a; }
+.ch1s-pick-info > b {
+  display: block; padding: 2px 14px 8px; background: var(--v95-rc, #4a7bd8);
+  font: italic 900 30px/1 BarlowCondensed, "Arial Narrow", Impact, sans-serif !important; text-transform: uppercase; color: #fff;
+}
+.ch1s-pick-info p { padding: 0 14px; margin: 8px 0 0 !important; font: 600 15px/1.35 Barlow, system-ui, sans-serif !important; color: #e8f0ff; opacity: 1 !important; }
+.ch1s-pick-info p.ch1s-since { margin-bottom: 10px !important; }
+.ch1s-pick-info .ch1s-btn { margin: 4px 14px 12px !important; display: inline-block; }
+/* boutons jaunes inclinés */
+.ch1s-btn.ch1s-equip, .ch1s-btn.ch1s-buy {
+  background: var(--v95-yellow) !important; color: #111 !important; border: 0 !important; border-radius: 0 !important;
+  font: italic 900 20px/1 BarlowCondensed, "Arial Narrow", Impact, sans-serif !important; letter-spacing: .02em; padding: 10px 26px !important;
+  clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%); box-shadow: none !important;
+}
+.ch1s-btn.ch1s-equipped { background: rgba(10, 60, 170, .8) !important; color: #cfe2ff !important; border: 2px solid #5b8de8 !important; border-radius: 0 !important; }
+/* boutique : cartes à bandeau POSSÉDÉ */
+.ch1s-tile { border-radius: 0 !important; box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .12), 0 8px 20px rgba(0, 10, 60, .35) !important; }
+.ch1s-tile .ch1s-owned, .ch1s-owned { background: rgba(6, 14, 40, .92) !important; color: #fff !important; font-weight: 900 !important; letter-spacing: .06em; }
+@media (max-width: 900px), (max-height: 520px) {
+  .ch1s-pick-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; max-height: 48vh; }
+  .ch1s-picker-head .ch1s-sel { font-size: 24px !important; }
+  .ch1s-pick-info > b { font-size: 24px !important; }
+}
