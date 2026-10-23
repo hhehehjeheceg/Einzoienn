@@ -156,7 +156,7 @@
     var rush = free ? 0 : ramp(t, 153.05, 153.6) * (1 - ramp(t, 154, 158)) + ramp(t, 188, 192.4);
     var speed = 60 * (1 + 2.6 * rush) * (1 - fk);
     if (free) { R.rockV = Math.min(240, (R.rockV || 0) + 70 * dt); R.rockY -= R.rockV * dt; } else { R.rockY = 0; R.rockV = 0; }
-    R.rock.position.set(R.rock0.x, R.rock0.y + R.rockY, R.rock0.z); R.rock.visible = R.rockY > -950; R.under.position.y = -16 + R.rockY;
+    if (R.rockMtx) { R.rock.matrix.copy(R.rockMtx); R.rock.matrix.elements[13] += R.rockY; R.rock.matrixWorldNeedsUpdate = true; } else R.rock.position.set(R.rock0.x, R.rock0.y + R.rockY, R.rock0.z); R.rock.visible = R.rockY > -950; // v112 : même matrice que la forme de collision R.under.position.y = -16 + R.rockY;
     if (R.portal) { var po = opt && opt.portal; R.portal.visible = !!po; L.setOp(R.portalGlow, po ? .8 * po.k : 0); if (po) { R.portal.position.set(po.x, po.y, po.z); R.portalGlow.position.copy(R.portal.position); if (cam) R.portal.quaternion.copy(cam.quaternion); var pk = .3 + .7 * po.k; R.portal.scale.setScalar(26 + 70 * po.k); var pu = R.portal.material.uniforms; pu.time.value = t; pu.open.value = pk; pu.amt.value = Math.min(1, po.k * 2); pu.flash.value = po.k > .9 ? 1 : 0; R.portalGlow.scale.setScalar(60 + 160 * po.k); } }
     R.fall += speed * dt; var fall = R.fall;
     var shake = entry * .9 + ramp(t, 188, 192.5) * .75;
