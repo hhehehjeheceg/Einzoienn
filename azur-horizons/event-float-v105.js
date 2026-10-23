@@ -40,7 +40,7 @@
   function apply(group, p, dt) {
     const E = root.AZEvent, u = group.userData, inst = u && u.ch1; if (!inst || !E || !E.active) { st.w = 0; return; }
     const mode = (E.playerInfo && E.playerInfo.mode) || "none", t = E.filmVideoTime ? E.filmVideoTime() : E.tTotal;
-    const on = (mode === "zeroshock" || mode === "float" || mode === "drift" || mode === "blast") && !(E.v96 && E.v96.phase);
+    const on = ((mode === "zeroshock" || mode === "float" || mode === "drift" || mode === "blast") && !(E.v96 && E.v96.phase)) || !!(E.v96 && E.v96.phase === "riftfree" && p.falling); // v108 : on flotte aussi dans le monde des failles
     st.w += ((on ? 1 : 0) - st.w) * Math.min(1, dt * 3.2); if (st.w < .01) return;
     const B = inst.bones, w = st.w;
     // choc de l'onde (183,5 → 185,2 s) et souffle de l'explosion (224,3 → 227 s)

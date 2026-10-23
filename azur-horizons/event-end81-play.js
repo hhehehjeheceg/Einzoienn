@@ -233,7 +233,7 @@
     var tgt = null, pk = .8, O2 = E.end81 && E.end81.O, an = E.anchors || {};
     // v85 — quand le joueur ne touche à rien, la caméra suit l'action comme dans la vidéo
     var ride = E.v96 && E.v96.phase; // v96 : debout sur la météorite → on regarde où elle va (la faille, puis le dôme)
-    if (ride === 'rk') return; // debout sur la fusée : la caméra reste libre
+    if (ride === 'rk' || ride === 'rift' || ride === 'riftfree') return; // debout sur la fusée ou dans le monde des failles : la caméra reste libre
     if (ride === 'm1' && E.rc) { tgt = E.rc; pk = .9; }
     else if (ride === 'm2' || ride === 'thrown') tgt = s.ZP;
     else if (t >= 9 && t < 33.6 && an.rocket1) { tgt = an.rocket1; pk = .9; }

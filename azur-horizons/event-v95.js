@@ -210,9 +210,10 @@
   }
   function updateRift(t, dt) {
     if (!RW || !W) { E.shakeExtra = 0; return; }
-    var on = RIDE.phase === "rift"; RW.g.visible = on; if (!on) { E.shakeExtra = 0; return; }
+    var on = RIDE.phase === "rift" || RIDE.phase === "riftfree"; RW.g.visible = on; if (!on) { E.shakeExtra = 0; return; }
     RW.g.position.copy(W);
-    root.AZRiftWorld97.update(RW, t, dt, root.AZUR && root.AZUR.view && root.AZUR.view.camera);
+    var fr2 = RIDE.phase === "riftfree";
+    root.AZRiftWorld97.update(RW, t, dt, root.AZUR && root.AZUR.view && root.AZUR.view.camera, fr2 ? { free: true, since: RIDE.freeT, portal: RIDE.exitT ? { x: RIDE.px - W.x, y: RIDE.py - W.y, z: RIDE.pz - W.z, k: rmp(t, RIDE.exitT, RIDE.exitT + .8) } : null } : null);
     E.shakeExtra = RW.shake || 0;
   }
   function disposeRift() {
@@ -244,7 +245,8 @@
   function ride(p, dt) {
     if (!isMe(p) || !p.alive || !p.deployed || p.vehicleId) return false;
     var t = VT(); dt = Math.min(.1, Math.max(0, +dt || 0));
-    if (RIDE.phase === "rk" ? t > 39 : RIDE.phase && (t < 118 || t > 224.5)) { endRide(p, false); return false; }
+    if (RIDE.phase === "rk" ? t > 39 : RIDE.phase && (RIDE.phase === "riftfree" ? t < 150 : (t < 118 || t > 224.5))) { endRide(p, false); return false; }
+    if (RIDE.phase === "riftfree") return riftFree(p, dt, t);
     // v97 : debout sur la fusée du lancement → elle nous emporte jusqu'à la faille
     // v98 : elle nous rattrape aussi en l'air (planeur, chute, saut) dès qu'on est juste au-dessus d'une de ses surfaces
     if (!RIDE.phase && t < 38) {
@@ -264,7 +266,7 @@
     if (RIDE.phase === "m1" && t >= 153.05) {
       var S = E.end81 && E.end81.S; if (!S || !S.STAR) { endRide(p, false); return false; }
       W = W || new root.THREE.Vector3(); W.set(S.STAR.x, S.STAR.y + 2400, S.STAR.z);
-      if (!RW) RW = buildRift();
+      if (!RW) RW = buildRift(); else RW.frozen = false;
       if (!RW) { endRide(p, false); return false; }
       enter("rift", p); showGrp(false); RIDE.fall = 0;
     }
@@ -294,8 +296,9 @@
     }
     if (mvx || mvz) {
       var nx = RIDE.ox + mvx, nz = RIDE.oz + mvz, ns = surf(f, nx, nz), lim = f.rk ? -1e9 : f.sh.max * f.k * .22;
-      var canLeave = f.rk ? t < 9.6 : RIDE.phase === "m1"; // la fusée en vol : on ne tombe pas du bord
+      var canLeave = f.rk ? t < 9.6 : RIDE.phase === "m1" || RIDE.phase === "rift"; // la fusée en vol : on ne tombe pas du bord — v108 : dans le monde des failles, on peut descendre de la météorite
       if (ns == null || (!canLeave && ns < lim)) {
+        if (canLeave && ns == null && RIDE.phase === "rift") { p.x = f.c.x + RIDE.ox + mvx; p.z = f.c.z + RIDE.oz + mvz; p.y = f.c.y + s + RIDE.oy; enterFree(p, t); return true; } // v108 : on quitte la météorite, on flotte
         if (canLeave && ns == null) { // on saute du bord : on retombe librement
           endRide(p, false); p.x += mvx; p.z += mvz; p._lastX = p.x; p._lastZ = p.z; p.grounded = false; p.falling = true; p._vy = RIDE.vy; return false;
         }
@@ -319,6 +322,60 @@
     p.distance = (+p.distance || 0) + Math.hypot(mvx, mvz);
     return true;
   }
+  /* ---- v108 : LIBRE DANS LE MONDE DES FAILLES
+   * On peut descendre de la météorite (plus de mur invisible) : on flotte et l'on descend doucement (gravité
+   * faible, dérive au joystick), la météorite continue sa chute sans nous et disparaît dans le tourbillon.
+   * Les îles volantes s'arrêtent autour de nous en escalier : elles sont solides (on s'y pose, on y marche, on
+   * saute de l'une à l'autre, la cabane est un mur et son toit un sol). On reste là tant qu'on veut. Si l'on
+   * tombe sous les îles, une faille s'ouvre sous nos pieds et nous renvoie au-dessus de l'île, en chute libre. */
+  function enterFree(p, t) {
+    enter("riftfree", p); RIDE.freeT = t; RIDE.fvx = 0; RIDE.fvz = 0; RIDE.vy = Math.max(RIDE.vy || 0, 1.5); RIDE.fg = false; RIDE.exitT = 0;
+    if (RW && root.AZRiftWorld97.freeze) root.AZRiftWorld97.freeze(RW, p.x - W.x, p.y - W.y, p.z - W.z, p.yaw || 0);
+    p.grounded = false; p.falling = true; p.jumping = false;
+  }
+  function islandTop(il, x, z) { // dessus de l'île (même forme que event-end81-models.floatingIsland), null hors de l'île
+    var sc = il.scale.x, c = Math.cos(il.rotation.y), sn = Math.sin(il.rotation.y);
+    var wx = x - (W.x + il.position.x), wz = z - (W.z + il.position.z), lx = (wx * c - wz * sn) / sc, lz = (wx * sn + wz * c) / sc, r = Math.hypot(lx, lz);
+    if (r > .92) return null;
+    var y0 = W.y + il.position.y, hut = Math.abs(lx - .12) < .16 && Math.abs(lz + .05) < .12;
+    return { top: y0 + sc * (hut ? .26 : .08 + .05 * Math.max(0, 1 - r)), hut: hut, floor: y0 + sc * .08 };
+  }
+  function riftFree(p, dt, t) {
+    if (!W || !RW) { endRide(p, false); return false; }
+    var i = p._input || {}, mx = Math.max(-1, Math.min(1, +i.moveX || 0)), mz = Math.max(-1, Math.min(1, +i.moveZ || 0)), len = Math.max(1, Math.hypot(mx, mz));
+    var want = (i.sprint ? 7.6 : 5.6), yaw = p.yaw || 0;
+    var wx = (-Math.sin(yaw) * mz + Math.cos(yaw) * mx) / len * want, wz = (-Math.cos(yaw) * mz - Math.sin(yaw) * mx) / len * want;
+    var acc = RIDE.fg ? 14 : 3.2; RIDE.fvx += (wx - RIDE.fvx) * Math.min(1, acc * dt); RIDE.fvz += (wz - RIDE.fvz) * Math.min(1, acc * dt);
+    if (RIDE.fg && p._jumpBuffer > 0) { p._jumpBuffer = 0; RIDE.vy = 6.8; RIDE.fg = false; p.jumping = true; }
+    if (!RIDE.fg) RIDE.vy = Math.max(-6.5, RIDE.vy - 3.2 * dt); // on flotte : on descend doucement
+    var oy = p.y, nx = p.x + RIDE.fvx * dt, nz = p.z + RIDE.fvz * dt, ny = RIDE.fg ? p.y : p.y + RIDE.vy * dt, sup = null;
+    var isl = RW.isl || [];
+    for (var k = 0; k < isl.length; k++) {
+      var il = isl[k]; if (!il.visible) continue;
+      var a = islandTop(il, nx, nz); if (!a) continue;
+      if (a.hut && ny < a.top - .35 && oy < a.top - .35) { var b0 = islandTop(il, p.x, p.z); if (!b0 || !b0.hut) { nx = p.x; nz = p.z; RIDE.fvx *= -.2; RIDE.fvz *= -.2; a = islandTop(il, nx, nz); if (!a) continue; } } // murs de la cabane
+      if (ny <= a.top + .05 && oy >= a.top - .7 && (sup == null || a.top > sup)) sup = a.top;
+    }
+    if (sup != null && (RIDE.fg || RIDE.vy <= 0)) { ny = sup; if (!RIDE.fg) p.jumping = false; RIDE.vy = 0; RIDE.fg = true; }
+    else if (RIDE.fg) { RIDE.fg = false; RIDE.vy = 0; } // on marche hors du bord : on recommence à flotter
+    p.x = nx; p.z = nz; p.y = ny; p._lastX = p.x; p._lastZ = p.z;
+    p.grounded = RIDE.fg; p.falling = !RIDE.fg; p.gliding = false; p.autoGlider = false; p.swimming = false; p.flying = false; p.airborneFromBus = false;
+    p._eventFloat = false; p._eventVerticalVelocity = 0; p._vy = RIDE.fg ? 0 : RIDE.vy; p._coyote = .12; p._vx = RIDE.fvx; p._vz = RIDE.fvz;
+    // sous les îles : une faille s'ouvre sous nos pieds et nous renvoie sur l'île
+    if (!RIDE.exitT && p.y < W.y + (RW.exitRel != null ? RW.exitRel : -560)) { RIDE.exitT = t; RIDE.px = p.x; RIDE.py = p.y - 26; RIDE.pz = p.z; }
+    if ((RIDE.exitT && t - RIDE.exitT > 1.1) || t >= 252) { backToIsland(p, t); return false; }
+    return true;
+  }
+  function backToIsland(p, t) {
+    var S = E.end81 && E.end81.S, P = S && S.P;
+    endRide(p, false); RIDE.spitT = t; RIDE.exitT = 0;
+    var bx = P ? P.x + (Math.random() - .5) * 60 : p.x, bz = P ? P.z + (Math.random() - .5) * 60 : p.z;
+    p.x = bx; p.z = bz; p.y = H(bx, bz) + 150; p._lastX = p.x; p._lastZ = p.z;
+    p.deployed = true; p.grounded = false; p.jumping = false; p.gliding = false; p.swimming = false; p._eventFloat = false;
+    p.falling = true; p.airborneFromBus = true; p.autoGlider = true; p._vy = -2;
+  }
+  // outil de test (comparaisons et vérifications automatiques) : met le joueur debout au sommet de la météorite
+  V6.testBoard = function () { var g = root.AZUR, p = g && g.world && g.world.players.find(function (q) { return q.id === g.myId; }); if (!p) return false; enter("m1", p); RIDE.ox = 0; RIDE.oz = 0; RIDE.oy = 0; RIDE.vy = 0; RIDE.hasC = false; return true; };
   var prevRider = E.stepMeteorRider;
   E.stepMeteorRider = function (p, dt) {
     try { if (ride(p, dt)) return true; } catch (e) { if (!V.err6) { V.err6 = 1; if (root.console) console.warn("[AZUR v96]", e); } endRide(p, false); }
@@ -330,6 +387,7 @@
     if (ph === "m1" && t > 152.4) return rmp(t, 152.4, 153.05);
     if (ph === "rift") return t < 154.2 ? 1 - rmp(t, 153.05, 154.2) : rmp(t, 191.7, 192.6);
     if (ph === "m2" && t < 193.8) return 1 - rmp(t, 192.6, 193.8);
+    if (ph === "riftfree" && RIDE.exitT) return rmp(t, RIDE.exitT + .5, RIDE.exitT + 1.1);
     return 0;
   }
 
@@ -340,7 +398,7 @@
   var prevPre = M.preUpdate;
   M.preUpdate = function (dt) {
     // pendant le voyage, la chorégraphie de fin (soulèvement par l'onde du Point Zéro) ne s'applique pas : on est sur la roche
-    var late = RIDE.phase === "rift" || RIDE.phase === "m2" || RIDE.phase === "thrown", V93 = E.v93, saved = V93 ? V93.freeRoam : false;
+    var late = RIDE.phase === "rift" || RIDE.phase === "riftfree" || RIDE.phase === "m2" || RIDE.phase === "thrown", V93 = E.v93, saved = V93 ? V93.freeRoam : false;
     if (late && V93) V93.freeRoam = true;
     var r;
     try { r = prevPre.apply(this, arguments); } finally { if (late && V93) V93.freeRoam = saved; }
@@ -355,8 +413,8 @@
           var hg = p.y - H(p.x, p.z); if (hg > 420) p.y -= Math.min(hg - 400, 75 * d);
         }
         if (RIDE.phase) {
-          if (RIDE.phase === "rift" || RIDE.phase === "m2") V.pose = null;
-          E.cameraZoom = RIDE.phase === "m2" ? 1.45 : RIDE.phase === "rift" ? 1.2 : 1.1;
+          if (RIDE.phase === "rift" || RIDE.phase === "riftfree" || RIDE.phase === "m2") V.pose = null;
+          E.cameraZoom = RIDE.phase === "m2" ? 1.45 : RIDE.phase === "rift" ? 1.2 : RIDE.phase === "riftfree" ? 1 : 1.1;
         }
         updateRift(t, d);
         setFlash(flashFor(t));

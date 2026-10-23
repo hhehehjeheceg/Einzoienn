@@ -74,7 +74,10 @@
     // la météorite (copie exacte de la roche : même forme que les collisions)
     R.rockMat = k(rk.material.clone());
     R.rock = new T.Mesh(rk.geometry, R.rockMat); R.rock.position.copy(rk.position).multiplyScalar(gs); R.rock.quaternion.copy(rk.quaternion); R.rock.scale.copy(rk.scale).multiplyScalar(gs);
-    R.rock.frustumCulled = false; g.add(R.rock);
+    R.rock.frustumCulled = false; g.add(R.rock); R.rock0 = R.rock.position.clone(); R.rockY = 0; R.rockV = 0;
+    // v108 : la faille qui s'ouvre sous le joueur resté dans ce monde et le renvoie sur l'île
+    R.portal = new T.Mesh(k(new T.PlaneGeometry(1, 1)), k(L.riftMaterial(9.3, false))); R.portal.frustumCulled = false; R.portal.visible = false; R.portal.renderOrder = 5; g.add(R.portal);
+    R.portalGlow = L.sprite(g, X.soft, 0xc9a6ff, 60, true, 0);
     var u = R.rockMat.uniforms; if (u) { u.front.value.set(0, -1, 0); u.lightDir.value.set(.35, 1, .25); u.rimCol.value.setHex(0xa66bff); u.heat.value = .9; u.pale.value = 0; u.energy.value = .9; }
     R.under = L.sprite(g, X.soft, 0xb06bff, 80, true, .55); R.under.position.set(0, -16, 0);
     R.arcs = []; for (var a = 0; a < 7; a++) { var s = L.sprite(g, X.arcs[a % 3], 0xcdb0ff, 22, true, 0); R.arcs.push(s); }
@@ -142,13 +145,18 @@
   }
 
   var _w = new T.Vector3();
-  function update(R, t, dt, cam) {
+  function update(R, t, dt, cam, opt) {
     if (!R) return;
     dt = Math.min(.1, Math.max(0, +dt || 0));
+    // v108 : joueur descendu de la météorite — le monde s'arrête autour de lui, la roche continue sa chute sans lui
+    var free = !!(opt && opt.free), fk = free ? ramp(t, opt.since, opt.since + 1.5) : 0;
     // déroulé du voyage
-    var entry = 1 - ramp(t, 153.05, 156.5), storm = win(t, 168, 178.5, 1.5, 2), exitK = ramp(t, 176, 190) * .6 + ramp(t, 189.5, 192.5) * .9;
-    var rush = ramp(t, 153.05, 153.6) * (1 - ramp(t, 154, 158)) + ramp(t, 188, 192.4);
-    var speed = 60 * (1 + 2.6 * rush);
+    var entry = (1 - ramp(t, 153.05, 156.5)) * (1 - fk), storm = win(t, 168, 178.5, 1.5, 2), exitK = free ? .45 : ramp(t, 176, 190) * .6 + ramp(t, 189.5, 192.5) * .9;
+    var rush = free ? 0 : ramp(t, 153.05, 153.6) * (1 - ramp(t, 154, 158)) + ramp(t, 188, 192.4);
+    var speed = 60 * (1 + 2.6 * rush) * (1 - fk);
+    if (free) { R.rockV = Math.min(240, (R.rockV || 0) + 70 * dt); R.rockY -= R.rockV * dt; } else { R.rockY = 0; R.rockV = 0; }
+    R.rock.position.set(R.rock0.x, R.rock0.y + R.rockY, R.rock0.z); R.rock.visible = R.rockY > -950; R.under.position.y = -16 + R.rockY;
+    if (R.portal) { var po = opt && opt.portal; R.portal.visible = !!po; L.setOp(R.portalGlow, po ? .8 * po.k : 0); if (po) { R.portal.position.set(po.x, po.y, po.z); R.portalGlow.position.copy(R.portal.position); if (cam) R.portal.quaternion.copy(cam.quaternion); var pk = .3 + .7 * po.k; R.portal.scale.setScalar(26 + 70 * po.k); var pu = R.portal.material.uniforms; pu.time.value = t; pu.open.value = pk; pu.amt.value = Math.min(1, po.k * 2); pu.flash.value = po.k > .9 ? 1 : 0; R.portalGlow.scale.setScalar(60 + 160 * po.k); } }
     R.fall += speed * dt; var fall = R.fall;
     var shake = entry * .9 + ramp(t, 188, 192.5) * .75;
     // éclairs
@@ -165,11 +173,11 @@
     [R.rockMat, R.debMat].forEach(function (m) { if (m.uniforms) { m.uniforms.time.value = t; if (cp) m.uniforms.camPos.value.copy(cp); } });
     R.rockMat.uniforms && (R.rockMat.uniforms.energy.value = .9 + flash * .8);
     // la roche : lueur dessous et arcs d'énergie qui crépitent
-    L.setOp(R.under, .45 + .15 * Math.sin(t * 2.3) + .3 * rush);
+    L.setOp(R.under, R.rock.visible ? .45 + .15 * Math.sin(t * 2.3) + .3 * rush : 0);
     for (var a = 0; a < R.arcs.length; a++) {
       var s = R.arcs[a], cyc = Math.floor(t * 3 + a * .37), k2 = t * 3 + a * .37 - cyc, aa = hs(cyc * 7 + a) * 6.283;
-      s.position.set(Math.cos(aa) * 10.5, -2 + hs(cyc * 3 + a) * 9, Math.sin(aa) * 10.5); s.material.rotation = hs(cyc + a) * 6.283;
-      L.setOp(s, hs(cyc * 5 + a) > .45 ? (1 - k2) * (.55 + .4 * storm) : 0);
+      s.position.set(Math.cos(aa) * 10.5, -2 + hs(cyc * 3 + a) * 9 + R.rockY, Math.sin(aa) * 10.5); s.material.rotation = hs(cyc + a) * 6.283;
+      L.setOp(s, R.rock.visible && hs(cyc * 5 + a) > .45 ? (1 - k2) * (.55 + .4 * storm) : 0);
     }
     // anneaux qu'on traverse
     for (var r = 0; r < R.rings.length; r++) {
@@ -192,7 +200,7 @@
     var vu = R.vortex.material.uniforms; vu.time.value = t; vu.amt.value = .25 + exitK * .9; vu.core.value = exitK * 1.3; vu.twist.value = 5 + 3 * rush;
     L.setOp(R.exit, Math.min(1, exitK * 1.1)); R.exit.scale.setScalar(300 + 900 * exitK);
     // îles flottantes
-    for (var f = 0; f < R.isl.length; f++) {
+    for (var f = 0; f < R.isl.length && !R.frozen; f++) {
       var il = R.isl[f], ip = il.userData.p, iy = wrap(ip.y0 + fall * .22, 1440), ia = ip.a + t * .02;
       il.position.set(Math.cos(ia) * ip.r, iy, Math.sin(ia) * ip.r); il.rotation.set(Math.sin(t * .2 + f) * .12, t * ip.sp, Math.cos(t * .17 + f) * .1); il.scale.setScalar(ip.s);
       il.visible = Math.abs(iy) < 690;
@@ -227,10 +235,21 @@
     R.shake = Math.min(1.2, shake);
   }
 
+  // v108 : les îles s'arrêtent en escalier devant le joueur qui a quitté la météorite (on peut s'y poser)
+  var STAIR = [[38, 0, -30, 34], [98, 48, -100, 30], [150, -46, -180, 40], [72, -112, -265, 28]];
+  function freeze(R, rx, ry, rz, yaw) {
+    if (!R || R.frozen) return; R.frozen = true; R.exitRel = ry - 265 - 80; // sous la dernière île : la faille de retour s'ouvre
+    var fx = -Math.sin(yaw), fz = -Math.cos(yaw), gx = Math.cos(yaw), gz = -Math.sin(yaw);
+    for (var i = 0; i < R.isl.length; i++) {
+      var il = R.isl[i], q = STAIR[i % STAIR.length];
+      il.position.set(rx + fx * q[0] + gx * q[1], ry + q[2] - q[3] * .13, rz + fz * q[0] + gz * q[1]);
+      il.rotation.set(0, il.rotation.y, 0); il.scale.setScalar(q[3]); il.visible = true;
+    }
+  }
   function dispose(R) {
     if (!R) return;
     R.keep.forEach(function (o) { try { if (o && o.dispose) o.dispose(); } catch (e) {} });
   }
 
-  root.AZRiftWorld97 = { build: build, update: update, dispose: dispose };
+  root.AZRiftWorld97 = { build: build, update: update, dispose: dispose, freeze: freeze };
 })(typeof globalThis !== "undefined" ? globalThis : this);
