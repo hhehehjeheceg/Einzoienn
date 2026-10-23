@@ -178,7 +178,7 @@
   function frame(ph, t) {
     var en = E.end81; if (!en) return null;
     if (!_c) _c = new root.THREE.Vector3();
-    if (ph === "rk") { if (!en.rocketPose || t >= 33.3) return null; en.rocketPose(t, _c); return { c: _c, top: rocketTop, k: en.rocketScale ? en.rocketScale(t) : 1, rk: true }; }
+    if (ph === "rk") { if (!en.rocketPose || t >= 38.6) return null; en.rocketPose(t, _c); return { c: _c, top: rocketTop, k: en.rocketScale ? en.rocketScale(t) : 1, rk: true }; }
     if (ph === "m1") { var s1 = shape(); if (!s1 || !en.meteorPos) return null; en.meteorPos(t, _c); return { c: _c, sh: s1, k: 1 }; }
     if (ph === "rift") { var s2 = shape(); if (!s2 || !W) return null; _c.copy(W); return { c: _c, sh: s2, k: 1 }; }
     if (ph === "m2") { var s3 = shape2(); if (!s3 || !en.met2Pos) return null; en.met2Pos(t, _c); return { c: _c, sh: s3, k: Math.max(.35, rmp(t, 192.6, 194.5)) }; }
@@ -191,7 +191,7 @@
     if (Math.hypot(x, z - 3.9) < 1.15 || Math.hypot(x, z + 3.9) < 1.15) return 15.6;
     return null;
   }
-  // arrivée dans la faille de la fusée (33,3 s) : la faille nous recrache au-dessus de la colline, en planeur
+  // explosion de la fusée (38,6 s) : on est renvoyé au-dessus de la colline, en planeur
   function spit(p, t) {
     var S = E.end81 && E.end81.S; endRide(p, false); RIDE.spitT = t; if (!S || !S.P) return;
     var nx = S.P.x + (S.F ? S.F.x * 6 : 0), nz = S.P.z + (S.F ? S.F.z * 6 : 0), ny = H(nx, nz) + 75;
@@ -244,14 +244,14 @@
   function ride(p, dt) {
     if (!isMe(p) || !p.alive || !p.deployed || p.vehicleId) return false;
     var t = VT(); dt = Math.min(.1, Math.max(0, +dt || 0));
-    if (RIDE.phase === "rk" ? t > 34 : RIDE.phase && (t < 118 || t > 224.5)) { endRide(p, false); return false; }
+    if (RIDE.phase === "rk" ? t > 39 : RIDE.phase && (t < 118 || t > 224.5)) { endRide(p, false); return false; }
     // v97 : debout sur la fusée du lancement → elle nous emporte jusqu'à la faille
     // v98 : elle nous rattrape aussi en l'air (planeur, chute, saut) dès qu'on est juste au-dessus d'une de ses surfaces
-    if (!RIDE.phase && t < 33) {
+    if (!RIDE.phase && t < 38) {
       var fr = frame("rk", t);
       if (fr) { var rx = p.x - fr.c.x, rz = p.z - fr.c.z, rs = surf(fr, rx, rz), dy = rs == null ? 99 : p.y - (fr.c.y + rs); if (rs != null && dy > -1.6 && dy < (p.grounded ? .8 : 2.2) && (p.grounded || (+p._vy || 0) < 4)) { enter("rk", p); RIDE.ox = rx; RIDE.oz = rz; RIDE.oy = 0; RIDE.vy = 0; RIDE.hasC = false; } }
     }
-    if (RIDE.phase === "rk" && t >= 33.1) { spit(p, t); return false; }
+    if (RIDE.phase === "rk" && t >= 38.4) { spit(p, t); return false; } // v101 : on reste dessus jusqu'à l'explosion de 38,6 s
     // monter dessus : debout sur la roche pendant la poussée des fusées
     if (!RIDE.phase) {
       if (t < 118 || t >= 152.9 || !p.grounded) return false;
@@ -326,7 +326,7 @@
   };
   function flashFor(t) {
     var ph = RIDE.phase;
-    if (ph === "rk" && t > 32.5) return rmp(t, 32.5, 33.1);
+    if (ph === "rk" && t > 37.8) return rmp(t, 37.8, 38.4);
     if (!ph && RIDE.spitT && t >= RIDE.spitT && t < RIDE.spitT + 1.3) return 1 - rmp(t, RIDE.spitT, RIDE.spitT + 1.3);
     if (ph === "m1" && t > 152.4) return rmp(t, 152.4, 153.05);
     if (ph === "rift") return t < 154.2 ? 1 - rmp(t, 153.05, 154.2) : rmp(t, 191.7, 192.6);

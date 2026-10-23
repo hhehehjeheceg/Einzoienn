@@ -245,8 +245,8 @@
   var colHook = null;
   // v98 : position de la fusée à l'instant présent (celle du rendu a une image de retard : on passait au travers quand elle accélère)
   var rkNow = new T.Vector3();
-  function rkK() { var t = VT(); return E.end81 && E.end81.rocketScale && t < 33.3 ? E.end81.rocketScale(t) : 1; } // v100 : la fusée grandit en montant
-  function rocketC() { var o = E.end81 && E.end81.O, rk = o && o.rocket; if (!rk || !rk.visible) return null; var t = VT(); if (E.end81.rocketPose && t < 33.3) return E.end81.rocketPose(t, rkNow); return rk.position; }
+  function rkK() { var t = VT(); return E.end81 && E.end81.rocketScale && t < 38.6 ? E.end81.rocketScale(t) : 1; } // v100 : la fusée grandit en montant
+  function rocketC() { var o = E.end81 && E.end81.O, rk = o && o.rocket; if (!rk || !rk.visible) return null; var t = VT(); if (E.end81.rocketPose && t < 38.6) return E.end81.rocketPose(t, rkNow); return rk.position; }
   // v93 : point (x, z) dans le repère de l'île volante (elle tourne lentement sur elle-même)
   function islLocal(x, z) {
     var isl = E.end81 && E.end81.O && E.end81.O.isl; if (!isl || !isl.visible) return null;

@@ -561,7 +561,7 @@
     // v85 — l'énorme explosion de foudre (38,6 s) part exactement du point où la fusée a disparu
     // (vidéo de référence 33-41 s, vidéos A et B : même endroit)
     O.b1p = rocketPos(33.3, new T.Vector3());
-    O.b1x = rocketPos(33.3, new T.Vector3()).addScaledVector(UP, 40); // v100 : juste au-dessus de l'entrée de la fusée, à la verticale du dépôt
+    O.b1x = rocketPos(38.6, new T.Vector3()); // v101 : l'explosion de foudre part de la fusée elle-même, à la verticale du dépôt
     O.b1S = Math.max(1, O.b1x.distanceTo(P) / Math.max(1, tmp3.copy(BASE).addScaledVector(UP, 800).distanceTo(P))); // effets agrandis : plus loin qu'avant (800 m)
     O.sparkPos = O.b1p.clone();
     O.b1Shell = L.sprite(grp, X.shell[0], 0x6f9cff, 800, true, 0); O.b1Bolts = L.sprite(grp, X.burstBig[0], 0x9cc6ff, 900, true, 0); O.b1Core = L.sprite(grp, X.star, 0xffffff, 400, true, 0);
@@ -957,13 +957,15 @@
   /* v100 : la fusée monte très haut et accélère sans arrêt (16 m/s à 12 s → ~114 m/s à 33 s) ; les instants calés
    * sur la musique ne bougent pas (allumage 8,3 s, décollage 10 s, faille 33,3 s). Elle entre dans la faille vers
    * 1 400 m, et l'éclair géant de 38,6 s part juste au-dessus d'elle. */
-  function rkAlt(t) { var u = t - 10; return u <= 0 ? 0 : u < 2 ? 4 * u * u : 16 + 16 * (u - 2) + 2.3 * (u - 2) * (u - 2); }
+  function rkAlt(t) { var u = t - 10; return u <= 0 ? 0 : u < 2 ? 4 * u * u : u < 23.3 ? 16 + 16 * (u - 2) + 2.3 * (u - 2) * (u - 2) : 1400.3 + 114 * (u - 23.3) + 10.5 * (u - 23.3) * (u - 23.3); }
+  // v101 : après l'éclair de sa faille (33,3 s) elle ne disparaît plus : elle le traverse et continue d'accélérer, bien visible,
+  // jusqu'à l'explosion de foudre de 38,6 s (≈ 2 300 m). Avant, un simple point bleu la remplaçait à ce moment-là.
   // v100 : elle grandit doucement après le décollage (×2,3 ≈ 64 m) pour se lire de loin au bout de sa traînée
-  function rkGrow(t) { return 1 + 1.3 * U.sm(ramp(t, 10.5, 17)); }
+  function rkGrow(t) { return 1 + 1.3 * U.sm(ramp(t, 10.5, 17)) + 1.9 * U.sm(ramp(t, 33.3, 38.6)); } // v101 : ×4,2 à l'explosion (on la voit de loin)
   // agrandissement des effets de la faille d'entrée : elle est plus loin de la colline qu'avant (265 m de haut)
   function rkS() { var a = tmp3.copy(BASE).addScaledVector(UP, 265.7).distanceTo(P), b = rocketPos(33.3, tmp3).distanceTo(P); return Math.max(1, b / Math.max(1, a)); }
   function rocketPos(t, out) {
-    return out.copy(BASE).addScaledVector(UP, 1.2 + rkAlt(Math.min(t, 33.6)));
+    return out.copy(BASE).addScaledVector(UP, 1.2 + rkAlt(Math.min(t, 38.6)));
   }
   /* distance de la caméra de référence (colline) au point d'entrée : sert à dimensionner les effets */
   function rkScale() { return 1; }
@@ -975,7 +977,7 @@
     // qui dessine sa silhouette sur le ciel de nuit quelle que soit la distance
     var rkMeshes = [];
     O.rocket.traverse(function (o) { if (o.isMesh) rkMeshes.push(o); });
-    var shellMat = new T.MeshBasicMaterial({ color: 0x7fb2ff, transparent: true, opacity: .32, blending: T.AdditiveBlending, depthWrite: false, side: T.BackSide, fog: false }); shellMat.toneMapped = false;
+    var shellMat = new T.MeshBasicMaterial({ color: 0xe6ecf5, transparent: true, opacity: .18, blending: T.AdditiveBlending, depthWrite: false, side: T.BackSide, fog: false }); shellMat.toneMapped = false;
     rkMeshes.forEach(function (o) {
       o.frustumCulled = false;
       var m = o.material; if (!m || !m.isMeshStandardMaterial || m.userData.az97) return; m.userData.az97 = 1;
@@ -991,14 +993,14 @@
       O.launchPuffs.push({ tb: 3.0 + R2() * 6.5 + (i % 5 === 0 ? 5 : 0), ang: ang, v: 12 + R2() * 22, up: .5 + R2() * 1.6, s: 7 + R2() * 9, rot: R2() * 6.28, var: i % 4, h: R2() * 5 });
     }
     O.column = []; var N = low ? 130 : 230;
-    for (var j = 0; j < N; j++) { var k = j / (N - 1); O.column.push({ k: k, te: 9.6 + k * 23.7, off: new T.Vector3((R2() - .5), (R2() - .5) * .5, (R2() - .5)), rot: R2() * 6.28, var: j % 4, s: .8 + R2() * .5 }); }
+    for (var j = 0; j < N; j++) { var k = j / (N - 1); O.column.push({ k: k, te: 9.6 + k * 29, off: new T.Vector3((R2() - .5), (R2() - .5) * .5, (R2() - .5)), rot: R2() * 6.28, var: j % 4, s: .8 + R2() * .5 }); }
     O.e1 = rocketPos(33.3, new T.Vector3()); O.rkS = rkS();
     O.e1Flash = L.sprite(grp, X.star, 0xbfe6ff, 300, true, 0); O.e1Flash.position.copy(O.e1);
     O.rLight = new T.PointLight(0xffa860, 0, 600, 1.2); grp.add(O.rLight);
   }
   function updateLaunch(t) {
     var rk = O.rocket, flying = t >= 9.6;
-    rk.visible = t < 33.3;
+    rk.visible = t < 38.6; // v101 : visible jusqu'à l'explosion (38,6 s)
     if (!flying) rk.position.copy(BASE).addScaledVector(UP, 1.2); else rocketPos(t, rk.position);
     if (flying && rk.visible) { rocketPos(t + .05, tmp); tmp.sub(rk.position); if (tmp.lengthSq() > 1e-6) rk.quaternion.setFromUnitVectors(UP, tmp.normalize()); } else rk.quaternion.identity();
     var ign = ramp(t, 8.3, 9.6), fl = .88 + .12 * Math.sin(t * 41) + .06 * Math.sin(t * 67);
@@ -1016,6 +1018,11 @@
     }
     L.setOp(rk.userData.glow, ign * fl * (rk.visible ? 1 : 0)); L.setOp(rk.userData.glow2, ign * .8 * (rk.visible ? 1 : 0));
     var far = ramp(t, 12, 30); rk.userData.glow.scale.setScalar(12 + 4 * far); rk.userData.glow2.scale.setScalar(26 + 10 * far); rk.userData.glow2.material.opacity *= .35;
+    // v101 : la coiffe bleue lumineuse et son halo, grossis avec la fusée et la distance, faisaient un « point bleu »
+    // qui cachait la fusée en vol : on les éteint dès le décollage (le corps, le liseré et la flamme restent)
+    var capOff = ramp(t, 10, 12.5), ud = rk.userData;
+    if (ud.capGlow) L.setOp(ud.capGlow, .55 * (1 - capOff));
+    if (ud.cap && ud.cap.material) { if (ud.capEi == null) ud.capEi = ud.cap.material.emissiveIntensity; ud.cap.material.emissiveIntensity = ud.capEi * (1 - .85 * capOff); }
     rk.scale.setScalar(rkGrow(t)); // v100 : taille réelle au sol (on peut monter dessus), puis elle grandit en montant
     O.rLight.position.copy(rk.position); O.rLight.intensity = rk.visible ? ign * fl * (6 - 4 * far) : 0;
     // v97 : la fusée reste éclairée pendant toute la montée (lumière côté caméra ; un seul feu de plus pour ne pas alourdir tout l'éclairage)
@@ -1043,7 +1050,7 @@
       var c = col[j], age2 = t - c.te; if (age2 <= 0) continue;
       rocketPos(c.te, tmp); var size = (4 + 4 * c.k) * c.s * (1 + age2 * .2) * (.8 + .5 * rkGrow(c.te)); // v100 : fine contre la fusée, elle ne s'élargit qu'en vieillissant // v85 : traînée fine près de la fusée, qui s'élargit en vieillissant (vidéo)
       tmp.addScaledVector(c.off, size * .3); tmp.x += R.x * age2 * .15; tmp.z += R.z * age2 * .15; tmp.y -= 2 + age2 * .2;
-      var dis = ramp(t, 33.6 + (1 - c.k) * 1.5, 36.2 + (1 - c.k) * 3.2); // v85 : la traînée se disloque vite après l'entrée dans la faille (vidéo 34-39 s)
+      var dis = ramp(t, 38.9 + (1 - c.k) * 1.5, 41.5 + (1 - c.k) * 3.2); // v85 : la traînée se disloque vite après l'entrée dans la faille (vidéo 34-39 s)
       var a2 = cl(age2 * 2.5) * (1 - dis) * .9;
       var hot = cl(1 - age2 / 1.6);
       sys.add(tmp.x, tmp.y, tmp.z, size, .98, .84 + .06 * c.k, .95, a2, c.rot + age2 * .03, c.var, .25, hot * 1.6 + .25);
@@ -1088,10 +1095,10 @@
   function updateSkyShow(t, cam) {
     var flick = Math.floor((t + 600) * 13);
     // v85 — le point bleu laissé par la fusée reste en place (34,2 → 38,8), puis l'explosion part de là
-    O.sparkTail.set(1, .55, win(t, 33.6, 38.4, .3, 1.2) * .55, t);
-    var rise = U.sm(ramp(t, 33.9, 38.85)); O.sparkPos.copy(O.b1p).lerp(O.b1x, rise); var rs0 = O.rkS || 1, rs = rs0 + (3.3 * (O.b1S || 1) - rs0) * rise;
-    O.spark.position.copy(O.sparkPos); L.setOp(O.spark, win(t, 34, 39, .3, .4)); O.spark.scale.setScalar((8 + 1.8 * Math.sin(t * 9)) * rs);
-    O.sparkHalo.position.copy(O.sparkPos); L.setOp(O.sparkHalo, win(t, 33.4, 38.9, .2, .5) * (.35 + .65 * win(t, 33.4, 35.6, .1, 1.6))); O.sparkHalo.scale.setScalar((24 + 40 * win(t, 33.4, 35.6, .1, 1.6)) * rs);
+    O.sparkTail.set(1, .55, 0, t); // v101 : plus de point bleu à la place de la fusée
+    var rise = U.sm(ramp(t, 33.9, 38.85)); if (t < 38.6) rocketPos(t, O.sparkPos); else O.sparkPos.copy(O.b1x); var rs0 = O.rkS || 1, rs = rs0 + (3.3 * (O.b1S || 1) - rs0) * rise;
+    O.spark.position.copy(O.sparkPos); L.setOp(O.spark, 0); O.spark.scale.setScalar((8 + 1.8 * Math.sin(t * 9)) * rs);
+    O.sparkHalo.position.copy(O.sparkPos); L.setOp(O.sparkHalo, 0); O.sparkHalo.scale.setScalar((24 + 40 * win(t, 33.4, 35.6, .1, 1.6)) * rs);
     if (O.sparkTail) { O.sparkTail.off = O.sparkTail.off || new T.Vector3(); O.sparkTail.off.copy(O.sparkPos).sub(O.b1p); }
     E.anchors = E.anchors || {}; E.anchors.b1 = t < 38.85 ? O.sparkPos : O.b1x;
     // spirale d'éclats : s'ouvre pendant la montée (21 → 27), tourne, puis se referme en petit anneau (33,3 → 36,5)
