@@ -282,7 +282,7 @@
     }, true);
     const prevAct = HP.action;
     HP.action = function (act, id, el) {
-      if (act === "emote") { const st = API.styleOf(this.profile && this.profile.equipment && this.profile.equipment.emote); if (this.playEmote) return this.playEmote(st); }
+      if (act === "emote") return this.openEmotes(); // bouton ÉMOTE / touche T : la roue (pas l'émote par défaut)
       if (act === "emote-play" && id && this.playEmote) return this.playEmote(id);
       return prevAct.apply(this, arguments);
     };

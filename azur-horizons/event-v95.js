@@ -8,6 +8,59 @@
  * Enrobe le module play81 (comme event-v93.js). À charger après event-v93.js. */
 (function (root) {
   "use strict";
+  /* v95b — FORME EXACTE d'une roche pour les collisions : pour 24 × 48 directions autour du centre, le rayon
+   * de la surface (le plus grand sommet du maillage dans cette direction). On marche sur la vraie surface et on
+   * bute contre elle, au lieu d'un ovale plus petit que la roche (on s'enfonçait dedans, sur un sol invisible). */
+  var NT = 24, NP = 48;
+  function RockShape(offsets) {
+    var b = new Float32Array(NT * NP), i, j, k, mx = 0;
+    for (k = 0; k < offsets.length; k++) {
+      var o = offsets[k], r = Math.hypot(o[0], o[1], o[2]); if (r < 1e-6) continue;
+      var th = Math.acos(Math.max(-1, Math.min(1, o[1] / r))), ph = Math.atan2(o[2], o[0]);
+      i = Math.min(NT - 1, Math.floor(th / Math.PI * NT)); j = Math.min(NP - 1, Math.floor((ph + Math.PI) / (2 * Math.PI) * NP));
+      if (r > b[i * NP + j]) b[i * NP + j] = r; if (r > mx) mx = r;
+    }
+    for (var pass = 0; pass < 6; pass++) { var hole = false; for (i = 0; i < NT; i++) for (j = 0; j < NP; j++) { if (b[i * NP + j] > 0) continue; hole = true; var s = 0, n = 0; for (var di = -1; di <= 1; di++) for (var dj = -1; dj <= 1; dj++) { var ii = Math.max(0, Math.min(NT - 1, i + di)), jj = (j + dj + NP) % NP, v = b[ii * NP + jj]; if (v > 0) { s += v; n++; } } if (n) b[i * NP + j] = s / n; } if (!hole) break; }
+    this.b = b; this.max = mx;
+  }
+  RockShape.prototype.R = function (dx, dy, dz) {
+    var r = Math.hypot(dx, dy, dz); if (r < 1e-6) return this.max;
+    var th = Math.acos(Math.max(-1, Math.min(1, dy / r))) / Math.PI * NT - .5, ph = (Math.atan2(dz, dx) + Math.PI) / (2 * Math.PI) * NP - .5;
+    var i0 = Math.floor(th), j0 = Math.floor(ph), u = th - i0, v = ph - j0, b = this.b;
+    var at = function (i, j) { return b[Math.max(0, Math.min(NT - 1, i)) * NP + ((j % NP) + NP) % NP]; };
+    return (at(i0, j0) * (1 - v) + at(i0, j0 + 1) * v) * (1 - u) + (at(i0 + 1, j0) * (1 - v) + at(i0 + 1, j0 + 1) * v) * u;
+  };
+  RockShape.prototype.inside = function (dx, dy, dz, m) { return Math.hypot(dx, dy, dz) < this.R(dx, dy, dz) + (m || 0); };
+  // hauteur du dessus de la roche à la verticale de (dx, dz), ou null
+  RockShape.prototype.top = function (dx, dz) {
+    if (Math.hypot(dx, dz) >= this.max) return null;
+    var y = this.max, step = Math.max(.12, this.max / 60);
+    for (; y > -this.max; y -= step) if (this.inside(dx, y, dz, 0)) { var lo = y, hi = y + step; for (var k = 0; k < 6; k++) { var mid = (lo + hi) / 2; if (this.inside(dx, mid, dz, 0)) lo = mid; else hi = mid; } return lo; }
+    return null;
+  };
+  // décalages des sommets d'un maillage par rapport au centre de son groupe (matrice locale × échelle du groupe)
+  RockShape.fromMesh = function (mesh, pre) {
+    var T = root.THREE, g = mesh.geometry, pa = g && g.attributes && g.attributes.position; if (!T || !pa) return null;
+    mesh.updateMatrix(); var m = mesh.matrix.clone(); if (pre) m.premultiply(pre);
+    var v = new T.Vector3(), out = [], step = Math.max(1, Math.floor(pa.count / 6000));
+    for (var k = 0; k < pa.count; k += step) { v.fromBufferAttribute(pa, k).applyMatrix4(m); out.push([v.x, v.y, v.z]); }
+    return new RockShape(out);
+  };
+  // collisions communes (événement et météorite figée) : sol, obstacle, sortie si la roche recouvre le joueur
+  RockShape.prototype.support = function (c, x, z, cy) { var t = this.top(x - c.x, z - c.z); if (t == null) return null; t += c.y; return cy == null || cy > t - 4 ? t : null; };
+  RockShape.prototype.blocks = function (c, x, z, r, y) {
+    if (Math.hypot(x - c.x, z - c.z) > this.max + (r || .45)) return false;
+    var t = this.top(x - c.x, z - c.z); if (t != null && y >= c.y + t - .35) return false; // debout dessus
+    var hs = [.25, .9, 1.55]; for (var k = 0; k < 3; k++) if (this.inside(x - c.x, y + hs[k] - c.y, z - c.z, (r || .45) * .8)) return true;
+    return false;
+  };
+  RockShape.prototype.pushOut = function (c, p, floating) {
+    var dx = p.x - c.x, dy = p.y + .9 - c.y, dz = p.z - c.z; if (!this.inside(dx, dy, dz, .35)) return false;
+    var t = this.top(dx, dz);
+    if (t != null && dy > 0) { p.y = c.y + t; if (!floating) { p.grounded = true; p._vy = 0; } return true; } // par-dessus si on est dans la moitié haute
+    var r = Math.hypot(dx, dz) || 1, R = this.R(dx, 0, dz) + .6; p.x = c.x + dx / r * R; p.z = c.z + dz / r * R; p._lastX = p.x; p._lastZ = p.z; return true;
+  };
+  root.AZRockShape = RockShape;
   var E = root.AZEvent;
   if (!E || !E.mods || !E.mods.play81 || E.mods.play81.__v95) return;
   var M = E.mods.play81;
@@ -19,10 +72,16 @@
 
   /* ------------------------------------------------------------ météorite solide */
   // ellipsoïde : rayon horizontal Re, demi-hauteur .85 Re (la roche est aplatie)
+  var SHAPE = null, SHAPE_OF = null;
+  function shape() {
+    var O = E.end81 && E.end81.O, M1 = O && O.met; if (!M1 || !M1.rock) return null;
+    if (SHAPE_OF !== M1.rock) { var T = root.THREE; SHAPE_OF = M1.rock; SHAPE = RockShape.fromMesh(M1.rock, new T.Matrix4().makeScale(M1.g.scale.x, M1.g.scale.y, M1.g.scale.z)); }
+    return SHAPE;
+  }
   function rock() {
     if (!E.active || !E.meteorVisible || !E.meteorPos) return null;
-    var t = VT(), r = t < 170 ? (E.meteorRadius || 9) : 21;
-    return { x: E.meteorPos.x, y: E.meteorPos.y, z: E.meteorPos.z, Re: r * .95, Hy: r * .95 * .85 };
+    var t = VT(), r = t < 170 ? (E.meteorRadius || 9) : 21, sh = t < 170 ? shape() : null;
+    return { x: E.meteorPos.x, y: E.meteorPos.y, z: E.meteorPos.z, Re: r * .95, Hy: r * .95 * .85, sh: sh };
   }
   function topAt(c, d) { return d >= c.Re ? null : c.y + c.Hy * Math.sqrt(1 - (d / c.Re) * (d / c.Re)); }
   var hook = null;
@@ -34,6 +93,7 @@
       var best = sup.apply(this, arguments);
       try {
         var c = rock(); if (!c) return best;
+        if (c.sh) { var ts = c.sh.support(c, x, z, cy); return ts != null && ts > best ? ts : best; }
         var top = topAt(c, Math.hypot(x - c.x, z - c.z));
         if (top != null && top > best && (cy == null || cy > top - 4)) best = top;
       } catch (e) {}
@@ -43,6 +103,7 @@
       if (blk.apply(this, arguments)) return true;
       try {
         var c = rock(); if (!c || y == null) return false;
+        if (c.sh) return c.sh.blocks(c, x, z, r, y);
         var d = Math.hypot(x - c.x, z - c.z), rr = r || .45; if (d > c.Re + rr) return false;
         var dd = Math.min(d, c.Re - 1e-3), h = c.Hy * Math.sqrt(1 - (dd / c.Re) * (dd / c.Re)), top = c.y + h, bot = c.y - h;
         return y < top - .35 && y + 1.7 > bot;
@@ -58,6 +119,7 @@
   // si la roche (qui bouge) recouvre le joueur, on le sort par le chemin le plus court
   function pushOut(p) {
     var c = rock(); if (!c || !p) return;
+    if (c.sh) { c.sh.pushOut(c, p, !!p._eventFloat); return; }
     var cx = p.x - c.x, cy = (p.y + .9) - c.y, cz = p.z - c.z, ex = c.Re + .45, ey = c.Hy + .9;
     var n = Math.sqrt((cx * cx + cz * cz) / (ex * ex) + (cy * cy) / (ey * ey));
     if (n >= 1 || n < 1e-4) return;

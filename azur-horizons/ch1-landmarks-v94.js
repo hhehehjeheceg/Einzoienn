@@ -146,14 +146,17 @@
   function installCollider() {
     const Wp = S.World && S.World.prototype; if (!Wp || L.hook || !Wp.supportAt || !Wp._blocked) return;
     const sup = Wp.supportAt, blk = Wp._blocked, on = () => L.col && !isEvent();
+    // v95b : forme exacte de la roche (event-v95.js, AZRockShape) au lieu d'un ovale plus petit qu'elle
+    const RS = root.AZRockShape;
+    if (RS && L.met && L.met.userData.rock) { L.met.updateMatrix(); const q = new T.Matrix4().makeRotationFromQuaternion(L.met.quaternion); L.shape = RS.fromMesh(L.met.userData.rock, q); }
     const mySup = function (x, z, cy) {
       const best = sup.apply(this, arguments);
-      try { if (!on()) return best; const c = L.col, d = Math.hypot(x - c.x, z - c.z); if (d >= c.Re) return best; const top = c.y + c.Hy * Math.sqrt(1 - (d / c.Re) ** 2); if (top > best && (cy == null || cy > top - 4)) return top; } catch (e) {}
+      try { if (!on()) return best; if (L.shape) { const ts = L.shape.support(L.col, x, z, cy); return ts != null && ts > best ? ts : best; } const c = L.col, d = Math.hypot(x - c.x, z - c.z); if (d >= c.Re) return best; const top = c.y + c.Hy * Math.sqrt(1 - (d / c.Re) ** 2); if (top > best && (cy == null || cy > top - 4)) return top; } catch (e) {}
       return best;
     };
     const myBlk = function (x, z, r, y) {
       if (blk.apply(this, arguments)) return true;
-      try { if (!on() || y == null) return false; const c = L.col, d = Math.hypot(x - c.x, z - c.z); if (d > c.Re + (r || .45)) return false; const dd = Math.min(d, c.Re - 1e-3), h = c.Hy * Math.sqrt(1 - (dd / c.Re) ** 2); return y < c.y + h - .35 && y + 1.7 > c.y - h; } catch (e) { return false; }
+      try { if (!on() || y == null) return false; if (L.shape) return L.shape.blocks(L.col, x, z, r, y); const c = L.col, d = Math.hypot(x - c.x, z - c.z); if (d > c.Re + (r || .45)) return false; const dd = Math.min(d, c.Re - 1e-3), h = c.Hy * Math.sqrt(1 - (dd / c.Re) ** 2); return y < c.y + h - .35 && y + 1.7 > c.y - h; } catch (e) { return false; }
     };
     Wp.supportAt = mySup; Wp._blocked = myBlk; L.hook = true;
   }
@@ -169,7 +172,7 @@
           if (!ev) {
             L.t += Math.min(.1, Math.max(0, +dt || 0));
             const t = L.t, u = L.met.userData;
-            u.fm.uniforms.t.value = t; u.rock.rotation.y = t * .05;
+            u.fm.uniforms.t.value = t; // v95b : la roche ne tourne plus (elle bougeait sous les pieds)
             u.halo.material.opacity = .7 + Math.sin(t * 3.1) * .1;
             for (const s of u.smoke) { const k = (s.userData.k + t * .05) % 1; s.position.set(Math.sin(k * 9 + s.userData.k * 20) * (4 + k * 18), 8 + k * 80, Math.cos(k * 7) * (3 + k * 10)); const sc = 10 + k * 46; s.scale.set(sc, sc, 1); s.material.opacity = .5 * (1 - k) * Math.min(1, k * 6); }
             L.ring.material.opacity = .35 + Math.sin(t * 2.3) * .12;
