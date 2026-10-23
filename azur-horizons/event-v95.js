@@ -178,12 +178,27 @@
   function frame(ph, t) {
     var en = E.end81; if (!en) return null;
     if (!_c) _c = new root.THREE.Vector3();
+    if (ph === "rk") { if (!en.rocketPose || t >= 33.3) return null; en.rocketPose(t, _c); return { c: _c, top: rocketTop, k: 1, rk: true }; }
     if (ph === "m1") { var s1 = shape(); if (!s1 || !en.meteorPos) return null; en.meteorPos(t, _c); return { c: _c, sh: s1, k: 1 }; }
     if (ph === "rift") { var s2 = shape(); if (!s2 || !W) return null; _c.copy(W); return { c: _c, sh: s2, k: 1 }; }
     if (ph === "m2") { var s3 = shape2(); if (!s3 || !en.met2Pos) return null; en.met2Pos(t, _c); return { c: _c, sh: s3, k: Math.max(.35, rmp(t, 192.6, 194.5)) }; }
     return null;
   }
-  function surf(f, ox, oz) { var h = f.sh.top(ox / f.k, oz / f.k); return h == null ? null : h * f.k; }
+  function surf(f, ox, oz) { if (f.top) return f.top(ox, oz); var h = f.sh.top(ox / f.k, oz / f.k); return h == null ? null : h * f.k; }
+  // v97 — la fusée du lancement (repère de la fusée, elle monte tout droit) : coiffe, épaulement, haut des boosters
+  function rocketTop(x, z) {
+    var d = Math.hypot(x, z); if (d < 1.3) return 27.6; if (d < 2.75) return 25.6;
+    if (Math.hypot(x, z - 3.9) < 1.15 || Math.hypot(x, z + 3.9) < 1.15) return 15.6;
+    return null;
+  }
+  // arrivée dans la faille de la fusée (33,3 s) : la faille nous recrache au-dessus de la colline, en planeur
+  function spit(p, t) {
+    var S = E.end81 && E.end81.S; endRide(p, false); RIDE.spitT = t; if (!S || !S.P) return;
+    var nx = S.P.x + (S.F ? S.F.x * 6 : 0), nz = S.P.z + (S.F ? S.F.z * 6 : 0), ny = H(nx, nz) + 75;
+    p._azCarryX = (+p._azCarryX || 0) + (nx - p.x); p._azCarryZ = (+p._azCarryZ || 0) + (nz - p.z);
+    p.x = nx; p.z = nz; p.y = ny; p._lastX = nx; p._lastZ = nz; p._vy = 0; p._vx = 0; p._vz = 0;
+    p.deployed = true; p.grounded = false; p.jumping = false; p.falling = false; p.gliding = true; p.autoGlider = false; p.airborneFromBus = false; p._eventFloat = false;
+  }
   function isMe(p) { var g = root.AZUR; return !!(g && p && p.id === g.myId); }
 
   /* ---- le monde des failles : construit et animé par event-rift-v97.js (AZRiftWorld97) */
@@ -229,7 +244,13 @@
   function ride(p, dt) {
     if (!isMe(p) || !p.alive || !p.deployed || p.vehicleId) return false;
     var t = VT(); dt = Math.min(.1, Math.max(0, +dt || 0));
-    if (RIDE.phase && (t < 118 || t > 224.5)) { endRide(p, false); return false; }
+    if (RIDE.phase === "rk" ? t > 34 : RIDE.phase && (t < 118 || t > 224.5)) { endRide(p, false); return false; }
+    // v97 : debout sur la fusée du lancement → elle nous emporte jusqu'à la faille
+    if (!RIDE.phase && t < 33 && p.grounded) {
+      var fr = frame("rk", t);
+      if (fr) { var rx = p.x - fr.c.x, rz = p.z - fr.c.z, rs = surf(fr, rx, rz); if (rs != null && Math.abs(p.y - (fr.c.y + rs)) < .8) { enter("rk", p); RIDE.ox = rx; RIDE.oz = rz; RIDE.oy = 0; RIDE.vy = 0; RIDE.hasC = false; } }
+    }
+    if (RIDE.phase === "rk" && t >= 33.1) { spit(p, t); return false; }
     // monter dessus : debout sur la roche pendant la poussée des fusées
     if (!RIDE.phase) {
       if (t < 118 || t >= 152.9 || !p.grounded) return false;
@@ -271,9 +292,10 @@
       RIDE.ox *= .5; RIDE.oz *= .5; s = surf(f, RIDE.ox, RIDE.oz); if (s == null) { RIDE.ox = RIDE.oz = 0; s = surf(f, 0, 0) || 0; }
     }
     if (mvx || mvz) {
-      var nx = RIDE.ox + mvx, nz = RIDE.oz + mvz, ns = surf(f, nx, nz), lim = f.sh.max * f.k * .22;
-      if (ns == null || (RIDE.phase !== "m1" && ns < lim)) {
-        if (RIDE.phase === "m1" && ns == null) { // on saute du bord : on retombe librement
+      var nx = RIDE.ox + mvx, nz = RIDE.oz + mvz, ns = surf(f, nx, nz), lim = f.rk ? -1e9 : f.sh.max * f.k * .22;
+      var canLeave = f.rk ? t < 9.6 : RIDE.phase === "m1"; // la fusée en vol : on ne tombe pas du bord
+      if (ns == null || (!canLeave && ns < lim)) {
+        if (canLeave && ns == null) { // on saute du bord : on retombe librement
           endRide(p, false); p.x += mvx; p.z += mvz; p._lastX = p.x; p._lastZ = p.z; p.grounded = false; p.falling = true; p._vy = RIDE.vy; return false;
         }
       } else if ((ns - s) / Math.max(1e-3, Math.hypot(mvx, mvz)) < 2.2 || RIDE.oy > ns - s) {
@@ -303,6 +325,8 @@
   };
   function flashFor(t) {
     var ph = RIDE.phase;
+    if (ph === "rk" && t > 32.5) return rmp(t, 32.5, 33.1);
+    if (!ph && RIDE.spitT && t >= RIDE.spitT && t < RIDE.spitT + 1.3) return 1 - rmp(t, RIDE.spitT, RIDE.spitT + 1.3);
     if (ph === "m1" && t > 152.4) return rmp(t, 152.4, 153.05);
     if (ph === "rift") return t < 154.2 ? 1 - rmp(t, 153.05, 154.2) : rmp(t, 191.7, 192.6);
     if (ph === "m2" && t < 193.8) return 1 - rmp(t, 192.6, 193.8);
@@ -310,7 +334,7 @@
   }
 
   var prevInit = M.init;
-  M.init = function () { V.pose = null; V.hop = -99; endRide(null, false); W = null; var r = prevInit.apply(this, arguments); install(); return r; };
+  M.init = function () { V.pose = null; V.hop = -99; endRide(null, false); RIDE.spitT = 0; W = null; var r = prevInit.apply(this, arguments); install(); return r; };
   var prevDispose = M.dispose;
   M.dispose = function () { uninstall(); V.pose = null; endRide(null, false); disposeRift(); setFlash(0); return prevDispose ? prevDispose.apply(this, arguments) : undefined; };
   var prevPre = M.preUpdate;

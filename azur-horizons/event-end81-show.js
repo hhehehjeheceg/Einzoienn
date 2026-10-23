@@ -961,6 +961,13 @@
   function rkScale() { return 1; }
   function buildLaunch() {
     O.rocket = L.models ? L.models.launchRocket(X) : bigRocket(); grp.add(O.rocket);
+    // v97 : la coque sombre se fondait dans la nuit dès que la fusée quittait les projecteurs du pas de tir
+    // (on ne voyait plus que la lueur bleue de la coiffe) → légère lumière propre + un éclairage qui la suit
+    O.rocket.traverse(function (o) {
+      var m = o.isMesh && o.material; if (!m || !m.isMeshStandardMaterial || m.userData.az97) return; m.userData.az97 = 1;
+      if (m.emissive && m.emissive.getHex() === 0) { m.emissive.setHex(0x3a465c); m.emissiveIntensity = .55; if (m.map && !m.emissiveMap) m.emissiveMap = m.map; m.needsUpdate = true; }
+    });
+    O.rkFill = new T.PointLight(0xd2e0ff, 0, 75, 1.1); grp.add(O.rkFill);
     O.launchPuffs = []; var R2 = U.rng(31);
     for (var i = 0; i < (low ? 46 : 78); i++) {
       var side = R2() < .5 ? -1 : 1, ang = Math.atan2(F.z, F.x) + side * (Math.PI / 2 + (R2() - .5) * 1.4) + (R2() < .2 ? Math.PI : 0);
@@ -994,6 +1001,12 @@
     var far = ramp(t, 12, 30); rk.userData.glow.scale.setScalar(12 + 4 * far); rk.userData.glow2.scale.setScalar(26 + 10 * far); rk.userData.glow2.material.opacity *= .35;
     rk.scale.setScalar(1); // taille réelle (on peut monter dessus)
     O.rLight.position.copy(rk.position); O.rLight.intensity = rk.visible ? ign * fl * (6 - 4 * far) : 0;
+    // v97 : la fusée reste éclairée pendant toute la montée (lumière côté caméra ; un seul feu de plus pour ne pas alourdir tout l'éclairage)
+    if (O.rkFill) {
+      var cdx = camPos.x - rk.position.x, cdz = camPos.z - rk.position.z, cdl = Math.hypot(cdx, cdz) || 1;
+      O.rkFill.position.set(rk.position.x + cdx / cdl * 24, rk.position.y + 15, rk.position.z + cdz / cdl * 24);
+      O.rkFill.intensity = rk.visible ? 3.2 * (.35 + .65 * ramp(t, 9, 14)) : 0;
+    }
     O.padLight.intensity = win(t, 8.0, 18, 1, 6) * 7 * fl;
     O.beacon.material.opacity = (Math.sin(t * 4) > 0 ? .95 : .25);
     // fumée de lancement (blanche, s'étale au sol)
@@ -1731,7 +1744,7 @@
     if (G) { O.prevTOD = G.timeOfDay; G.timeOfDay = 'night'; }
     hideWorldSky(true); hookRender();
     O.volcHidden = []; try { api.scene().traverse(function (o) { if (o.isPoints && o.visible && o.material && o.material.vertexShader && o.material.vertexShader.indexOf('t*320.') >= 0) { O.volcHidden.push(o); o.visible = false; } }); } catch (e) {}
-    E.end81 = { S: L.S, skyPos: skyPos, O: O, TRAILS: TRAILS, FLASHES: FLASHES, RIFTS: RIFTS, meteorPos: meteorPos, met2Pos: met2Pos, X: X };
+    E.end81 = { S: L.S, skyPos: skyPos, O: O, TRAILS: TRAILS, FLASHES: FLASHES, RIFTS: RIFTS, meteorPos: meteorPos, met2Pos: met2Pos, rocketPose: function (t, out) { return t < 9.6 ? out.copy(BASE).addScaledVector(UP, 1.2) : rocketPos(t, out); }, X: X };
   }
   function update() {
     if (!on) return;
