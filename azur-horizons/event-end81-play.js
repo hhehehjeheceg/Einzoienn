@@ -245,6 +245,7 @@
   var colHook = null;
   // v98 : position de la fusée à l'instant présent (celle du rendu a une image de retard : on passait au travers quand elle accélère)
   var rkNow = new T.Vector3();
+  function rkK() { var t = VT(); return E.end81 && E.end81.rocketScale && t < 33.3 ? E.end81.rocketScale(t) : 1; } // v100 : la fusée grandit en montant
   function rocketC() { var o = E.end81 && E.end81.O, rk = o && o.rocket; if (!rk || !rk.visible) return null; var t = VT(); if (E.end81.rocketPose && t < 33.3) return E.end81.rocketPose(t, rkNow); return rk.position; }
   // v93 : point (x, z) dans le repère de l'île volante (elle tourne lentement sur elle-même)
   function islLocal(x, z) {
@@ -271,10 +272,10 @@
         }
         if (s && s.BASE) { var pad = s.BASE.y + .7; if (Math.hypot(x - s.BASE.x, z - s.BASE.z) < 15.2 && pad <= lim(cy, pad - 9) && pad > best) best = pad; }
         var c = rocketC(); if (!c) return best;
-        var d = Math.hypot(x - c.x, z - c.z), top = c.y + 27.6, sh = c.y + 25.6;
-        if (d < 1.3 && top <= lim(cy, top) && top > best) best = top;
-        else if (d < 2.75 && sh <= lim(cy, sh) && sh > best) best = sh;
-        for (var i = 0; i < 2; i++) { var bt = c.y + 15.6, bd = Math.hypot(x - c.x, z - (c.z + (i ? -3.9 : 3.9))); if (bd < 1.1 && bt <= lim(cy, bt) && bt > best) best = bt; }
+        var kk = rkK(), d = Math.hypot(x - c.x, z - c.z), top = c.y + 27.6 * kk, sh = c.y + 25.6 * kk;
+        if (d < 1.3 * kk && top <= lim(cy, top) && top > best) best = top;
+        else if (d < 2.75 * kk && sh <= lim(cy, sh) && sh > best) best = sh;
+        for (var i = 0; i < 2; i++) { var bt = c.y + 15.6 * kk, bd = Math.hypot(x - c.x, z - (c.z + (i ? -3.9 : 3.9) * kk)); if (bd < 1.1 * kk && bt <= lim(cy, bt) && bt > best) best = bt; }
       } catch (e) {}
       return best;
     };
@@ -290,8 +291,9 @@
         }
         if (s && s.BASE && s.R) { var tx = s.BASE.x - s.R.x * 6.2, tz = s.BASE.z - s.R.z * 6.2; if (y < s.BASE.y + 34 && Math.hypot(x - tx, z - tz) < 2.2 + rr) return true; } // tour de lancement
         var c = rocketC(); if (!c) return false;
-        if (y < c.y + 25.4 && y + 1.7 > c.y + 1.2 && Math.hypot(x - c.x, z - c.z) < 3.0 + rr) return true;              // fuselage
-        for (var i = 0; i < 2; i++) { if (y < c.y + 15.2 && y + 1.7 > c.y + 1.2 && Math.hypot(x - c.x, z - (c.z + (i ? -3.9 : 3.9))) < 1.2 + rr) return true; } // boosters
+        var kk = rkK();
+        if (y < c.y + 25.4 * kk && y + 1.7 > c.y + 1.2 * kk && Math.hypot(x - c.x, z - c.z) < 3.0 * kk + rr) return true;              // fuselage
+        for (var i = 0; i < 2; i++) { if (y < c.y + 15.2 * kk && y + 1.7 > c.y + 1.2 * kk && Math.hypot(x - c.x, z - (c.z + (i ? -3.9 : 3.9) * kk)) < 1.2 * kk + rr) return true; } // boosters
       } catch (e) {}
       return false;
     };

@@ -178,13 +178,13 @@
   function frame(ph, t) {
     var en = E.end81; if (!en) return null;
     if (!_c) _c = new root.THREE.Vector3();
-    if (ph === "rk") { if (!en.rocketPose || t >= 33.3) return null; en.rocketPose(t, _c); return { c: _c, top: rocketTop, k: 1, rk: true }; }
+    if (ph === "rk") { if (!en.rocketPose || t >= 33.3) return null; en.rocketPose(t, _c); return { c: _c, top: rocketTop, k: en.rocketScale ? en.rocketScale(t) : 1, rk: true }; }
     if (ph === "m1") { var s1 = shape(); if (!s1 || !en.meteorPos) return null; en.meteorPos(t, _c); return { c: _c, sh: s1, k: 1 }; }
     if (ph === "rift") { var s2 = shape(); if (!s2 || !W) return null; _c.copy(W); return { c: _c, sh: s2, k: 1 }; }
     if (ph === "m2") { var s3 = shape2(); if (!s3 || !en.met2Pos) return null; en.met2Pos(t, _c); return { c: _c, sh: s3, k: Math.max(.35, rmp(t, 192.6, 194.5)) }; }
     return null;
   }
-  function surf(f, ox, oz) { if (f.top) return f.top(ox, oz); var h = f.sh.top(ox / f.k, oz / f.k); return h == null ? null : h * f.k; }
+  function surf(f, ox, oz) { if (f.top) { var ht = f.top(ox / f.k, oz / f.k); return ht == null ? null : ht * f.k; } var h = f.sh.top(ox / f.k, oz / f.k); return h == null ? null : h * f.k; }
   // v97 — la fusée du lancement (repère de la fusée, elle monte tout droit) : coiffe, épaulement, haut des boosters
   function rocketTop(x, z) {
     var d = Math.hypot(x, z); if (d < 1.3) return 27.6; if (d < 2.75) return 25.6;
