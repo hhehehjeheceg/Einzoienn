@@ -957,11 +957,11 @@
   /* v100 : la fusée monte très haut et accélère sans arrêt (16 m/s à 12 s → ~114 m/s à 33 s) ; les instants calés
    * sur la musique ne bougent pas (allumage 8,3 s, décollage 10 s, faille 33,3 s). Elle entre dans la faille vers
    * 1 400 m, et l'éclair géant de 38,6 s part juste au-dessus d'elle. */
-  function rkAlt(t) { var u = t - 10; return u <= 0 ? 0 : u < 2 ? 4 * u * u : u < 23.3 ? 16 + 16 * (u - 2) + 2.3 * (u - 2) * (u - 2) : 1400.3 + 114 * (u - 23.3) + 10.5 * (u - 23.3) * (u - 23.3); }
+  function rkAlt(t) { var u = t - 10; return u <= 0 ? 0 : u < 2 ? 4 * u * u : u < 23.3 ? 16 + 16 * (u - 2) + 4.5 * (u - 2) * (u - 2) : 2398.6 + 207.7 * (u - 23.3) + 10.6 * (u - 23.3) * (u - 23.3); } // v102 : ≈ 2 400 m à la faille, ≈ 3 800 m à l'explosion
   // v101 : après l'éclair de sa faille (33,3 s) elle ne disparaît plus : elle le traverse et continue d'accélérer, bien visible,
   // jusqu'à l'explosion de foudre de 38,6 s (≈ 2 300 m). Avant, un simple point bleu la remplaçait à ce moment-là.
   // v100 : elle grandit doucement après le décollage (×2,3 ≈ 64 m) pour se lire de loin au bout de sa traînée
-  function rkGrow(t) { return 1 + 1.3 * U.sm(ramp(t, 10.5, 17)) + 1.9 * U.sm(ramp(t, 33.3, 38.6)); } // v101 : ×4,2 à l'explosion (on la voit de loin)
+  function rkGrow(t) { return 1 + 1.8 * U.sm(ramp(t, 10.5, 20)) + 3.2 * U.sm(ramp(t, 25, 38.6)); } // v102 : ×6 à l'explosion (on la voit de loin)
   // agrandissement des effets de la faille d'entrée : elle est plus loin de la colline qu'avant (265 m de haut)
   function rkS() { var a = tmp3.copy(BASE).addScaledVector(UP, 265.7).distanceTo(P), b = rocketPos(33.3, tmp3).distanceTo(P); return Math.max(1, b / Math.max(1, a)); }
   function rocketPos(t, out) {
@@ -980,7 +980,8 @@
     var shellMat = new T.MeshBasicMaterial({ color: 0xe6ecf5, transparent: true, opacity: .18, blending: T.AdditiveBlending, depthWrite: false, side: T.BackSide, fog: false }); shellMat.toneMapped = false;
     rkMeshes.forEach(function (o) {
       o.frustumCulled = false;
-      var m = o.material; if (!m || !m.isMeshStandardMaterial || m.userData.az97) return; m.userData.az97 = 1;
+      var m = o.material; if (m && 'fog' in m && m.fog) { m.fog = false; m.needsUpdate = true; } // v102 : à 2-4 km le brouillard l'effaçait
+      if (!m || !m.isMeshStandardMaterial || m.userData.az97) return; m.userData.az97 = 1;
       if (m.emissive && m.emissive.getHex() === 0) { m.emissive.setHex(0x6a7891); m.emissiveIntensity = .9; if (m.map && !m.emissiveMap) m.emissiveMap = m.map; m.needsUpdate = true; }
       var gt = o.geometry && o.geometry.type, big = (gt === 'LatheGeometry' || gt === 'CylinderGeometry') && o.geometry.boundingSphere !== undefined;
       if (gt === 'LatheGeometry' || gt === 'CylinderGeometry') { o.geometry.computeBoundingSphere(); big = o.geometry.boundingSphere.radius > 2.5; }

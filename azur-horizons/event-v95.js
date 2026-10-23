@@ -193,12 +193,12 @@
   }
   // explosion de la fusée (38,6 s) : on est renvoyé au-dessus de la colline, en planeur
   function spit(p, t) {
-    var S = E.end81 && E.end81.S; endRide(p, false); RIDE.spitT = t; if (!S || !S.P) return;
-    var nx = S.P.x + (S.F ? S.F.x * 6 : 0), nz = S.P.z + (S.F ? S.F.z * 6 : 0), ny = H(nx, nz) + 75;
-    p._azCarryX = (+p._azCarryX || 0) + (nx - p.x); p._azCarryZ = (+p._azCarryZ || 0) + (nz - p.z);
-    p.x = nx; p.z = nz; p.y = ny; p._lastX = nx; p._lastZ = nz; p._vy = 0; p._vx = 0; p._vz = 0;
-    p.deployed = true; p.grounded = false; p.jumping = false; p.falling = false; p.gliding = true; p.autoGlider = false; p.airborneFromBus = false; p._eventFloat = false;
+    // v102 : à l'explosion on lâche la fusée et on part en chute libre depuis là où l'on est (plus de téléportation)
+    endRide(p, false); RIDE.spitT = 0;
+    p.deployed = true; p.grounded = false; p.jumping = false; p.gliding = false; p.autoGlider = false; p.swimming = false; p._eventFloat = false;
+    p.falling = true; p.airborneFromBus = true; p._vy = 6; p._lastX = p.x; p._lastZ = p.z;
   }
+
   function isMe(p) { var g = root.AZUR; return !!(g && p && p.id === g.myId); }
 
   /* ---- le monde des failles : construit et animé par event-rift-v97.js (AZRiftWorld97) */
@@ -326,8 +326,7 @@
   };
   function flashFor(t) {
     var ph = RIDE.phase;
-    if (ph === "rk" && t > 37.8) return rmp(t, 37.8, 38.4);
-    if (!ph && RIDE.spitT && t >= RIDE.spitT && t < RIDE.spitT + 1.3) return 1 - rmp(t, RIDE.spitT, RIDE.spitT + 1.3);
+        if (!ph && RIDE.spitT && t >= RIDE.spitT && t < RIDE.spitT + 1.3) return 1 - rmp(t, RIDE.spitT, RIDE.spitT + 1.3);
     if (ph === "m1" && t > 152.4) return rmp(t, 152.4, 153.05);
     if (ph === "rift") return t < 154.2 ? 1 - rmp(t, 153.05, 154.2) : rmp(t, 191.7, 192.6);
     if (ph === "m2" && t < 193.8) return 1 - rmp(t, 192.6, 193.8);

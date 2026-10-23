@@ -1023,6 +1023,11 @@
         const camMode = driven ? "drive" : opts.aim ? "aim" : "foot";
         const snap = !this._camMode || this._camMode === "bus";
         this._camMode = camMode;
+        // v102 : quand le joueur file très vite (porté par une fusée, une météorite…), la caméra suit son déplacement
+        // d'un bloc avant l'amorti — sinon elle traînait loin derrière et se retrouvait sous lui (vue bizarre)
+        if (!this._camPrevT) { this._camPrevT = new T.Vector3().copy(target); this._camMv = new T.Vector3(); }
+        else if (!snap && dt > 0) { this._camMv.copy(target).sub(this._camPrevT); if (this._camMv.length() / dt > 20) this.camera.position.add(this._camMv); }
+        this._camPrevT.copy(target);
         if (snap) this.camera.position.copy(desired);
         else this.camera.position.lerp(desired, 1 - Math.exp(-dt * 16));
         // Jamais au-delà du boom validé par le raycast, même après amorti.
