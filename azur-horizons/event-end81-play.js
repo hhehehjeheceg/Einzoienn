@@ -163,7 +163,7 @@
       floatTo(p, target, t < 189 ? 240 : 60, 40); setMode(t < 189 ? 'zeroshock' : 'float', t); st.float = ramp(t, 183.6, 185);
       var dx = s.ZP.x - p.x, dz = s.ZP.z - p.z, d = Math.hypot(dx, dz), want = 700; // v106 : la bulle reste devant, sous le joueur à ≈ 35° (vidéo 3:33-3:43)
       if (d > want) { var pull = Math.min(6, (d - want) * .05) * dt; p.x += dx / d * pull; p.z += dz / d * pull; }
-      else if (d < 550 && d > 1) { var push = Math.min(t < 189 ? 25 : 4, (550 - d) * .2) * dt; if (E.__snap) push = 550 - d; p.x -= dx / d * push; p.z -= dz / d * push; } // l'onde l'écarte : la bulle devant lui, pas dessous
+      else if (d < 550 && d > 1 && t > 184.6) { var push = Math.min(t < 189 ? 25 : 4, (550 - d) * .2) * dt; if (E.__snap) push = 550 - d; p.x -= dx / d * push; p.z -= dz / d * push; } // l'onde l'écarte : la bulle devant lui, pas dessous
       return;
     }
     if (t >= 224 && t < 253.6) {
@@ -435,6 +435,7 @@
     var zf = lerp(.45, .55, ramp(t, 223, 226)) + .2 * ramp(t, 236, 246) + 2.6 * ramp(t, 247, 251.5); // v105b : dans l'espace la caméra reste près du joueur (vidéo 3:46-4:05)
     E.cameraZoom = t < 183.5 ? zg : lerp(zg, zf, ramp(t, 183.5, 185.2));
     // caméra par-dessus l'épaule comme Fortnite (personnage à gauche de l'écran, ~0,9 m de décalage)
+    E.cameraPivotY = t >= 183.5 && t < 254.5 && st.mode !== 'none' && st.mode !== 'gone' ? lerp(2.12, 1.45, ramp(t, 183.5, 185.5)) : undefined;
     E.cameraShoulder = t < 183.5 ? 1.8 : t < 224 ? 1.8 * (1 - ramp(t, 183.5, 185)) : 0; // v106 : en apesanteur le joueur est au centre de l'image (vidéo 3:04-4:13)
     publish(p, t);
   }
@@ -460,7 +461,7 @@
     var b = document.body; b.classList.remove('azend-cine'); b.classList.remove('azend-black');
     if (hintEl && hintEl.parentNode) hintEl.parentNode.removeChild(hintEl); hintEl = null;
     if (endEl && endEl.parentNode) endEl.parentNode.removeChild(endEl); endEl = null;
-    E.cameraZoom = 1; E.cameraShoulder = 1;
+    E.cameraZoom = 1; E.cameraShoulder = 1; E.cameraPivotY = undefined;
     var v = api && api.view(); if (v && v.actorRoot) v.actorRoot.visible = true;
     var w = api && api.world(); if (w && busOwn && w._azBusOverride) delete w._azBusOverride;
     api = null;

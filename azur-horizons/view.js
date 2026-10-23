@@ -986,7 +986,7 @@
         // avatar is hidden in the actor pass, so it can never appear on the roof.
         const cameraYaw = driven ? driven.yaw : yaw;
         // v21 wiring : vecteurs scratch — zéro allocation par frame ici.
-        const target = this._camT.set(p.x, p.y + (driven ? 1.15 : p.crouching ? 1.55 : 2.12), p.z),
+        const target = this._camT.set(p.x, p.y + (driven ? 1.15 : p.crouching ? 1.55 : (window.AZEvent?.cameraPivotY ?? 2.12)), p.z), // v106 : pivot plus bas en apesanteur (le joueur au centre de l'image, vidéo)
           back = this._camB.set(
             Math.sin(cameraYaw) * Math.cos(pitch * (driven ? .45 : 1)),
             -Math.sin(pitch * (driven ? .45 : 1)),

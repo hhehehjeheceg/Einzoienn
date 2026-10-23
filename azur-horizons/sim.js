@@ -956,6 +956,8 @@ World.prototype._floraSpot=function(x,z,pad){
  if(coastDistance(x,z)>MAP.shoreStart-16||isWater(x,z)||heightAt(x,z)<SEA+.6)return false;
  if(routeDist(x,z)<(pad||7))return false;if(townPad(x,z,10))return false;
  if(LAKE&&Math.hypot(x-LAKE.x,z-LAKE.z)<LAKE.r*1.45)return false;
+ /* v106 : le point de vue de « La Fin » (colline) reste dégagé — un rocher cachait le ciel */
+ if(MAPD&&Math.hypot(x-SPOT_S8.px,z-SPOT_S8.pz)<16)return false;
  return true;
 };
 World.prototype._addFlora=function(k,x,z,s,yaw){
