@@ -1008,6 +1008,7 @@
       if (big) { var sh = new T.Mesh(o.geometry, shellMat); sh.scale.set(1.07, 1.004, 1.07); sh.frustumCulled = false; sh.renderOrder = 3; o.add(sh); }
     });
     O.rkFill = new T.PointLight(0xd2e0ff, 0, 75, 1.1); grp.add(O.rkFill);
+    O.plFill = new T.PointLight(0x8fc4ff, 0, 14, 1.2); grp.add(O.plFill); // v106 : lueur bleue de l'étoile sur le joueur (vidéo 2:42-2:56)
     O.launchPuffs = []; var R2 = U.rng(31);
     for (var i = 0; i < (low ? 46 : 78); i++) {
       var side = R2() < .5 ? -1 : 1, ang = Math.atan2(F.z, F.x) + side * (Math.PI / 2 + (R2() - .5) * 1.4) + (R2() < .2 ? Math.PI : 0);
@@ -1100,7 +1101,7 @@
       pa.needsUpdate = true; O.sock.rotation.y = .35 * Math.sin(t * .21) + .1 * Math.sin(t * .9);
     }
     // éteint pendant le décollage (sinon il fait une 2e traînée), il revient vers 82-88 s (vidéo A : visible à 93, 102, 111, 162 s)
-    var bo = live * (1 - win(t, 9.8, 88, 1.5, 6)) * (1 - win(t, 157.5, 177.6, 1.2, 1)) * (.84 + .1 * Math.sin(t * 2.1) + .06 * Math.sin(t * 5.3));
+    var bo = live * (1 - win(t, 9.8, 88, 1.5, 6)) * (1 - win(t, 153, 177.6, 1, 1)) * (.84 + .1 * Math.sin(t * 2.1) + .06 * Math.sin(t * 5.3));
     O.baseBeam.visible = O.baseBeamCore.visible = bo > .01;
     O.baseBeam.material.opacity = .16 * bo; O.baseBeamCore.material.opacity = .3 * bo; L.setOp(O.baseBeamGlow, .2 * bo);
     // projecteur : balayage lent jusqu'au décollage
@@ -1685,6 +1686,7 @@
       var p = api.player(); if (p) { v.sun.position.set(p.x, p.y, p.z).addScaledVector(dirYP(LAY.moon[0], LAY.moon[1], tmp), 160); v.sun.target.position.set(p.x, p.y, p.z); v.sun.target.updateMatrixWorld(); }
     }
     if (v.skyFill) { v.skyFill.color.set(0x5f9cff); v.skyFill.intensity = .25 * (1 - space); }
+    if (O.plFill) { var pq = api.player(); if (pq) { O.plFill.position.set(pq.x + (cam.position.x - pq.x) * .6, pq.y + 3.2, pq.z + (cam.position.z - pq.z) * .6); } O.plFill.intensity = 3.2 * win(t, 161.5, 183.5, 1.5, 1); }
     O.hemi.intensity = 0;
     var sc = v.scene; if (sc.fog) { sc.fog.color.setRGB(lerp(lerp(.12, .02, dark), .01, space), lerp(lerp(.33, .06, dark), .015, space), lerp(lerp(.50, .12, dark), .04, space)); sc.fog.density = lerp(.00042, .00028, space); }
     v.renderer.toneMappingExposure = lerp(lerp(1.3, .95, dark), .92, space) + .18 * bright;

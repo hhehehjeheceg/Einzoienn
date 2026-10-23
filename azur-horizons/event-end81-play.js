@@ -244,6 +244,7 @@
     else if (((t >= 66 && t < 74.5) || (t >= 91 && t < 119)) && E.meteorPos && E.meteorVisible) { tgt = E.meteorPos; pk = .5; } // v106 : la météorite enflammée dans l'image (vidéo 1:06-1:14, 1:31-1:58)
     else if (t >= 83.2 && t < 91 && O2 && O2.rbp) { tgt = O2.rbp; pk = .4; } // v106 : le grand anneau arc-en-ciel (vidéo 1:24-1:30)
     else if (t >= 119 && t < 153.5 && E.meteorPos && E.meteorVisible) { tgt = E.meteorPos; pk = .9; }
+    else if (t >= 153.5 && t < 162 && E.rc) { tgt = E.rc; pk = .25; } // v106 : on regarde l'horizon où la météorite a disparu (vidéo 2:35-2:41)
     else if (t >= 162 && t < 176.8) { tgt = s.STAR; pk = 1; } // v106 : on lève les yeux quand l'étoile s'allume (vidéo 2:42), pas avant
     else if (t >= 176.8 && t < 183.5) tgt = s.ZP;
     else if (t >= 183.5 && t < 188.6) tgt = s.ZP;
