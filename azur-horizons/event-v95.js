@@ -303,8 +303,9 @@
       // v112 : dans le monde des failles on marche toujours sur la roche (le relief bosselé de la forme ne bloque plus
       // jamais un pas : c'était le « mur invisible ») et l'on se lâche au bord — plus de roche, ou une marche qui descend
       if (RIDE.phase === "rift" && f.sh) {
-        var r1 = Math.hypot(nx, nz), edge = r1 > f.sh.max * f.k * .3;
-        if (ns == null || (edge && s - ns > 1.2)) { p.x = f.c.x + nx; p.z = f.c.z + nz; p.y = f.c.y + s + RIDE.oy + .3; enterFree(p, t); RIDE.fvx = mvx / Math.max(dt, 1e-3) * .6; RIDE.fvz = mvz / Math.max(dt, 1e-3) * .6; return true; }
+        var r1 = Math.hypot(nx, nz), edge = r1 > f.sh.max * f.k * .3, stepL = Math.max(1e-3, Math.hypot(mvx, mvz));
+        // v113 : au bord, une pente qui plonge (plus de 40°) nous lâche — avant on restait collé à la paroi et l'on descendait le long du « mur »
+        if (ns == null || (edge && ((s - ns) / stepL > .85 || s - ns > 1.2)) || (edge && s < f.sh.max * f.k * .15)) { p.x = f.c.x + nx; p.z = f.c.z + nz; p.y = f.c.y + s + RIDE.oy + .3; enterFree(p, t); RIDE.fvx = mvx / Math.max(dt, 1e-3) * .6; RIDE.fvz = mvz / Math.max(dt, 1e-3) * .6; return true; }
         RIDE.ox = nx; RIDE.oz = nz; if (RIDE.oy > 0 || RIDE.vy > 0) RIDE.oy = Math.max(0, RIDE.oy - (ns - s)); s = ns;
       }
       if (RIDE.phase === "rift") { /* déjà fait au-dessus */ }
@@ -436,12 +437,17 @@
     p.deployed = true; p.grounded = false; p.jumping = false; p.gliding = false; p.swimming = false; p._eventFloat = false;
     p.falling = true; p.airborneFromBus = true; p.autoGlider = true; p._vy = -2;
   }
-  // outil de test (comparaisons et vérifications automatiques) : met le joueur debout au sommet de la météorite
-  V6.testBoard = function () { var g = root.AZUR, p = g && g.world && g.world.players.find(function (q) { return q.id === g.myId; }); if (!p) return false; enter("m1", p); RIDE.ox = 0; RIDE.oz = 0; RIDE.oy = 0; RIDE.vy = 0; RIDE.hasC = false; return true; };
-  // outil de vérification automatique : met le joueur debout au sommet de la météorite
-  V6.testBoard = function () { var p = me(); if (!p) return false; enter("m1", p); RIDE.ox = 0; RIDE.oz = 0; RIDE.oy = 0; RIDE.vy = 0; RIDE.hasC = false; return true; };
   // outils de vérification automatique : poser le joueur au sommet de la météorite, lire l'état du voyage
   V6.testBoard = function () { var p = me(); if (!p) return false; enter("m1", p); RIDE.ox = 0; RIDE.oz = 0; RIDE.oy = 0; RIDE.vy = 0; RIDE.hasC = false; return true; };
+  // place le joueur au centre d'un portail ouvert (« portal »), sur le portail de retour (« home »), ou sous les îles (« drop »)
+  V6.testGo = function (what) {
+    var p = me(); if (!p) return false;
+    if (what === "portal" && RIDE.phase === "riftfree" && RW && RW.odd) { var it = RW.odd.items.filter(function (i) { return i.on && i.portal && (i.a || 0) > .55; })[0]; if (!it) return false; var n = _n.set(0, 0, 1).applyQuaternion(it.obj.quaternion); RIDE.noPortal = 0; p.x = W.x + it.obj.position.x + n.x * 4; p.y = W.y + it.obj.position.y - 1 + n.y * 4; p.z = W.z + it.obj.position.z + n.z * 4; RIDE.fvx = -n.x * 5; RIDE.fvz = -n.z * 5; RIDE.vy = -n.y * 5; RIDE.fg = false; return it.portal.uniforms.kind.value; }
+    if (what === "home" && RIDE.phase === "dim" && RIDE.dim && RIDE.dim.portalW) { var q = RIDE.dim.portalW; p.x = q.x; p.y = q.y - 1; p.z = q.z; return true; }
+    if (what === "drop" && RIDE.phase === "riftfree" && RW) { p.y = W.y + (RW.exitRel != null ? RW.exitRel : -560) - 2; RIDE.fg = false; return true; }
+    return false;
+  };
+  V6.dbgSrc = function () { var it = RIDE.dimSrc; return it ? { on: !!it.on, hold: !!it.hold, life: it.life, age: it.t0 != null ? VT() - it.t0 : null, a: it.a } : null; };
   V6.dbg = function () { var f = RIDE.phase ? frame(RIDE.phase, VT()) : null; return { phase: RIDE.phase, ox: +RIDE.ox.toFixed(1), oz: +RIDE.oz.toFixed(1), oy: +RIDE.oy.toFixed(2), max: f && f.sh ? +f.sh.max.toFixed(1) : null, s: f ? surf(f, RIDE.ox, RIDE.oz) : null, fg: !!RIDE.fg, odd: RW && RW.odd ? RW.odd.items.filter(function (i) { return i.on; }).map(function (i) { return i.kind; }) : null, dim: RIDE.dim ? RIDE.dim.name : null }; };
   var prevRider = E.stepMeteorRider;
   E.stepMeteorRider = function (p, dt) {
