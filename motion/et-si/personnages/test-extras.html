@@ -1,0 +1,12 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#FBF4E8}</style></head><body>
+<svg id="s" width="1920" height="1080"></svg><script src="rig.js"></script><script src="extras.js"></script><script>
+const E = EtSi; let s='';
+s += E.passant({x:150,y:1000,scale:1.3,coat:'#7FB7BE',hairStyle:'chignon',expr:'panique',skin:'#F4CDB0',hair:'#8A4B2A'});
+s += E.passant({x:420,y:1000,scale:1.3,coat:'#9AA0B5',hairStyle:'chauve',expr:'blase',skin:'#C98E62'});
+s += E.passant({x:690,y:1000,scale:1.3,coat:'#F28CB1',hairStyle:'long',expr:'amour',skin:'#8D5A3B',hair:'#2A1B14'});
+s += E.passant({x:960,y:1000,scale:1.3,coat:'#B5D99C',hairStyle:'casquette',expr:'content',hair:'#3D6FB6'});
+s += E.passant({x:1230,y:1000,scale:1.3,coat:'#F4D06F',hairStyle:'afro',expr:'rire',skin:'#5E3A26',hair:'#1E1410',lift:[20,0],bob:-6});
+s += E.chat({x:1550,y:1000,scale:1.3,tail:1});
+s += E.leo({x:1800,y:1000,scale:0.7,expr:'panique',arms:{l:{at:[-118,-498],hand:'open',bend:-1},r:{at:[118,-498],hand:'open',bend:-1}}});
+document.getElementById('s').innerHTML=s;
+</script></body></html>

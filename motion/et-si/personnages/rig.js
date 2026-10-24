@@ -1,4 +1,4 @@
-// Rig 2D de la série « Et si… » — Léo Pasdbol (le héros) et Max Lerelou (l'ennemi).
+// Rig 2D de la série « Et si… » — Léo (le héros) et Max (l'ennemi).
 // Chaque personnage est une fonction qui renvoie un groupe SVG (chaîne) à partir
 // d'options : position, échelle, expression, bouche, regard, clignement, bras.
 // Origine locale = entre les pieds, au sol. Unités = px à l'échelle 1.
@@ -48,6 +48,28 @@
     const E = [Sx + d1[0] * L1, Sy + d1[1] * L1];
     const W = [E[0] + d2[0] * L2, E[1] + d2[1] * L2];
     return { E, W, rot: -side * (a1 + a2) };
+  }
+
+  // Cinématique inverse : angles [a1, a2] pour que le poignet atteigne (Tx, Ty).
+  function ik(Sx, Sy, side, L1, L2, Tx, Ty, bend = 1) {
+    const dx = Tx - Sx, dy = Ty - Sy;
+    const d = Math.max(Math.abs(L1 - L2) + 1, Math.min(L1 + L2 - 0.5, Math.hypot(dx, dy)));
+    const aT = Math.atan2(side * dx, dy) * 180 / Math.PI;
+    const al = Math.acos((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d)) * 180 / Math.PI;
+    const a1 = aT + bend * al;
+    const Ex = Sx + side * Math.sin(rad(a1)) * L1, Ey = Sy + Math.cos(rad(a1)) * L1;
+    const af = Math.atan2(side * (Tx - Ex), Ty - Ey) * 180 / Math.PI;
+    return [a1, af - a1];
+  }
+  // Bras décrits soit par angles [a1, a2, main], soit par cible { at: [x, y], hand, bend }.
+  function armSpec(a, sd, Sx, Sy, L1, L2) {
+    if (a && !Array.isArray(a) && a.at) { const [a1, a2] = ik(Sx, Sy, sd, L1, L2, a.at[0], a.at[1], a.bend == null ? 1 : a.bend); return [a1, a2, a.hand || 'relax']; }
+    return a;
+  }
+  // Transformation commune de pose : position, échelle, miroir, inclinaison, écrasement.
+  function poseTf(o) {
+    const sc = o.scale || 1, sq = o.squash || 0;
+    return `translate(${r1(o.x || 0)} ${r1(o.y || 0)}) scale(${sc * (o.flip ? -1 : 1)} ${sc}) rotate(${r1(o.lean || 0)}) scale(${1 + sq * 0.6} ${1 - sq})`;
   }
 
   // Main en repère local : poignet à l'origine, la main pointe vers +y.
@@ -193,7 +215,7 @@
   }
 
   // =====================================================================
-  //  LÉO PASDBOL — le héros. Formes rondes, sweat jaune, épi sur la tête.
+  //  LÉO — le héros. Formes rondes, sweat jaune, épi sur la tête.
   // =====================================================================
   const LEO_PAL = {
     skin: '#E9B48C', skinSh: '#CF946C', hair: '#3A2621', hairHi: '#5B3B31',
@@ -286,22 +308,24 @@
   function leo(o = {}) {
     const pal = Object.assign({}, LEO_PAL);
     if (o.skin && SKIN_TONES[o.skin]) [pal.skin, pal.skinSh] = SKIN_TONES[o.skin];
-    const x = o.x || 0, y = o.y || 0, sc = o.scale || 1;
-    let s = `<g transform="translate(${x} ${y}) scale(${sc * (o.flip ? -1 : 1)} ${sc})">`;
-    if (o.headOnly) return s + `<g transform="translate(0 505)">${leoHead(o, pal)}</g></g>`;
+    let s = `<g transform="${poseTf(o)}">`;
+    if (o.headOnly) return s + `<g transform="translate(0 505) rotate(${o.tilt || 0} 0 -415)">${leoHead(o, pal)}</g></g>`;
     const A = Object.assign({ l: [7, 6, 'relax'], r: [7, 6, 'relax'] }, o.arms || {});
+    const lift = o.lift || [0, 0], b = o.bob || 0;
     // jambes
-    s += union([{ t: 'cap', x1: -30, y1: -210, x2: -33, y2: -36, w: 54 }], pal.jean);
-    s += union([{ t: 'cap', x1: 30, y1: -210, x2: 33, y2: -36, w: 54 }], pal.jean);
-    s += line('M-6 -150V-60', pal.jeanSh, 4) + line('M6 -150V-60', pal.jeanSh, 4);
+    s += union([{ t: 'cap', x1: -30, y1: -210 + b, x2: -33, y2: -36 - lift[0], w: 54 }], pal.jean);
+    s += union([{ t: 'cap', x1: 30, y1: -210 + b, x2: 33, y2: -36 - lift[1], w: 54 }], pal.jean);
     // ourlets retroussés
-    s += path('M-62 -64H-4V-44H-62Z', '#5470A3', 4) + path('M4 -64H62V-44H4Z', '#5470A3', 4);
+    s += path(`M-62 ${-64 - lift[0]}H-4V${-44 - lift[0]}H-62Z`, '#5470A3', 4) + path(`M4 ${-64 - lift[1]}H62V${-44 - lift[1]}H4Z`, '#5470A3', 4);
     // baskets
     for (const sd of [-1, 1]) {
+      s += `<g transform="translate(0 ${-lift[sd < 0 ? 0 : 1]})">`;
       s += path(`M${sd * 6} -42C${sd * 6} -48 ${sd * 18} -50 ${sd * 34} -50C${sd * 58} -50 ${sd * 74} -36 ${sd * 76} -14C${sd * 76} -4 ${sd * 70} 0 ${sd * 60} 0H${sd * 10}C${sd * 4} 0 ${sd * 2} -6 ${sd * 4} -14Z`, pal.shoe);
       s += path(`M${sd * 4} -12H${sd * 76}V-4C${sd * 76} -1 ${sd * 72} 0 ${sd * 66} 0H${sd * 10}C${sd * 6} 0 ${sd * 4} -3 ${sd * 4} -6Z`, pal.sole, 3.5);
       s += line(`M${sd * 24} -30Q${sd * 44} -36 ${sd * 60} -24`, pal.shoeAcc, 6);
+      s += '</g>';
     }
+    s += `<g transform="translate(0 ${b})">`;
     // capuche (derrière la tête)
     s += path('M-92 -392C-112 -430 -96 -462 -58 -462H58C96 -462 112 -430 92 -392Z', pal.hoodIn);
     // torse du sweat
@@ -321,7 +345,9 @@
     s += line('M-20 -396Q-24 -364 -18 -336', pal.string, 5) + line('M20 -396Q24 -364 18 -336', pal.string, 5);
     s += path('M-23 -342h10v18h-10z', '#E5483D', 3) + path('M13 -342h10v18h-10z', '#E5483D', 3);
     // bras
-    for (const [sd, a] of [[-1, A.l], [1, A.r]]) {
+    for (let [sd, a] of [[-1, A.l], [1, A.r]]) {
+      a = armSpec(a, sd, sd * 88, -384 + b, 96, 88);
+      if (a.length > 3 && a[3] === 'back') continue;
       const L = limb(sd * 88, -384, sd, 96, 88, a[0], a[1]);
       const d = `M${sd * 88} -384L${r1(L.E[0])} ${r1(L.E[1])}L${r1(L.W[0])} ${r1(L.W[1])}`;
       s += union([{ t: 'poly', d, w: 42 }], pal.hood);
@@ -330,12 +356,13 @@
       s += `<path d="M${r1(back[0])} ${r1(back[1])}L${r1(L.W[0])} ${r1(L.W[1])}" stroke="${pal.hoodSh}" stroke-width="40" stroke-linecap="butt"/>`;
       s += `<g transform="translate(${r1(L.W[0])} ${r1(L.W[1])}) rotate(${r1(L.rot)})">${hand(a[2], sd, pal.skin, L.rot)}</g>`;
     }
-    s += leoHead(o, pal);
-    return s + '</g>';
+    s += `<g transform="rotate(${o.tilt || 0} 0 -415)">${leoHead(o, pal)}</g>`;
+    if (o.front) s += o.front; // élément tenu devant (accessoire)
+    return s + '</g></g>';
   }
 
   // =====================================================================
-  //  MAX LERELOU — l'ennemi. Formes anguleuses, blouson rouge, mèche blonde.
+  //  MAX — l'ennemi. Formes anguleuses, blouson rouge, mèche blonde.
   // =====================================================================
   const MAX_PAL = {
     skin: '#F2C9AC', skinSh: '#DBA584', hair: '#EBC35A', hairSh: '#C99A34', under: '#9C7A3A',
@@ -351,6 +378,9 @@
     vexe:     { brow: { in: 10, out: 2 }, eye: { lidTop: 0.5, lidTilt: 8, look: [0.7, 0] }, mouth: 'frown' },
     hautain:  { brow: { in: 2, out: -10, arch: 4 }, eye: { lidTop: 0.55, look: [0, -0.4] }, mouth: 'smirk' },
     peur:     { brow: { in: -16, out: -4 }, eye: { pupil: 0.5 }, mouth: 'wavy', fx: ['sweat'] },
+    triste:   { brow: { in: -10, out: 6, arch: 2 }, eye: { lidTop: 0.32, lidTilt: -10, look: [0, 0.6] }, mouth: 'sad' },
+    touche:   { brow: { in: -8, out: 4, arch: 2 }, eye: { lidTop: 0.2, lidTilt: -6, look: [-0.4, 0.3] }, mouth: 'flat' },
+    choque:   { brow: { in: -14, out: -10 }, eye: { pupil: 0.5 }, mouth: 'o' },
   };
 
   function maxHead(o, pal) {
@@ -390,21 +420,24 @@
 
   function max(o = {}) {
     const pal = Object.assign({}, MAX_PAL);
-    const x = o.x || 0, y = o.y || 0, sc = o.scale || 1;
-    let s = `<g transform="translate(${x} ${y}) scale(${sc * (o.flip ? -1 : 1)} ${sc})">`;
-    if (o.headOnly) return s + `<g transform="translate(0 616)">${maxHead(o, pal)}</g></g>`;
+    let s = `<g transform="${poseTf(o)}">`;
+    if (o.headOnly) return s + `<g transform="translate(0 616) rotate(${o.tilt || 0} 0 -515)">${maxHead(o, pal)}</g></g>`;
     const A = Object.assign({ l: [6, 4, 'relax'], r: [14, -140, 'phone'] }, o.arms || {});
+    const lift = o.lift || [0, 0], b = o.bob || 0;
     // jambes (jogging)
-    s += union([{ t: 'cap', x1: -28, y1: -280, x2: -34, y2: -44, w: 52 }], pal.jog);
-    s += union([{ t: 'cap', x1: 28, y1: -280, x2: 34, y2: -44, w: 52 }], pal.jog);
-    s += line('M-46 -250V-70', pal.sole, 5) + line('M46 -250V-70', pal.sole, 5); // bandes latérales
-    s += path('M-58 -66H-10V-46H-58Z', pal.jogSh, 4) + path('M10 -66H58V-46H10Z', pal.jogSh, 4);
+    s += union([{ t: 'cap', x1: -28, y1: -280 + b, x2: -34, y2: -44 - lift[0], w: 52 }], pal.jog);
+    s += union([{ t: 'cap', x1: 28, y1: -280 + b, x2: 34, y2: -44 - lift[1], w: 52 }], pal.jog);
+    s += line(`M-46 ${-250 + b}L-47 ${-70 - lift[0]}`, pal.sole, 5) + line(`M46 ${-250 + b}L47 ${-70 - lift[1]}`, pal.sole, 5); // bandes latérales
+    s += path(`M-58 ${-66 - lift[0]}H-10V${-46 - lift[0]}H-58Z`, pal.jogSh, 4) + path(`M10 ${-66 - lift[1]}H58V${-46 - lift[1]}H10Z`, pal.jogSh, 4);
     // baskets montantes noires
     for (const sd of [-1, 1]) {
+      s += `<g transform="translate(0 ${-lift[sd < 0 ? 0 : 1]})">`;
       s += path(`M${sd * 8} -52V-60H${sd * 54}C${sd * 58} -40 ${sd * 72} -34 ${sd * 80} -20C${sd * 84} -10 ${sd * 80} 0 ${sd * 68} 0H${sd * 10}C${sd * 4} 0 ${sd * 4} -6 ${sd * 6} -14Z`, pal.shoe);
       s += path(`M${sd * 5} -12H${sd * 82}V-5C${sd * 82} -2 ${sd * 78} 0 ${sd * 72} 0H${sd * 10}C${sd * 6} 0 ${sd * 5} -3 ${sd * 5} -6Z`, pal.sole, 3.5);
       s += line(`M${sd * 22} -44L${sd * 46} -30`, pal.sole, 4) + line(`M${sd * 20} -32L${sd * 42} -20`, pal.sole, 4);
+      s += '</g>';
     }
+    s += `<g transform="translate(0 ${b})">`;
     // t-shirt noir + blouson ouvert
     const body = 'M-70 -506C-100 -500 -112 -486 -112 -458L-104 -292Q-104 -266 -80 -266H80Q104 -266 104 -292L112 -458C112 -486 100 -500 70 -506Z';
     const bid = 'b' + (++uid);
@@ -425,7 +458,8 @@
     // écusson « V »
     s += path('M-86 -440h34v34h-34z', pal.sleeve, 3.5) + line('M-79 -414V-432l10 11l10 -11V-414', pal.jacket, 5);
     // bras (manches crème)
-    for (const [sd, a] of [[-1, A.l], [1, A.r]]) {
+    for (let [sd, a] of [[-1, A.l], [1, A.r]]) {
+      a = armSpec(a, sd, sd * 96, -482 + b, 104, 96);
       const L = limb(sd * 96, -482, sd, 104, 96, a[0], a[1]);
       const d = `M${sd * 96} -482L${r1(L.E[0])} ${r1(L.E[1])}L${r1(L.W[0])} ${r1(L.W[1])}`;
       s += union([{ t: 'poly', d, w: 40 }], pal.sleeve);
@@ -433,9 +467,10 @@
       s += `<path d="M${r1(back[0])} ${r1(back[1])}L${r1(L.W[0])} ${r1(L.W[1])}" stroke="#2B2B33" stroke-width="38" stroke-linecap="butt"/>`;
       s += `<g transform="translate(${r1(L.W[0])} ${r1(L.W[1])}) rotate(${r1(L.rot)})">${hand(a[2], sd, pal.skin, L.rot)}</g>`;
     }
-    s += maxHead(o, pal);
-    return s + '</g>';
+    s += `<g transform="rotate(${o.tilt || 0} 0 -515)">${maxHead(o, pal)}</g>`;
+    return s + '</g></g>';
   }
 
-  root.EtSi = { leo, max, canne, mouth, LEO_EXPR, MAX_EXPR, SKIN_TONES, INK };
+  root.EtSi = { leo, max, canne, mouth, LEO_EXPR, MAX_EXPR, SKIN_TONES, INK,
+    prims: { path, fillOnly, line, ell, union, eye, mouth, brow, hand, limb, ik, fx, poseTf } };
 })(typeof window !== 'undefined' ? window : globalThis);

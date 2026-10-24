@@ -1,0 +1,7 @@
+# Intermédiaires de rendu (régénérables avec render.mjs / audio.py / build_cues.py)
+out/chunks/
+out/stills/
+out/*.mkv
+out/*.wav
+out/draft.mp4
+out/*.log
