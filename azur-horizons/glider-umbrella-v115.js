@@ -51,16 +51,19 @@
       u.handTargets.gliderRight = [p.x + HANDLES.right[0], p.y + HANDLES.right[1], p.z + HANDLES.right[2]];
     }
   }
+  var mine = null; // notre enveloppe, une fois posée
   function wrap() {
     var A = root.AZArt; if (!A || typeof A.avatar !== "function" || !A.Model) return false;
     if (A.avatar.__azUmbrella) return true;
+    // AZArt.avatar peut être un accesseur qui garde notre enveloppe dans sa chaîne et renvoie la sienne : déjà posé
+    var d = Object.getOwnPropertyDescriptor(A, "avatar"); if (mine && d && d.get) return true;
     var base = A.avatar;
     var w = function (eq) {
       var g = base.apply(this, arguments);
       try { swap(g, eq); } catch (e) { if (root.console) console.warn("[AZUR parapluie]", e); }
       return g;
     };
-    w.__azUmbrella = true; A.avatar = w;
+    w.__azUmbrella = true; A.avatar = w; mine = w;
     // les avatars déjà créés (salon, partie en cours)
     try {
       var v = root.AZUR && root.AZUR.view;
@@ -71,6 +74,6 @@
   }
   // une autre couche peut encore envelopper AZArt.avatar après nous : on se remet par-dessus pendant le chargement
   wrap();
-  var n = 0, tm = setInterval(function () { wrap(); if (++n > 120) clearInterval(tm); }, 500);
+  var n = 0, tm = setInterval(function () { wrap(); if (++n > 120) clearInterval(tm); }, 500); // une minute
   root.AZUmbrella = { build: umbrella, swap: swap, version: 115 };
 })(typeof globalThis !== "undefined" ? globalThis : this);
