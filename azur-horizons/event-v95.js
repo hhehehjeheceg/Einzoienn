@@ -258,7 +258,7 @@
     if (RIDE.phase === "rk" && t >= 38.4) { spit(p, t); return false; } // v101 : on reste dessus jusqu'à l'explosion de 38,6 s
     // monter dessus : debout sur la roche pendant la poussée des fusées
     if (!RIDE.phase) {
-      if (t < 118 || t >= 152.9 || !p.grounded) return false;
+      if (t < 118 || t >= 152.9 || !p.grounded || (RIDE.leftT && t - RIDE.leftT < 1.2)) return false;
       var f0 = frame("m1", t); if (!f0) return false;
       var dx0 = p.x - f0.c.x, dz0 = p.z - f0.c.z, s0 = surf(f0, dx0, dz0);
       if (s0 == null || Math.abs(p.y - (f0.c.y + s0)) > .8) return false;
@@ -309,34 +309,23 @@
         RIDE.walkT = 0; return true;
       }
     }
-    if (s == null) { // la roche a grandi / changé sous nous : on revient au sommet
+    // v115 : sur les météorites (sur la carte comme dans le monde des failles) il n'y a plus aucun mur : on marche
+    // partout sur la roche, au bord on tombe (puis on plane), et SAUT fait vraiment sauter — on peut sauter dans le vide.
+    // Seule la fusée du lancement garde son corps solide (on ne traverse pas la coiffe).
+    var jumpNow = RIDE.oy <= 0 && (p._jumpBuffer > 0 || (p.jumping && !(RIDE.vy > 0))); // SAUT : mis en attente, ou lancé directement par le jeu (debout)
+    if (jumpNow) { p._jumpBuffer = 0; RIDE.vy = 7.4; RIDE.oy = .01; p.jumping = true; p._jumpTime = 0; }
+    if (s == null) {
+      if (!f.rk) { leaveRock(p, f, RIDE.ox, RIDE.oz, 0, mvx, mvz, dt); return false; } // plus de roche sous nous : on tombe
       RIDE.ox *= .5; RIDE.oz *= .5; s = surf(f, RIDE.ox, RIDE.oz); if (s == null) { RIDE.ox = RIDE.oz = 0; s = surf(f, 0, 0) || 0; }
     }
     if (mvx || mvz) {
-      var nx = RIDE.ox + mvx, nz = RIDE.oz + mvz, ns = surf(f, nx, nz), lim = f.rk ? -1e9 : f.sh.max * f.k * .22;
-      // v112 : dans le monde des failles on marche toujours sur la roche (le relief bosselé de la forme ne bloque plus
-      // jamais un pas : c'était le « mur invisible ») et l'on se lâche au bord — plus de roche, ou une marche qui descend
-      if (RIDE.phase === "rift" && f.sh) {
-        var r1 = Math.hypot(nx, nz), edge = r1 > f.sh.max * f.k * .3, stepL = Math.max(1e-3, Math.hypot(mvx, mvz));
-        // v113 : au bord, une pente qui plonge (plus de 40°) nous lâche — avant on restait collé à la paroi et l'on descendait le long du « mur »
-        if (ns == null || (edge && ((s - ns) / stepL > .85 || s - ns > 1.2)) || (edge && s < f.sh.max * f.k * .15)) { p.x = f.c.x + nx; p.z = f.c.z + nz; p.y = f.c.y + s + RIDE.oy + .3; enterFree(p, t); RIDE.fvx = mvx / Math.max(dt, 1e-3) * .6; RIDE.fvz = mvz / Math.max(dt, 1e-3) * .6; return true; }
-        RIDE.ox = nx; RIDE.oz = nz; if (RIDE.oy > 0 || RIDE.vy > 0) RIDE.oy = Math.max(0, RIDE.oy - (ns - s)); s = ns;
-      }
-      if (RIDE.phase === "rift") { /* déjà fait au-dessus */ }
-      else if (ns == null || (!canLeave && ns < lim)) {
-        if (canLeave && ns == null && RIDE.phase === "rift") { p.x = f.c.x + RIDE.ox + mvx; p.z = f.c.z + RIDE.oz + mvz; p.y = f.c.y + s + RIDE.oy; enterFree(p, t); return true; } // v108 : on quitte la météorite, on flotte
-        if (canLeave && ns == null) { // on saute du bord : on retombe librement
-          endRide(p, false); p.x += mvx; p.z += mvz; p._lastX = p.x; p._lastZ = p.z; p.grounded = false; p.falling = true; p._vy = RIDE.vy; return false;
-        }
-      } else if ((ns - s) / Math.max(1e-3, Math.hypot(mvx, mvz)) < 2.2 || RIDE.oy > ns - s) {
-        // au sol on reste collé à la pente (même en descente) ; en l'air la hauteur absolue est conservée
-        RIDE.ox = nx; RIDE.oz = nz; if (RIDE.oy > 0 || RIDE.vy > 0) RIDE.oy = Math.max(0, RIDE.oy - (ns - s)); s = ns;
-      } else if (RIDE.phase === "rift" && Math.hypot(nx, nz) > f.sh.max * f.k * .3) { // v112 : dans le monde des failles, un pas refusé nous lâche (jamais de mur)
-        p.x = f.c.x + nx; p.z = f.c.z + nz; p.y = f.c.y + s + RIDE.oy + .3; enterFree(p, t); RIDE.fvx = mvx / Math.max(dt, 1e-3) * .6; RIDE.fvz = mvz / Math.max(dt, 1e-3) * .6; return true;
-      }
+      var nx = RIDE.ox + mvx, nz = RIDE.oz + mvz, ns = surf(f, nx, nz);
+      if (ns == null) { // le bord : on part dans le vide
+        if (f.rk && t >= 9.6) { /* la fusée vole : on reste dessus */ }
+        else { leaveRock(p, f, nx, nz, s, mvx, mvz, dt); return false; }
+      } else if (f.rk && ns - s > 1.2 && RIDE.oy < ns - s) { /* le corps de la fusée : on ne le traverse pas */ }
+      else { RIDE.ox = nx; RIDE.oz = nz; if (RIDE.oy > 0 || RIDE.vy > 0) RIDE.oy = Math.max(0, RIDE.oy - (ns - s)); s = ns; }
     }
-    // saut et retombée sur la roche
-    if (RIDE.oy <= 0 && p._jumpBuffer > 0) { p._jumpBuffer = 0; RIDE.vy = 7.4; p.jumping = true; p._jumpTime = 0; }
     if (RIDE.oy > 0 || RIDE.vy > 0) { RIDE.oy += RIDE.vy * dt; RIDE.vy -= 18 * dt; if (RIDE.oy <= 0) { RIDE.oy = 0; RIDE.vy = 0; p.jumping = false; } }
     // porté par la roche ; le décalage de la roche est retiré de la vitesse lue par l'animation
     if (RIDE.hasC) { p._azCarryX = (+p._azCarryX || 0) + (f.c.x - RIDE.cx); p._azCarryZ = (+p._azCarryZ || 0) + (f.c.z - RIDE.cz); }
@@ -356,6 +345,14 @@
    * Les îles volantes s'arrêtent autour de nous en escalier : elles sont solides (on s'y pose, on y marche, on
    * saute de l'une à l'autre, la cabane est un mur et son toit un sol). On reste là tant qu'on veut. Si l'on
    * tombe sous les îles, une faille s'ouvre sous nos pieds et nous renvoie au-dessus de l'île, en chute libre. */
+  // v115 : on quitte une météorite par le bord (ou elle disparaît sous nous) : chute libre là où l'on est, avec l'élan du pas
+  function leaveRock(p, f, ox, oz, s, mvx, mvz, dt) {
+    var vy = RIDE.vy || 0; endRide(p, false);
+    p.x = f.c.x + ox; p.z = f.c.z + oz; p.y = f.c.y + (s || 0) + Math.max(0, RIDE.oy || 0); p._lastX = p.x; p._lastZ = p.z;
+    p.grounded = false; p.falling = true; p.gliding = false; p.autoGlider = false; p.jumping = vy > 0; p._vy = vy;
+    p._vx = mvx / Math.max(dt, 1e-3); p._vz = mvz / Math.max(dt, 1e-3); p._coyote = 0; RIDE.vy = 0; RIDE.oy = 0;
+    RIDE.leftT = VT(); // pas rattrapé tout de suite par la roche qu'on vient de quitter
+  }
   function enterFree(p, t) {
     enter("riftfree", p); RIDE.freeT = t; RIDE.fvx = 0; RIDE.fvz = 0; RIDE.vy = Math.max(RIDE.vy || 0, 1.5); RIDE.fg = false; RIDE.exitT = 0;
     if (RW && root.AZRiftWorld97.freeze) root.AZRiftWorld97.freeze(RW, p.x - W.x, p.y - W.y, p.z - W.z, p.yaw || 0);
