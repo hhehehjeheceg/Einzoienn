@@ -106,6 +106,7 @@
     return false;
   }
   function patch(shader, mat) {
+    if (mat && mat.userData && mat.userData.azNoSplit) return; // hors de l'île (autres dimensions) : jamais déformé
     var vs = shader.vertexShader;
     if (typeof vs !== 'string' || vs.indexOf('#include <project_vertex>') < 0) return;
     shader.uniforms.azA = U.azA; shader.uniforms.azB = U.azB; shader.uniforms.azC = U.azC;
@@ -134,7 +135,7 @@
     set: function (fn) { Object.defineProperty(this, '_azUser', { value: fn, writable: true, configurable: true, enumerable: false }); }
   });
   P.customProgramCacheKey = function () {
-    return (this._azUser ? this._azUser.toString() : '') + (isRigid(this) ? '|azR' : '|az');
+    return (this._azUser ? this._azUser.toString() : '') + (this.userData && this.userData.azNoSplit ? '|azN' : isRigid(this) ? '|azR' : '|az');
   };
 
   root.AZSplit = { uniforms: U, version: 1 };

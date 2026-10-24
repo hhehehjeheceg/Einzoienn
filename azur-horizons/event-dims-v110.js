@@ -204,6 +204,9 @@
     if (P) { var pm = new T.Mesh(new T.CircleGeometry(1, 64), P); pm.frustumCulled = false; pm.renderOrder = 6; pm.scale.setScalar(4.6); pm.position.set(0, D.height(0, 9) + 4.8, 9); D.g.add(pm); D.portal = pm; D.keep.push(pm.geometry, P);
       if (root.AZRiftWorld97.portalSparks) { var sp = root.AZRiftWorld97.portalSparks(); pm.add(sp); D.sparks = sp; } }
     D.portalW = new T.Vector3(0, D.height(0, 9) + 4.8, 9).add(ORIGIN);
+    // v113 : la déformation de l'île pendant la fin (world-split.js : tranchée, île coupée, lueur) se calcule sur x, z ;
+    // les dimensions sont au-dessus du centre de l'île, elles en sortaient toutes blanches et tordues
+    D.g.traverse(function (o) { var ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; ms.forEach(function (m) { m.userData.azNoSplit = true; }); });
     return D;
   }
   function update(D, t, dt, cam, me) {

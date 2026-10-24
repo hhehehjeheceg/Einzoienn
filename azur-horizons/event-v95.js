@@ -269,7 +269,7 @@
       var S = E.end81 && E.end81.S; if (!S || !S.STAR) { endRide(p, false); return false; }
       W = W || new root.THREE.Vector3(); W.set(S.STAR.x, S.STAR.y + 2400, S.STAR.z);
       SHAPE_OF = null; // v112 : forme refaite sur la roche telle qu'elle est maintenant (elle a pu tourner depuis)
-      if (!RW) RW = buildRift(); else RW.frozen = false;
+      if (!RW) { RW = buildRift(); if (RW) noSplit(RW.g); } else RW.frozen = false;
       if (RW && RW.rock) { var O9 = E.end81.O, M9 = O9 && O9.met; if (M9 && M9.rock) { M9.rock.updateMatrix(); RW.rock.matrixAutoUpdate = false; RW.rock.matrix.copy(M9.rock.matrix).premultiply(new root.THREE.Matrix4().makeScale(M9.g.scale.x, M9.g.scale.y, M9.g.scale.z)); RW.rock0 = new root.THREE.Vector3().setFromMatrixPosition(RW.rock.matrix); RW.rockMtx = RW.rock.matrix.clone(); } }
       if (!RW) { endRide(p, false); return false; }
       enter("rift", p); showGrp(false); RIDE.fall = 0;
@@ -396,9 +396,36 @@
     var D = null; try { D = root.AZDims110.build(it.portal.uniforms.kind.value, E.end81 && E.end81.X); } catch (e) { if (root.console) console.warn("[AZUR dims]", e); }
     if (!D) return;
     var g = root.AZUR, sc = g && g.view && g.view.scene; if (!sc) { root.AZDims110.dispose(D); return; }
-    sc.add(D.g); RIDE.dim = D; RIDE.dimSrc = it; RIDE.dimSide = side; it.hold = true;
+    sc.add(D.g); RIDE.dim = D; RIDE.dimSrc = it; RIDE.dimSide = side; it.hold = true; dimRenderHook();
     enter("dim", p); RIDE.tpT = t; RIDE.fvx = 0; RIDE.fvz = 0; RIDE.vy = 0; RIDE.fg = false;
     p.x = D.spawn.x; p.y = D.spawn.y + .6; p.z = D.spawn.z; p._lastX = p.x; p._lastZ = p.z; p.yaw = 0; if (g) { g.yaw = 0; g.pitch = -.08; }
+  }
+  // v113 : le monde des failles flotte au-dessus de l'île : la déformation de la fin (world-split.js, calculée sur x, z)
+  // ne doit pas le tordre — sinon les îles dessinées ne sont plus là où l'on se pose. Les matières partagées avec la carte restent telles quelles.
+  function noSplit(grp) {
+    var g = root.AZUR, sc = g && g.view && g.view.scene; if (!grp || !sc) return;
+    var mine = [], shared = new Set();
+    grp.traverse(function (o) { if (o.material) mine = mine.concat(o.material); });
+    sc.traverse(function (o) { if (!o.material) return; var q = o; while (q && q !== grp) q = q.parent; if (!q) [].concat(o.material).forEach(function (m) { shared.add(m); }); });
+    mine.forEach(function (m) { if (m && m.userData && !shared.has(m) && !m.userData.azNoSplit) { m.userData.azNoSplit = true; m.needsUpdate = true; } });
+  }
+  /* v113 : dans une dimension, on ne dessine qu'elle et notre personnage, dans une scène à part : dans la scène de
+   * l'île, les lumières, effets et réglages de l'événement s'additionnaient et le sol de la dimension sortait tout blanc.
+   * La dimension et le personnage y sont prêtés le temps du rendu puis remis à leur place. */
+  var DIM_EXPOSURE = 1, dimScene = null, dimHold = null; // réglage : exposition pendant le rendu d'une dimension
+  V6.dimExposure = function (v) { if (v != null) DIM_EXPOSURE = +v; return DIM_EXPOSURE; };
+  function dimRenderHook() {
+    var g = root.AZUR, v = g && g.view, rd = v && v.renderer; if (!rd || rd._azDim) return;
+    var orig = rd.render; rd._azDim = true;
+    rd.render = function (scene, cam) {
+      var D = RIDE.dim; if (RIDE.phase !== "dim" || !D || !v || scene !== v.scene || !cam) return orig.apply(this, arguments);
+      if (!dimScene) { dimScene = new root.THREE.Scene(); dimHold = new root.THREE.Group(); dimHold.matrixAutoUpdate = false; dimScene.add(dimHold); }
+      var av = v.actors && v.actors.get(g.myId), avP = av && av.parent, dgP = D.g.parent, ex = this.toneMappingExposure;
+      if (avP) { avP.updateMatrixWorld(); dimHold.matrix.copy(avP.matrixWorld); dimHold.add(av); }
+      dimScene.add(D.g); this.toneMappingExposure = DIM_EXPOSURE;
+      try { return orig.call(this, dimScene, cam); }
+      finally { this.toneMappingExposure = ex; if (avP) avP.add(av); if (dgP) dgP.add(D.g); }
+    };
   }
   function exitDim(p, t) {
     var it = RIDE.dimSrc, D = RIDE.dim; if (D) { try { root.AZDims110.dispose(D); } catch (e) {} } RIDE.dim = null;
@@ -422,11 +449,12 @@
     if (RIDE.fg) { if (ng < gy - .8) { RIDE.fg = false; RIDE.vy = 0; } else p.y = ng; } // on quitte une bosse : on retombe
     if (!RIDE.fg) { RIDE.vy -= D.grav * dt; p.y += RIDE.vy * dt; if (p.y <= ng) { p.y = ng; RIDE.vy = 0; RIDE.fg = true; p.jumping = false; } }
     if (D.bounce && RIDE.fg && ng < D.origin.y + D.lava + .05) { RIDE.vy = 10; RIDE.fg = false; p.jumping = true; p.y += .1; } // la lave fait rebondir
-    p.x = nx; p.z = nz; p._lastX = p.x; p._lastZ = p.z;
+    var oz = p.z; p.x = nx; p.z = nz; p._lastX = p.x; p._lastZ = p.z;
     p.grounded = RIDE.fg; p.falling = !RIDE.fg; p.gliding = false; p.autoGlider = false; p.swimming = false; p.flying = false; p.airborneFromBus = false;
     p._eventFloat = false; p._eventVerticalVelocity = 0; p._vy = RIDE.fg ? 0 : RIDE.vy; p._coyote = .12; p._vx = RIDE.fvx; p._vz = RIDE.fvz;
     p.distance = (+p.distance || 0) + Math.hypot(RIDE.fvx, RIDE.fvz) * dt;
-    if (t - RIDE.tpT > 1.5 && D.portalW && Math.hypot(p.x - D.portalW.x, p.y + 1 - D.portalW.y, p.z - D.portalW.z) < 3.4) { exitDim(p, t); return true; } // retour par le portail
+    // retour par le portail : on traverse son disque (rayon 4,6 m, centre à 4,8 m du sol), par devant ou par derrière, sans avoir à sauter
+    var Q = D.portalW; if (t - RIDE.tpT > 1.5 && Q) { var z0 = oz - Q.z, z1 = p.z - Q.z; if ((Math.abs(z1) < .7 || z0 * z1 < 0) && Math.abs(p.x - Q.x) < 4.2 && p.y > Q.y - 5.6 && p.y < Q.y + 4) { exitDim(p, t); return true; } }
     return true;
   }
   function backToIsland(p, t) {
@@ -440,9 +468,9 @@
   // outils de vérification automatique : poser le joueur au sommet de la météorite, lire l'état du voyage
   V6.testBoard = function () { var p = me(); if (!p) return false; enter("m1", p); RIDE.ox = 0; RIDE.oz = 0; RIDE.oy = 0; RIDE.vy = 0; RIDE.hasC = false; return true; };
   // place le joueur au centre d'un portail ouvert (« portal »), sur le portail de retour (« home »), ou sous les îles (« drop »)
-  V6.testGo = function (what) {
+  V6.testGo = function (what, kind) {
     var p = me(); if (!p) return false;
-    if (what === "portal" && RIDE.phase === "riftfree" && RW && RW.odd) { var it = RW.odd.items.filter(function (i) { return i.on && i.portal && (i.a || 0) > .55; })[0]; if (!it) return false; var n = _n.set(0, 0, 1).applyQuaternion(it.obj.quaternion); RIDE.noPortal = 0; p.x = W.x + it.obj.position.x + n.x * 4; p.y = W.y + it.obj.position.y - 1 + n.y * 4; p.z = W.z + it.obj.position.z + n.z * 4; RIDE.fvx = -n.x * 5; RIDE.fvz = -n.z * 5; RIDE.vy = -n.y * 5; RIDE.fg = false; return it.portal.uniforms.kind.value; }
+    if (what === "portal" && RIDE.phase === "riftfree" && RW && RW.odd) { var it = RW.odd.items.filter(function (i) { return i.on && i.portal && (i.a || 0) > .55; })[0]; if (!it) return false; if (kind != null) it.portal.uniforms.kind.value = kind; var n = _n.set(0, 0, 1).applyQuaternion(it.obj.quaternion); RIDE.noPortal = 0; p.x = W.x + it.obj.position.x + n.x * 6; p.y = W.y + it.obj.position.y - 1; p.z = W.z + it.obj.position.z + n.z * 6; RIDE.fvx = 0; RIDE.fvz = 0; RIDE.vy = 0; RIDE.fg = false; var yw = Math.atan2(n.x, n.z); p.yaw = yw; if (root.AZUR) root.AZUR.yaw = yw; return it.portal.uniforms.kind.value; } // 6 m devant, tourné vers lui : il reste à avancer
     if (what === "home" && RIDE.phase === "dim" && RIDE.dim && RIDE.dim.portalW) { var q = RIDE.dim.portalW; p.x = q.x; p.y = q.y - 1; p.z = q.z; return true; }
     if (what === "drop" && RIDE.phase === "riftfree" && RW) { p.y = W.y + (RW.exitRel != null ? RW.exitRel : -560) - 2; RIDE.fg = false; return true; }
     return false;
