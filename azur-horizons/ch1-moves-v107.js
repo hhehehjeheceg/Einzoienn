@@ -279,7 +279,7 @@
       else if (p.y - H(p.x, p.z) > 6) id = "saut-haut";
       else if (fw < -1.5) id = "saut-arriere";
       else if (abs(sd) > 2.5 && abs(sd) > abs(fw)) id = "saut-cote";
-      else if (spd > 5.5) id = r < .12 ? "saut-vrille" : r < .24 ? "saut-groupe" : r < .34 ? "double-appel" : "saut-course";
+      else if (spd > 5.5) id = r < .12 ? "saut-groupe" : r < .22 ? "double-appel" : "saut-course"; // v116 : plus de saut vrillé automatique (tour complet sur soi)
       else if (spd < .5) id = r < .15 ? "saut-etoile" : "saut-arret";
       play(s, id, { side: sd > 0 ? 1 : -1 });
     }
@@ -288,7 +288,7 @@
     if (!air && s.wasAir) {
       const fall = s.peakFall, aT = s.airT;
       if (s.gl) play(s, "planeur-range", c);
-      else if (aT > 1.6 && spd > 4) play(s, "roulade", c);
+      else if (aT > 1.6 && spd > 4) play(s, "reception-course", c); // v116 : plus de roulade automatique (salto avant)
       else if (aT > 1.6 || fall > 14) play(s, "reception-lourde", c);
       else if (aT > .65) play(s, hsh(s.t * 7.7) < .1 ? "trebuche" : spd > 3 ? "reception-course" : "reception-amortie", c);
       else if (aT > .2) play(s, spd > 3 ? "reception-course" : "reception-douce", c);

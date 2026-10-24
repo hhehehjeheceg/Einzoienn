@@ -388,7 +388,7 @@
     p._eventFloat = false; p._eventVerticalVelocity = 0; p._vy = RIDE.fg ? 0 : RIDE.vy; p._coyote = .12; p._vx = RIDE.fvx; p._vz = RIDE.fvz;
     // sous les îles : une faille s'ouvre sous nos pieds et nous renvoie sur l'île
     if (!RIDE.exitT && p.y < W.y + (RW.exitRel != null ? RW.exitRel : -560)) { RIDE.exitT = t; RIDE.px = p.x; RIDE.py = p.y - 26; RIDE.pz = p.z; }
-    if ((RIDE.exitT && t - RIDE.exitT > 1.1) || t >= 252) { backToIsland(p, t); return false; }
+    if (RIDE.exitT && t - RIDE.exitT > 1.1) { backToIsland(p, t); return false; } // v116 : plus de retour forcé sur l'île à la fin (on y serait aspiré)
     // v110 : on entre dans un portail ouvert → on part dans sa dimension
     var odd = RW.odd;
     if (odd && !RIDE.exitT && !(RIDE.noPortal > t) && root.AZDims110) for (var q = 0; q < odd.items.length; q++) {
@@ -404,7 +404,7 @@
    * qui se referme alors. */
   var _n = new root.THREE.Vector3();
   function enterDim(p, it, t, side) {
-    var D = null; try { D = root.AZDims110.build(it.portal.uniforms.kind.value, E.end81 && E.end81.X); } catch (e) { if (root.console) console.warn("[AZUR dims]", e); }
+    var D = null; try { D = root.AZDims110.build(it.portal.uniforms.kind.value, (E.end81 && E.end81.X) || RIDE.X); } catch (e) { if (root.console) console.warn("[AZUR dims]", e); }
     if (!D) return;
     var g = root.AZUR, sc = g && g.view && g.view.scene; if (!sc) { root.AZDims110.dispose(D); return; }
     sc.add(D.g); RIDE.dim = D; RIDE.dimSrc = it; RIDE.dimSide = side; it.hold = true; dimRenderHook();
@@ -450,7 +450,6 @@
   }
   function dimFree(p, dt, t) {
     var D = RIDE.dim, Z = root.AZDims110; if (!D || !Z) { endRide(p, false); return false; }
-    if (t >= 250) { exitDim(p, t); backToIsland(p, t); return false; } // la fin de l'événement : retour sur l'île
     var i = p._input || {}, mx = Math.max(-1, Math.min(1, +i.moveX || 0)), mz = Math.max(-1, Math.min(1, +i.moveZ || 0)), len = Math.max(1, Math.hypot(mx, mz));
     var want = (i.sprint ? 7.2 : 5), yaw = p.yaw || 0;
     var wx = (-Math.sin(yaw) * mz + Math.cos(yaw) * mx) / len * want, wz = (-Math.cos(yaw) * mz - Math.sin(yaw) * mx) / len * want;
@@ -468,6 +467,15 @@
     // retour par le portail : on traverse son disque (rayon 4,6 m, centre à 4,8 m du sol), par devant ou par derrière, sans avoir à sauter
     var Q = D.portalW; if (t - RIDE.tpT > 1.5 && Q) { var z0 = oz - Q.z, z1 = p.z - Q.z; if ((Math.abs(z1) < .7 || z0 * z1 < 0) && Math.abs(p.x - Q.x) < 4.2 && p.y > Q.y - 5.6 && p.y < Q.y + 4) { exitDim(p, t); return true; } }
     return true;
+  }
+  /* v116 : épargné (dans le monde des failles après l'explosion) : comme pour le « Vol sans fin » (event-v93.goFree), les décors
+   * et la musique de la fin sont retirés juste avant le noir — le monde redevient normal, de nuit, sans trou noir ni écran de fin.
+   * Le monde des failles et les dimensions gardent leurs propres textures (RIDE.X). */
+  function spareWorld() {
+    RIDE.freed = true; if (E.end81 && E.end81.X) RIDE.X = E.end81.X;
+    ["end81", "music86", "music75"].forEach(function (k) { var m = E.mods && E.mods[k]; if (m && m.dispose) { try { m.dispose(); } catch (e) {} } });
+    var g = root.AZUR; if (g) { try { g.timeOfDay = "night"; } catch (e) {} }
+    if (root.document) { root.document.body.classList.remove("azend-cine"); root.document.body.classList.remove("azend-black"); }
   }
   function backToIsland(p, t) {
     var S = E.end81 && E.end81.S, P = S && S.P;
@@ -506,16 +514,20 @@
   }
 
   var prevInit = M.init;
-  M.init = function () { V.pose = null; V.hop = -99; endRide(null, false); RIDE.spitT = 0; W = null; var r = prevInit.apply(this, arguments); install(); return r; };
+  M.init = function () { V.pose = null; V.hop = -99; endRide(null, false); RIDE.spitT = 0; RIDE.spared = false; RIDE.freed = false; RIDE.X = null; W = null; var r = prevInit.apply(this, arguments); install(); return r; };
   var prevDispose = M.dispose;
-  M.dispose = function () { uninstall(); V.pose = null; endRide(null, false); disposeRift(); setFlash(0); return prevDispose ? prevDispose.apply(this, arguments) : undefined; };
+  M.dispose = function () { uninstall(); V.pose = null; var pd0 = me(); if (pd0 && (RIDE.phase === "riftfree" || RIDE.phase === "dim")) { try { backToIsland(pd0, VT()); } catch (e) {} } endRide(null, false); RIDE.spared = false; RIDE.freed = false; disposeRift(); setFlash(0); return prevDispose ? prevDispose.apply(this, arguments) : undefined; };
   var prevPre = M.preUpdate;
   M.preUpdate = function (dt) {
     // pendant le voyage, la chorégraphie de fin (soulèvement par l'onde du Point Zéro) ne s'applique pas : on est sur la roche
     var late = RIDE.phase === "rift" || RIDE.phase === "riftfree" || RIDE.phase === "dim" || RIDE.phase === "m2" || RIDE.phase === "thrown", V93 = E.v93, saved = V93 ? V93.freeRoam : false;
-    if (late && V93) V93.freeRoam = true;
+    // v116 : dans le monde des failles (ou une dimension) après l'explosion du Point Zéro, on a échappé à la fin : épargné comme
+    // le « Vol sans fin » — ni aspiré par le tourbillon, ni écran noir, ni trou noir, ni écran de fin, même si l'on revient ensuite sur l'île
+    if (!RIDE.spared && (RIDE.phase === "riftfree" || RIDE.phase === "dim") && VT() >= 224) RIDE.spared = true;
+    if (RIDE.spared && !RIDE.freed && VT() >= 250) spareWorld(); // juste avant le noir, le point lumineux et le trou noir
+    if ((late || RIDE.spared) && V93) V93.freeRoam = true;
     var r;
-    try { r = prevPre.apply(this, arguments); } finally { if (late && V93) V93.freeRoam = saved; }
+    try { r = prevPre.apply(this, arguments); } finally { if (late && V93 && !RIDE.spared) V93.freeRoam = saved; }
     try {
       if (E.active) {
         if (!hook) install();
@@ -533,7 +545,7 @@
         updateRift(t, d);
         if (RIDE.phase === "dim" && RIDE.dim && root.AZDims110) { var pd = me(); root.AZDims110.update(RIDE.dim, t, d, root.AZUR && root.AZUR.view && root.AZUR.view.camera, pd); }
         setFlash(flashFor(t));
-      } else if (RIDE.phase) { endRide(null, false); setFlash(0); }
+      } else if (RIDE.phase) { var pe = me(); if (pe && (RIDE.phase === "riftfree" || RIDE.phase === "dim")) backToIsland(pe, VT()); else endRide(null, false); setFlash(0); } // v116 : l'événement fini, une faille nous ramène au-dessus de l'île
     } catch (e) { if (!V.err) { V.err = 1; if (root.console) console.warn("[AZUR v95]", e); } }
     return r;
   };
