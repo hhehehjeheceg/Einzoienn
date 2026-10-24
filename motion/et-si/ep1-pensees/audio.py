@@ -208,7 +208,8 @@ for k in range(46):
     tk = c0 + 0.2 + (k / 46) ** 0.7 * (c1 - c0 - 0.6)
     src = ch if k % 2 == 0 else SFX["whispers"]
     p = fade(pitch(src, 0.85 + rng.random() * 0.35), 0.08, 0.25)
-    g = 0.12 + 0.35 * ((tk - c0) / (c1 - c0)) ** 1.5
+    p = lp(p, 1100)
+    g = 0.08 + 0.2 * ((tk - c0) / (c1 - c0)) ** 1.5
     place(p, tk, g, at_peak=False, pan=(rng.random() - 0.5) * 1.6)
 place(riser(c1 - c0 - 0.4, 150, 9000, 0.22), c0 + 0.3, at_peak=False)
 for h in [24.11, 25.43, 26.11, 26.63]:
@@ -240,7 +241,7 @@ for b in [37.15, 37.75, 38.3]:
     place(sub(0.35, 60, 40, 0.5), b)
 
 # ---------------------------------------------------------------- 8. pensée de Max
-place(fade(SFX["reveal"], 0.02, 0.5), 38.65, 2.4, at_peak=False)
+place(fade(SFX["reveal"], 0.02, 0.5), 38.65, 1.4, at_peak=False)
 place(riser(0.6, 2000, 9000, 0.06), 38.1, at_peak=False)
 
 # ---------------------------------------------------------------- 9. morale
@@ -260,8 +261,8 @@ for i in range(len(typed)):
 
 # ---------------------------------------------------------------- 11. abonne-toi / like / fin
 place(fade(seg("whoosh", 2.05, 2.7), 0.01, 0.2), 50.1 + 0.2, 0.5)
-place(SFX["subscribe"], 50.52 + (0.624 - 0.379), 1.4, exempt=True)
-place(SFX["like"], 50.96, 2.5, exempt=True)
+place(SFX["subscribe"], 50.52 + (0.624 - 0.379), 0.9)
+place(SFX["like"], 50.96, 1.2)
 place(SFX["sparkle"], 51.0, 0.7)
 place(fade(SFX["title"], 0, 0.6), 52.1 + 0.3, 0.5, exempt=True)
 place(SFX["sparkle"], 53.2, 0.4)
@@ -276,11 +277,43 @@ raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(OUT / "vo_timeline.wav"
                      capture_output=True, check=True).stdout
 vo = np.frombuffer(raw, np.float32).reshape(-1, 2).T.astype(np.float64)[:, :N]
 vo = hp(vo, 80)
-env = np.convolve(np.abs(vo).mean(0), np.ones(int(0.05 * SR)) / int(0.05 * SR), "same")
-act = np.clip(env / (env.max() * 0.08), 0, 1)
-act = np.convolve(act, np.ones(int(0.15 * SR)) / int(0.15 * SR), "same")
-duck = 1 - 0.45 * act * (1 - duck_exempt)
-out = mix * duck + vo * 1.6
+# voix : compression douce (gain lissé sur 30 ms) pour qu'elle reste lisible partout
+venv = np.sqrt(np.convolve((vo ** 2).mean(0), np.ones(int(0.03 * SR)) / int(0.03 * SR), "same")) + 1e-6
+ref = np.percentile(venv[venv > venv.max() * 0.05], 70)
+vgain = np.clip((ref / venv) ** 0.55, 0.6, 3.0)
+vgain = np.convolve(vgain, np.ones(int(0.02 * SR)) / int(0.02 * SR), "same")
+vo = vo * vgain
+# présence de la voix : attaque rapide, relâchement doux
+env = np.convolve(np.abs(vo).mean(0), np.ones(int(0.03 * SR)) / int(0.03 * SR), "same")
+act = np.clip(env / (env.max() * 0.06), 0, 1)
+act = np.maximum.reduce([np.roll(act, -k) for k in range(0, int(0.06 * SR), 240)])   # anticipe de 60 ms
+rel = np.exp(-1 / (0.25 * SR))
+for i in range(1, N):                                                                    # relâchement 250 ms
+    if act[i] < act[i - 1] * rel:
+        act[i] = act[i - 1] * rel
+# bruitages : -5 dB de base, -14 dB sous la voix, limiteur doux
+sfx = mix * 0.32 * (1 - 0.85 * act)
+sfx = np.tanh(sfx * 2.5) / 2.5
+VO_G = 1.5
+# garantie : partout où la voix parle, bruitages au moins 12 dB sous elle
+hop = int(0.02 * SR)
+def rms_frames(x):
+    e = (x ** 2).mean(0)
+    k = np.ones(int(0.1 * SR)) / int(0.1 * SR)
+    return np.sqrt(np.convolve(e, k, "same"))[::hop]
+vr, sr_ = rms_frames(vo * VO_G), rms_frames(sfx)
+speaking = vr > vr.max() * 0.04
+g = np.ones_like(vr)
+g[speaking] = np.minimum(1, vr[speaking] * 10 ** (-15 / 20) / np.maximum(sr_[speaking], 1e-9))
+g = np.minimum.reduce([np.roll(g, k) for k in range(-8, 9)])          # tient le gain 160 ms autour
+g = np.convolve(g, np.ones(5) / 5, "same")
+gs = np.interp(np.arange(N), np.arange(len(g)) * hop, g)
+sfx = sfx * gs
+out = sfx + vo * VO_G
+# contrôle : écart voix/bruitages sur les instants où la voix parle (trames de 20 ms)
+vr2, sr2 = rms_frames(vo * VO_G), rms_frames(sfx)
+m = 20 * np.log10(vr2[speaking] / np.maximum(sr2[speaking], 1e-9))
+print(f"voix au-dessus des bruitages : min {m.min():.1f} dB, médiane {np.median(m):.1f} dB, {100 * (m < 12).mean():.1f} % des trames sous 12 dB")
 out /= max(1e-9, np.abs(out).max()) / 0.9
 pcm = (np.clip(out, -1, 1) * 32767).astype("<i2").T.tobytes()
 with wave.open(str(OUT / "mix_raw.wav"), "wb") as f:
