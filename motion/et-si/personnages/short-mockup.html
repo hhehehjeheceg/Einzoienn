@@ -9,7 +9,7 @@ html,body{margin:0;background:#000}svg{display:block}text{font-family:Brico,sans
 <script src="rig.js"></script>
 <script>
 // Maquette d'une image clé d'épisode : « Et si j'étais aveugle ? »
-const { sam, vince, canne } = EtSi;
+const { leo, max, canne } = EtSi;
 let s = `<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD9A8"/><stop offset="1" stop-color="#FFF1DC"/></linearGradient></defs>`;
 s += `<rect width="1080" height="1920" fill="url(#sky)"/>`;
 // immeubles
@@ -26,9 +26,9 @@ s += `<rect x="-10" y="1700" width="1100" height="260" fill="#6B6E78"/>`;
 // personnages
 s += `<ellipse cx="350" cy="1600" rx="150" ry="16" fill="#000" opacity=".1"/>`;
 s += `<ellipse cx="800" cy="1600" rx="140" ry="16" fill="#000" opacity=".1"/>`;
-s += sam({ x: 350, y: 1600, scale: 1.2, expr: 'gene', look: [0, 0], acc: ['lunettesNoires'], arms: { l: [10, 10, 'relax'], r: [30, -40, 'fist'] } });
+s += leo({ x: 350, y: 1600, scale: 1.2, expr: 'gene', look: [0, 0], acc: ['lunettesNoires'], arms: { l: [10, 10, 'relax'], r: [30, -40, 'fist'] } });
 s += canne(492, 1340, -24, 0.9);
-s += vince({ x: 800, y: 1600, scale: 1.08, flip: true, expr: 'rire' });
+s += max({ x: 800, y: 1600, scale: 1.08, flip: true, expr: 'rire' });
 // bulle de Vince
 s += `<path d="M560 540H1030Q1056 540 1056 566V690Q1056 716 1030 716H880L830 790L840 716H560Q534 716 534 690V566Q534 540 560 540Z" fill="#FFF" stroke="#2A1F1D" stroke-width="5" stroke-linejoin="round"/>`;
 s += `<text x="795" y="612" font-size="40" font-weight="800" fill="#2A1F1D" text-anchor="middle">« Eh, regarde où</text>`;

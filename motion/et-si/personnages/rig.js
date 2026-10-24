@@ -1,4 +1,4 @@
-// Rig 2D de la série « Et si… » — Sam (le héros) et Vince (l'ennemi).
+// Rig 2D de la série « Et si… » — Léo Pasdbol (le héros) et Max Lerelou (l'ennemi).
 // Chaque personnage est une fonction qui renvoie un groupe SVG (chaîne) à partir
 // d'options : position, échelle, expression, bouche, regard, clignement, bras.
 // Origine locale = entre les pieds, au sol. Unités = px à l'échelle 1.
@@ -193,9 +193,9 @@
   }
 
   // =====================================================================
-  //  SAM — le héros. Formes rondes, sweat jaune, épi sur la tête.
+  //  LÉO PASDBOL — le héros. Formes rondes, sweat jaune, épi sur la tête.
   // =====================================================================
-  const SAM_PAL = {
+  const LEO_PAL = {
     skin: '#E9B48C', skinSh: '#CF946C', hair: '#3A2621', hairHi: '#5B3B31',
     hood: '#F6B53D', hoodSh: '#DD9528', hoodIn: '#B8771B', string: '#FFF6E6',
     jean: '#3F5888', jeanSh: '#30456E', shoe: '#FBFAF6', shoeAcc: '#E5483D', sole: '#D9D2C6', iris: '#5A3A2A',
@@ -205,7 +205,7 @@
     fonce: ['#8D5A3B', '#714429'], tresFonce: ['#5E3A26', '#4A2C1B'],
   };
 
-  const SAM_EXPR = {
+  const LEO_EXPR = {
     neutre:   { brow: { in: 0, out: 0 }, eye: {}, mouth: 'neutral' },
     content:  { brow: { in: -4, out: -2 }, eye: { lidBot: 0.25 }, mouth: 'grin', fx: ['blush'] },
     rire:     { brow: { in: -8, out: -4 }, eye: { lidTop: 1 }, mouth: 'laugh', fx: ['blush'] },
@@ -220,8 +220,8 @@
     choque:   { brow: { in: -14, out: -10 }, eye: { pupil: 0.45 }, mouth: 'A', fx: ['gloom'] },
   };
 
-  function samHead(o, pal) {
-    const ex = SAM_EXPR[o.expr || 'neutre'] || SAM_EXPR.neutre;
+  function leoHead(o, pal) {
+    const ex = LEO_EXPR[o.expr || 'neutre'] || LEO_EXPR.neutre;
     const e = Object.assign({ lidCol: pal.skin }, ex.eye, o.eye || {});
     if (o.look) e.look = o.look;
     if (o.blink) e.lidTop = Math.max(e.lidTop || 0, o.blink);
@@ -283,12 +283,12 @@
       union([{ t: 'cap', x1: 0, y1: -4, x2: 0, y2: 46, w: 15 }], '#2B2D36') + '</g>';
   }
 
-  function sam(o = {}) {
-    const pal = Object.assign({}, SAM_PAL);
+  function leo(o = {}) {
+    const pal = Object.assign({}, LEO_PAL);
     if (o.skin && SKIN_TONES[o.skin]) [pal.skin, pal.skinSh] = SKIN_TONES[o.skin];
     const x = o.x || 0, y = o.y || 0, sc = o.scale || 1;
     let s = `<g transform="translate(${x} ${y}) scale(${sc * (o.flip ? -1 : 1)} ${sc})">`;
-    if (o.headOnly) return s + `<g transform="translate(0 505)">${samHead(o, pal)}</g></g>`;
+    if (o.headOnly) return s + `<g transform="translate(0 505)">${leoHead(o, pal)}</g></g>`;
     const A = Object.assign({ l: [7, 6, 'relax'], r: [7, 6, 'relax'] }, o.arms || {});
     // jambes
     s += union([{ t: 'cap', x1: -30, y1: -210, x2: -33, y2: -36, w: 54 }], pal.jean);
@@ -330,19 +330,19 @@
       s += `<path d="M${r1(back[0])} ${r1(back[1])}L${r1(L.W[0])} ${r1(L.W[1])}" stroke="${pal.hoodSh}" stroke-width="40" stroke-linecap="butt"/>`;
       s += `<g transform="translate(${r1(L.W[0])} ${r1(L.W[1])}) rotate(${r1(L.rot)})">${hand(a[2], sd, pal.skin, L.rot)}</g>`;
     }
-    s += samHead(o, pal);
+    s += leoHead(o, pal);
     return s + '</g>';
   }
 
   // =====================================================================
-  //  VINCE — l'ennemi. Formes anguleuses, blouson rouge, mèche blonde.
+  //  MAX LERELOU — l'ennemi. Formes anguleuses, blouson rouge, mèche blonde.
   // =====================================================================
-  const VIN_PAL = {
+  const MAX_PAL = {
     skin: '#F2C9AC', skinSh: '#DBA584', hair: '#EBC35A', hairSh: '#C99A34', under: '#9C7A3A',
     jacket: '#D62E40', jacketSh: '#A81F30', sleeve: '#F3E6CC', sleeveSh: '#D9C8A6', tee: '#24242B',
     jog: '#8B909C', jogSh: '#6E7380', shoe: '#22232A', sole: '#F4F1EA', iris: '#4FA3CF', chain: '#F2C94C',
   };
-  const VIN_EXPR = {
+  const MAX_EXPR = {
     moqueur:  { brow: { in: 8, out: -6, arch: 2 }, eye: { lidTop: 0.42, lidTilt: 6, look: [-0.5, 0] }, mouth: 'sneer' },
     neutre:   { brow: { in: 4, out: -2 }, eye: { lidTop: 0.3 }, mouth: 'flat' },
     rire:     { brow: { in: 6, out: -8 }, eye: { lidTop: 1 }, mouth: 'laugh' },
@@ -353,8 +353,8 @@
     peur:     { brow: { in: -16, out: -4 }, eye: { pupil: 0.5 }, mouth: 'wavy', fx: ['sweat'] },
   };
 
-  function vinceHead(o, pal) {
-    const ex = VIN_EXPR[o.expr || 'moqueur'] || VIN_EXPR.moqueur;
+  function maxHead(o, pal) {
+    const ex = MAX_EXPR[o.expr || 'moqueur'] || MAX_EXPR.moqueur;
     const e = Object.assign({ lidCol: pal.skin }, ex.eye, o.eye || {});
     if (o.look) e.look = o.look;
     if (o.blink) e.lidTop = Math.max(e.lidTop || 0, o.blink);
@@ -388,11 +388,11 @@
     return s;
   }
 
-  function vince(o = {}) {
-    const pal = Object.assign({}, VIN_PAL);
+  function max(o = {}) {
+    const pal = Object.assign({}, MAX_PAL);
     const x = o.x || 0, y = o.y || 0, sc = o.scale || 1;
     let s = `<g transform="translate(${x} ${y}) scale(${sc * (o.flip ? -1 : 1)} ${sc})">`;
-    if (o.headOnly) return s + `<g transform="translate(0 616)">${vinceHead(o, pal)}</g></g>`;
+    if (o.headOnly) return s + `<g transform="translate(0 616)">${maxHead(o, pal)}</g></g>`;
     const A = Object.assign({ l: [6, 4, 'relax'], r: [14, -140, 'phone'] }, o.arms || {});
     // jambes (jogging)
     s += union([{ t: 'cap', x1: -28, y1: -280, x2: -34, y2: -44, w: 52 }], pal.jog);
@@ -423,7 +423,7 @@
     s += path('M-56 -512Q-30 -486 -26 -500L-34 -520Z', '#2B2B33', 3.5) + path('M56 -512Q30 -486 26 -500L34 -520Z', '#2B2B33', 3.5);
     s += fillOnly('M-22 -530H22V-506Q0 -496 -22 -506Z', pal.skinSh);
     // écusson « V »
-    s += path('M-86 -440h34v34h-34z', pal.sleeve, 3.5) + line('M-78 -432l9 18l9 -18', pal.jacket, 5);
+    s += path('M-86 -440h34v34h-34z', pal.sleeve, 3.5) + line('M-79 -414V-432l10 11l10 -11V-414', pal.jacket, 5);
     // bras (manches crème)
     for (const [sd, a] of [[-1, A.l], [1, A.r]]) {
       const L = limb(sd * 96, -482, sd, 104, 96, a[0], a[1]);
@@ -433,9 +433,9 @@
       s += `<path d="M${r1(back[0])} ${r1(back[1])}L${r1(L.W[0])} ${r1(L.W[1])}" stroke="#2B2B33" stroke-width="38" stroke-linecap="butt"/>`;
       s += `<g transform="translate(${r1(L.W[0])} ${r1(L.W[1])}) rotate(${r1(L.rot)})">${hand(a[2], sd, pal.skin, L.rot)}</g>`;
     }
-    s += vinceHead(o, pal);
+    s += maxHead(o, pal);
     return s + '</g>';
   }
 
-  root.EtSi = { sam, vince, canne, mouth, SAM_EXPR, VIN_EXPR, SKIN_TONES, INK };
+  root.EtSi = { leo, max, canne, mouth, LEO_EXPR, MAX_EXPR, SKIN_TONES, INK };
 })(typeof window !== 'undefined' ? window : globalThis);

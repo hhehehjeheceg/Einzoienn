@@ -10,7 +10,7 @@ text{font-family:Brico,sans-serif}
 <body><svg id="s" width="1920" height="1080" viewBox="0 0 1920 1080"></svg>
 <script src="rig.js"></script>
 <script>
-const { sam, vince } = EtSi;
+const { leo, max } = EtSi;
 const T = (x, y, txt, size, fill = '#2A1F1D', extra = '') => `<text x="${x}" y="${y}" font-size="${size}" fill="${fill}" ${extra}>${txt}</text>`;
 let s = '';
 // fond : deux panneaux de couleur
@@ -22,18 +22,18 @@ s += T(960, 92, 'ET SI…', 76, '#2A1F1D', 'text-anchor="middle" font-family="An
 s += T(960, 132, 'Fiche personnages · Shorts verticaux de 1 min', 24, '#7A6A5E', 'text-anchor="middle"');
 // Sam
 s += `<ellipse cx="300" cy="1000" rx="150" ry="16" fill="#000" opacity=".08"/>`;
-s += sam({ x: 300, y: 1000, scale: 1.03, arms: { l: [7, 6, 'relax'], r: [150, 24, 'open'] }, expr: 'content' });
-s += T(56, 92, 'SAM', 64, '#2A1F1D', 'font-family="Anton" letter-spacing="3"');
+s += leo({ x: 300, y: 1000, scale: 1.03, arms: { l: [7, 6, 'relax'], r: [150, 24, 'open'] }, expr: 'content' });
+s += T(56, 92, 'LÉO PASDBOL', 64, '#2A1F1D', 'font-family="Anton" letter-spacing="3"');
 s += T(58, 128, 'Le héros', 28, '#B8771B', 'font-weight="700"');
-s += T(58, 164, 'Monsieur tout-le-monde.', 22, '#5E4E44');
+s += T(58, 164, '« Pas de bol » : tout lui tombe dessus.', 22, '#5E4E44');
 s += T(58, 192, 'Il vit chaque « Et si… » à notre place.', 22, '#5E4E44');
 // Vince
 s += `<ellipse cx="1630" cy="1000" rx="150" ry="16" fill="#000" opacity=".08"/>`;
-s += vince({ x: 1630, y: 1000, scale: 0.96, flip: true });
-s += T(1864, 92, 'VINCE', 64, '#2A1F1D', 'text-anchor="end" font-family="Anton" letter-spacing="3"');
+s += max({ x: 1630, y: 1000, scale: 0.96, flip: true });
+s += T(1864, 92, 'MAX LERELOU', 64, '#2A1F1D', 'text-anchor="end" font-family="Anton" letter-spacing="3"');
 s += T(1862, 128, 'L’ennemi', 28, '#A81F30', 'text-anchor="end" font-weight="700"');
-s += T(1862, 164, 'Celui qui lui pourrit la vie :', 22, '#5E4E44', 'text-anchor="end"');
-s += T(1862, 192, 'il juge, se moque et filme tout.', 22, '#5E4E44', 'text-anchor="end"');
+s += T(1862, 164, '« Relou » : il lui pourrit la vie,', 22, '#5E4E44', 'text-anchor="end"');
+s += T(1862, 192, 'il se moque et filme tout.', 22, '#5E4E44', 'text-anchor="end"');
 // expressions
 const samEx = [['content', 'Content'], ['rire', 'Mort de rire'], ['surpris', 'Surpris'], ['enerve', 'Énervé'],
                ['triste', 'Triste'], ['gene', 'Gêné'], ['panique', 'Paniqué'], ['fatigue', 'Fatigué']];
@@ -43,13 +43,13 @@ s += T(960, 196, 'EXPRESSIONS', 22, '#2A1F1D', 'text-anchor="middle" letter-spac
 samEx.forEach(([k, lbl], i) => {
   const cx = cx0 + (i % 4) * dx, cy = 330 + Math.floor(i / 4) * 255;
   s += `<circle cx="${cx}" cy="${cy - 10}" r="84" fill="#FFE7B0"/>`;
-  s += sam({ x: cx, y: cy, scale: 0.6, headOnly: true, expr: k });
+  s += leo({ x: cx, y: cy, scale: 0.6, headOnly: true, expr: k });
   s += T(cx, cy + 112, lbl, 21, '#5E4E44', 'text-anchor="middle" font-weight="600"');
 });
 vinEx.forEach(([k, lbl], i) => {
   const cx = cx0 + i * dx, cy = 868;
   s += `<circle cx="${cx}" cy="${cy - 18}" r="84" fill="#FFD3D3"/>`;
-  s += vince({ x: cx, y: cy, scale: 0.58, headOnly: true, expr: k });
+  s += max({ x: cx, y: cy, scale: 0.58, headOnly: true, expr: k });
   s += T(cx, cy + 104, lbl, i === 3 ? 17 : 21, '#5E4E44', 'text-anchor="middle" font-weight="600"');
 });
 // nuancier
