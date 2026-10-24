@@ -345,9 +345,10 @@
     tr.spec = spec; TRAILS.push(tr);
     if (spec.tp) tr.fr = arcFracs(tr.curve, pts.length);
     var p0 = pts[0], p1 = pts[pts.length - 1];
-    if (spec.exit) addRift(p0, Math.max(70 * k, p0.distanceTo(P) * .13) / k, spec.a - 1.3, spec.a + 1.4, { fi: .6, fo: 1, flash: [spec.a - .2], curl: 1.4, narrow: true, real: real });
+    // v120 : failles d'entrée et de sortie bien visibles (avant : 47 m à 360 m, une tache de 30 px — on croyait que la fusée disparaissait)
+    if (spec.exit) addRift(p0, Math.max(110 * k, p0.distanceTo(P) * .2) / k, spec.a - 1.8, spec.a + 1.8, { fi: .6, fo: 1, flash: [spec.a - .2], curl: 1.4, narrow: true, real: real });
     if (!spec.entry && !spec.flashEnd && !spec.cap && !spec.noEntry && !near122(p1)) spec.entry = true; // v93 : jamais de disparition sans faille
-    if (spec.entry) addRift(p1, Math.max(70 * k, p1.distanceTo(P) * .13) / k, spec.b - 1.5, spec.b + 1.3, { fi: .7, fo: .9, flash: [spec.b - .1], curl: 1.4, narrow: true, real: real });
+    if (spec.entry) addRift(p1, Math.max(110 * k, p1.distanceTo(P) * .2) / k, spec.b - 2.2, spec.b + 2.2, { fi: .7, fo: 1, flash: [spec.b - .1], curl: 1.4, narrow: true, real: real });
     if (spec.flashEnd) FLASHES.push({ pos: spec.cap ? p1.clone().add(meteorOff(spec.b, new T.Vector3())) : p1, t: spec.b, size: (spec.flashSize || 260) * k });
     if ((spec.flashEnd && !spec.cap && !spec.noBoom) || spec.boom) addBoom(p1, spec.b, (spec.boomSize || 1) * k, H(p1.x, p1.z) > p1.y - 25);
     if (!spec.cap && (spec.exit || spec.entry || spec.flashEnd)) WAVES.push({ pos: spec.exit ? p0 : p1, t: spec.exit ? spec.a - .2 : spec.b, size: 40 * k, kind: 'rift' });
@@ -358,7 +359,7 @@
       var tr = TRAILS[i], s = tr.spec, k = (t - s.a) / (s.b - s.a), fade = s.fade || 1.6;
       if (t < s.a - .1 || t > s.b + fade + .2) { if (tr.mesh.visible) tr.set(0, 0, 0, t); continue; }
       var alpha = (k > 0 ? 1 : 0) * (1 - ramp(t, s.b, s.b + fade)) * (s.alpha || 1);
-      if (s.cap) tr.off = MOFF;
+      if (s.cap) tr.off = t > s.b ? (tr.offB || (tr.offB = meteorOff(s.b, new T.Vector3()))) : MOFF; // v120 : arrivée dans la faille, la traînée ne repart plus avec la météorite
       if (s.tp) { var kk = keyK(tr, t), ln = s.tail ? Math.max(.015, kk - keyK(tr, t - s.tail)) : (s.len || .5); if (t > s.b) ln = s.tail ? Math.max(.015, 1 - keyK(tr, Math.min(s.b, t - s.tail))) : ln; tr.set(kk, ln, alpha, t); }
       else tr.set(cl(k) * 1.0, s.len || .5, alpha, t);
       if (k >= 1 && tr.rocket) tr.rocket.visible = false;
