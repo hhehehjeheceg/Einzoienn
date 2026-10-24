@@ -295,6 +295,18 @@
     var len = Math.max(1, Math.hypot(mx, mz)), spd = (i.sprint ? 6.6 : 4.6) * dt, yaw = p.yaw || 0;
     var mvx = (-Math.sin(yaw) * mz + Math.cos(yaw) * mx) / len * spd, mvz = (-Math.cos(yaw) * mz - Math.sin(yaw) * mx) / len * spd;
     var s = surf(f, RIDE.ox, RIDE.oz);
+    // v114 : dans le monde des failles, rien ne nous retient sur la roche — marcher une seconde (dans n'importe quelle
+    // direction) ou sauter nous en détache et l'on flotte ; immobile, on reste dessus et elle nous emmène
+    if (RIDE.phase === "rift" && f.sh) {
+      var moving = Math.hypot(mx, mz) > .12;
+      RIDE.walkT = moving ? (RIDE.walkT || 0) + dt : 0;
+      if (s == null || RIDE.walkT > LEAVE_AFTER || (p._jumpBuffer > 0 && RIDE.oy <= 0)) {
+        var jmp = p._jumpBuffer > 0; p._jumpBuffer = 0;
+        p.x = f.c.x + RIDE.ox + mvx; p.z = f.c.z + RIDE.oz + mvz; p.y = f.c.y + (s == null ? 0 : s) + RIDE.oy + .3;
+        enterFree(p, t); RIDE.fvx = mvx / Math.max(dt, 1e-3) * .9; RIDE.fvz = mvz / Math.max(dt, 1e-3) * .9; if (jmp) { RIDE.vy = 5.5; p.jumping = true; }
+        RIDE.walkT = 0; return true;
+      }
+    }
     if (s == null) { // la roche a grandi / changé sous nous : on revient au sommet
       RIDE.ox *= .5; RIDE.oz *= .5; s = surf(f, RIDE.ox, RIDE.oz); if (s == null) { RIDE.ox = RIDE.oz = 0; s = surf(f, 0, 0) || 0; }
     }
@@ -412,6 +424,7 @@
   /* v113 : dans une dimension, on ne dessine qu'elle et notre personnage, dans une scène à part : dans la scène de
    * l'île, les lumières, effets et réglages de l'événement s'additionnaient et le sol de la dimension sortait tout blanc.
    * La dimension et le personnage y sont prêtés le temps du rendu puis remis à leur place. */
+  var LEAVE_AFTER = .9; // réglage : secondes de marche sur la météorite (monde des failles) avant de s'en détacher
   var DIM_EXPOSURE = 1, dimScene = null, dimHold = null; // réglage : exposition pendant le rendu d'une dimension
   V6.dimExposure = function (v) { if (v != null) DIM_EXPOSURE = +v; return DIM_EXPOSURE; };
   function dimRenderHook() {
