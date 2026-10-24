@@ -8,7 +8,7 @@ html,body{margin:0;background:#000}svg{display:block}text{font-family:Brico,sans
 <body><svg id="s" width="1080" height="1920" viewBox="0 0 1080 1920"></svg>
 <script src="rig.js"></script>
 <script>
-// Maquette d'une image clé d'épisode : « Et si j'étais aveugle ? »
+// Maquette d'une image clé d'épisode : « Et si tu étais aveugle ? »
 const { leo, max, canne } = EtSi;
 let s = `<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD9A8"/><stop offset="1" stop-color="#FFF1DC"/></linearGradient></defs>`;
 s += `<rect width="1080" height="1920" fill="url(#sky)"/>`;
@@ -36,7 +36,7 @@ s += `<text x="795" y="666" font-size="40" font-weight="800" fill="#2A1F1D" text
 // titre « Et si… »
 s += `<rect x="90" y="190" width="900" height="250" rx="40" fill="#2A1F1D"/>`;
 s += `<text x="540" y="300" font-size="96" fill="#F6B53D" text-anchor="middle" font-family="Anton" letter-spacing="6">ET SI…</text>`;
-s += `<text x="540" y="392" font-size="62" font-weight="800" fill="#FFFFFF" text-anchor="middle">j'étais aveugle ?</text>`;
+s += `<text x="540" y="392" font-size="62" font-weight="800" fill="#FFFFFF" text-anchor="middle">tu étais aveugle ?</text>`;
 // sous-titre façon Shorts
 s += `<text x="540" y="1840" font-size="44" font-weight="800" fill="#FFFFFF" text-anchor="middle" stroke="#2A1F1D" stroke-width="10" paint-order="stroke">Épisode 1</text>`;
 document.getElementById('s').innerHTML = s;
