@@ -295,13 +295,15 @@
     var len = Math.max(1, Math.hypot(mx, mz)), spd = (i.sprint ? 6.6 : 4.6) * dt, yaw = p.yaw || 0;
     var mvx = (-Math.sin(yaw) * mz + Math.cos(yaw) * mx) / len * spd, mvz = (-Math.cos(yaw) * mz - Math.sin(yaw) * mx) / len * spd;
     var s = surf(f, RIDE.ox, RIDE.oz);
-    // v114 : dans le monde des failles, rien ne nous retient sur la roche — marcher une seconde (dans n'importe quelle
-    // direction) ou sauter nous en détache et l'on flotte ; immobile, on reste dessus et elle nous emmène
+    // v114 : dans le monde des failles, rien ne nous retient sur la roche — dès qu'on bouge le joystick (dans n'importe
+    // quelle direction) ou qu'on saute, on s'en détache et l'on flotte ; immobile, on reste dessus et elle nous emmène
     if (RIDE.phase === "rift" && f.sh) {
-      var moving = Math.hypot(mx, mz) > .12;
+      var moving = Math.hypot(mx, mz) > .08;
       RIDE.walkT = moving ? (RIDE.walkT || 0) + dt : 0;
-      if (s == null || RIDE.walkT > LEAVE_AFTER || (p._jumpBuffer > 0 && RIDE.oy <= 0)) {
-        var jmp = p._jumpBuffer > 0; p._jumpBuffer = 0;
+      // un appui sur SAUT : le jeu le met en attente (_jumpBuffer) ou, debout, lance directement le saut (jumping)
+      var jmp = RIDE.oy <= 0 && (p._jumpBuffer > 0 || (p.jumping && !(RIDE.vy > 0)));
+      if (s == null || RIDE.walkT > LEAVE_AFTER || jmp) {
+        p._jumpBuffer = 0;
         p.x = f.c.x + RIDE.ox + mvx; p.z = f.c.z + RIDE.oz + mvz; p.y = f.c.y + (s == null ? 0 : s) + RIDE.oy + .3;
         enterFree(p, t); RIDE.fvx = mvx / Math.max(dt, 1e-3) * .9; RIDE.fvz = mvz / Math.max(dt, 1e-3) * .9; if (jmp) { RIDE.vy = 5.5; p.jumping = true; }
         RIDE.walkT = 0; return true;
@@ -424,7 +426,7 @@
   /* v113 : dans une dimension, on ne dessine qu'elle et notre personnage, dans une scène à part : dans la scène de
    * l'île, les lumières, effets et réglages de l'événement s'additionnaient et le sol de la dimension sortait tout blanc.
    * La dimension et le personnage y sont prêtés le temps du rendu puis remis à leur place. */
-  var LEAVE_AFTER = .9; // réglage : secondes de marche sur la météorite (monde des failles) avant de s'en détacher
+  var LEAVE_AFTER = 0; // réglage : secondes de marche sur la météorite (monde des failles) avant de s'en détacher — 0 : dès le premier pas
   var DIM_EXPOSURE = 1, dimScene = null, dimHold = null; // réglage : exposition pendant le rendu d'une dimension
   V6.dimExposure = function (v) { if (v != null) DIM_EXPOSURE = +v; return DIM_EXPOSURE; };
   function dimRenderHook() {
