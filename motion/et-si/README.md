@@ -37,7 +37,7 @@ Ne jamais reprendre les situations d'un épisode précédent (déclaration, clas
 |---|---|---|---|
 | 1 | Et si… tu pouvais entendre les pensées des autres ? | `ep1-pensees/` | `ep1-pensees/out/et-si-ep1-pensees.mp4` |
 | 2 | Et si… tu ne pouvais plus mentir ? | `ep2-mentir/` | `ep2-mentir/out/et-si-ep2-mentir.mp4` |
-| 3 | Et si… tu pouvais remonter le temps de 10 secondes ? | `ep3-rembobine/` | `ep3-rembobine/out/et-si-ep3-rembobine.mp4` |
+| 3 | Et si… tu pouvais remonter le temps de 10 secondes ? | `ep3-rembobine/` | `ep3-rembobine/et-si-ep3-rembobine.mp4` |
 
 ## Fabriquer un épisode (pipeline de ep1)
 
