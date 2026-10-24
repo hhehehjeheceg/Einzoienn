@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Bannière</title>
+<style>
+@font-face{font-family:Brico;src:url(../../claude-intro/fonts/bricolage.woff2)}
+@font-face{font-family:Anton;src:url(../../claude-intro/fonts/anton.woff2)}
+html,body{margin:0;background:#fff}svg{display:block}
+</style></head>
+<body><svg id="s" width="2560" height="1440" viewBox="0 0 2560 1440"></svg>
+<script src="../personnages/rig.js"></script>
+<script>
+// Bannière YouTube 2560 x 1440. Zone visible partout (TV, ordi, mobile) : 1546 x 423 au centre.
+//   ?safe=1 dessine la zone de sécurité pour vérifier.
+const { leo, max, INK } = EtSi;
+const q = new URLSearchParams(location.search);
+const rays = (cx, cy, n, R, c) => { let d = ''; for (let i = 0; i < n; i++) { const a0 = i / n * Math.PI * 2, a1 = a0 + Math.PI / n; d += `M${cx} ${cy}L${cx + Math.cos(a0) * R} ${cy + Math.sin(a0) * R}L${cx + Math.cos(a1) * R} ${cy + Math.sin(a1) * R}Z`; } return `<path d="${d}" fill="${c}"/>`; };
+const cloud = (cx, cy, w, h, txt, fs, rot = 0) => {
+  let s = `<g transform="translate(${cx} ${cy}) rotate(${rot})">`;
+  const puffs = [[0, 0, w / 2, h / 2], [-w * 0.32, 0, h * 0.42, h * 0.42], [w * 0.32, 0, h * 0.42, h * 0.42], [-w * 0.12, -h * 0.28, h * 0.4, h * 0.4], [w * 0.15, -h * 0.25, h * 0.38, h * 0.38]];
+  s += puffs.map(([x, y, rx, ry]) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${INK}" stroke="${INK}" stroke-width="12"/>`).join('');
+  s += puffs.map(([x, y, rx, ry]) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#FFFFFF"/>`).join('');
+  s += `<text x="0" y="${fs * 0.35}" font-family="Brico" font-weight="800" font-size="${fs}" text-anchor="middle" fill="${INK}">${txt}</text></g>`;
+  return s;
+};
+let s = `<rect width="2560" height="1440" fill="#F6B53D"/>` + rays(1280, 720, 36, 2000, '#F9C860');
+// confettis / étoiles autour (zones hors sécurité, purement décoratives)
+const r = (() => { let a = 7; return () => { a = (a * 16807) % 2147483647; return a / 2147483647; }; })();
+for (let i = 0; i < 70; i++) {
+  const x = r() * 2560, y = r() * 1440, sz = 10 + r() * 22, c = ['#FFFFFF', '#E5483D', '#4FA3CF', '#7BD389', '#F28CB1'][i % 5];
+  if (x > 480 && x < 2080 && y > 480 && y < 960) continue;
+  s += `<path d="M0 ${-sz}Q0 0 ${sz} 0Q0 0 0 ${sz}Q0 0 ${-sz} 0Q0 0 0 ${-sz}Z" fill="${c}" transform="translate(${x} ${y}) rotate(${r() * 90})" opacity=".85"/>`;
+}
+// bandeau central
+s += `<rect x="0" y="560" width="2560" height="320" fill="#2A1F1D" opacity=".08"/>`;
+// Léo (gauche) et Max (droite), dans la zone visible
+s += leo({ x: 720, y: 1180, scale: 1.05, expr: 'surpris', look: [0.5, -0.3], tilt: -6, arms: { l: [10, 10, 'relax'], r: [150, 20, 'open'] } });
+s += max({ x: 1840, y: 1180, scale: 0.98, flip: true, expr: 'moqueur', look: [0.6, 0], tilt: 4 });
+// pensées
+s += cloud(560, 330, 330, 150, 'Et si…', 62, -6) + cloud(2020, 330, 300, 150, 'Pff…', 62, 6);
+// titre
+s += `<text x="1280" y="760" font-family="Anton" font-size="260" text-anchor="middle" fill="#FFFFFF" stroke="${INK}" stroke-width="22" stroke-linejoin="round" paint-order="stroke" letter-spacing="10">ET SI…</text>`;
+s += `<text x="1280" y="850" font-family="Brico" font-weight="800" font-size="64" text-anchor="middle" fill="${INK}">Ta vie change en 1 minute</text>`;
+if (q.get('safe')) s += `<rect x="507" y="508" width="1546" height="423" fill="none" stroke="#E5483D" stroke-width="6" stroke-dasharray="20 12"/>`;
+document.getElementById('s').innerHTML = s;
+</script></body></html>
