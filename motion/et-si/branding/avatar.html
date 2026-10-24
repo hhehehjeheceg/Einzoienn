@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Photo de profil</title>
+<style>
+@font-face{font-family:Anton;src:url(../../claude-intro/fonts/anton.woff2)}
+html,body{margin:0;background:#fff}svg{display:block}
+</style></head>
+<body><svg id="s" width="800" height="800" viewBox="0 0 800 800"></svg>
+<script src="../personnages/rig.js"></script>
+<script>
+// Photo de profil de la chaîne (800 x 800, YouTube l'affiche en rond).
+//   ?v=1 Léo curieux · ?v=2 Léo + « ? » · ?v=3 Léo et Max
+const { leo, max, INK } = EtSi;
+const v = new URLSearchParams(location.search).get('v') || '1';
+const rays = (cx, cy, n, R, c) => { let d = ''; for (let i = 0; i < n; i++) { const a0 = i / n * Math.PI * 2, a1 = a0 + Math.PI / n; d += `M${cx} ${cy}L${cx + Math.cos(a0) * R} ${cy + Math.sin(a0) * R}L${cx + Math.cos(a1) * R} ${cy + Math.sin(a1) * R}Z`; } return `<path d="${d}" fill="${c}"/>`; };
+let s = `<rect width="800" height="800" fill="#F6B53D"/>` + rays(400, 430, 20, 900, '#F9C860');
+if (v === '1') {
+  s += `<circle cx="400" cy="430" r="300" fill="#FFE7A8" opacity=".55"/>`;
+  s += leo({ x: 400, y: 470, scale: 1.75, headOnly: true, expr: 'surpris', look: [0.25, -0.25], tilt: -6 });
+} else if (v === '2') {
+  s += leo({ x: 340, y: 520, scale: 1.45, headOnly: true, expr: 'surpris', look: [0.6, -0.5], tilt: -8 });
+  s += `<g transform="translate(575 330) rotate(12)"><text x="0" y="0" font-family="Anton" font-size="200" text-anchor="middle" fill="#FFFFFF" stroke="${INK}" stroke-width="16" stroke-linejoin="round" paint-order="stroke">?</text></g>`;
+} else {
+  s += max({ x: 545, y: 455, scale: 1.3, headOnly: true, expr: 'moqueur', look: [-0.7, 0], tilt: 8, flip: true });
+  s += leo({ x: 290, y: 510, scale: 1.3, headOnly: true, expr: 'surpris', look: [-0.3, -0.2], tilt: -6 });
+}
+document.getElementById('s').innerHTML = s;
+</script></body></html>
