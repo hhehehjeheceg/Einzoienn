@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Aperçu</title>
+<style>html,body{margin:0;background:#FBF4E8}svg{display:block}</style></head>
+<body><svg id="s" width="1920" height="1080" viewBox="0 0 1920 1080"></svg>
+<script src="rig.js"></script>
+<script>
+const { sam, vince } = EtSi;
+document.getElementById('s').innerHTML =
+  `<ellipse cx="560" cy="1000" rx="170" ry="18" fill="#000" opacity=".08"/>` +
+  `<ellipse cx="1360" cy="1000" rx="170" ry="18" fill="#000" opacity=".08"/>` +
+  sam({ x: 560, y: 1000, scale: 1.35, expr: 'neutre' }) +
+  vince({ x: 1360, y: 1000, scale: 1.25 });
+</script></body></html>
