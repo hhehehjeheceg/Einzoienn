@@ -328,9 +328,9 @@
     if (spec.path) { spec.tp = spec.path.map(function (q) { return q[0]; }); spec.pts = spec.path.map(function (q) { return [q[1], q[2], q[3]]; }); spec.a = spec.tp[0]; spec.b = spec.tp[spec.tp.length - 1]; }
     var real = !!spec.real, k = real ? 1 : KS;
     var pts = spec.pts.map(function (a) { return sp(a, real); });
-    // v95 : une fusée relevée « droit sur la météorite » la touche vraiment (fin de trajectoire posée sur la roche
-    // ou son panache), quel que soit l'écart entre la vidéo et la place de la météorite sur la carte
-    if (!real && !spec.cap && pts.length > 2 && MET_B.lengthSq() > 0) {
+    // v95 collait sur la roche toute fusée finissant près de la météorite : elle s'y écrasait dans un simple éclair, sans faille
+    // ni explosion (incohérent). v118 : plus de choc sur la météorite — ces fusées entrent dans une faille comme les autres.
+    if (false && !real && !spec.cap && pts.length > 2 && MET_B.lengthSq() > 0) {
       var pe = pts[pts.length - 1], ax = tmp3.copy(MDIR).negate(), plen = 245 * MS * PLEN, rel = tmp2.copy(pe).sub(MET_B), u = Math.max(0, Math.min(plen * .6, rel.dot(ax)));
       var ap = MET_B.clone().addScaledVector(ax, u), dd = pe.distanceTo(ap);
       if (dd < 100 * KS) {
@@ -505,11 +505,11 @@
     addTrail({ path: [[73.6, 38, 44, 900], [74.4, 18, 30, 520], [75.1, -4, 16, 260], [75.6, -12, 8.5, 150], [75.85, -14, 7, 130]], tail: 1.2, radius: 3.0, exit: true });
     /* v89 — 87 → 111 s RELEVÉ IMAGE PAR IMAGE (caméra reconstituée : gyroscope visuel + lune / feu de la météorite). */
     // 87 → 90,9 : la fusée jaillit du portail, monte vers la droite, passe par-dessus et PLONGE droit sur la météorite
-    addTrail({ path: [[87.0, -28, 21, 430], [87.5, -20, 31, 450], [87.9, -10, 43, 480], [88.3, 2, 52, 520], [88.6, 22, 50, 600], [88.9, 45.3, 40.3, 620], [89.4, 61.2, 27.2, 600], [89.9, 66.3, 19.2, 580], [90.4, 68.9, 14.8, 565], [90.9, 70.7, 13.5, 560]], tail: 1.6, radius: 3.2, entry: true, flashEnd: true, flashSize: 300 });
+    addTrail({ path: [[87.0, -28, 21, 430], [87.5, -20, 31, 450], [87.9, -10, 43, 480], [88.3, 2, 52, 520], [88.6, 22, 50, 600], [88.9, 45.3, 40.3, 620], [89.4, 61.2, 27.2, 600], [89.9, 66.3, 19.2, 580], [90.4, 68.9, 14.8, 565], [90.9, 70.7, 13.5, 560]], tail: 1.6, radius: 3.2, entry: true }); // v118 : elle plonge dans une faille devant la météorite
     // 89,3 → 92,4 : un éclat de foudre s'allume à gauche sous la lune (28,9° ; 14°) ; deux fusées en sortent :
     // l'une file droit dans la météorite (92,2 s)…
     O.b4p = skyPos(28.9, 14, 520);
-    addTrail({ path: [[90.25, 29, 14.5, 520], [90.6, 41.9, 15.4, 530], [91.0, 49.3, 13, 540], [91.4, 52, 12.3, 545], [91.8, 60.3, 11.4, 550], [92.2, 70.5, 9.4, 560]], tail: 1.2, radius: 2.7, flashEnd: true, flashSize: 180 });
+    addTrail({ path: [[90.25, 29, 14.5, 520], [90.6, 41.9, 15.4, 530], [91.0, 49.3, 13, 540], [91.4, 52, 12.3, 545], [91.8, 60.3, 11.4, 550], [92.2, 70.5, 9.4, 560]], tail: 1.2, radius: 2.7, entry: true }); // v118 : faille devant la météorite
     // …l'autre rase l'horizon vers la droite, remonte en chandelle (92,4 s), passe par-dessus (93,4 s) et redescend vers
     // l'île en croisant la frénésie en X (94,8 s)
     addTrail({ path: [[90.4, 24, 12, 520], [90.8, 28.1, 9.4, 500], [91.2, 36.7, 9.1, 480], [91.6, 42.3, 10.3, 470], [92.0, 49, 13.7, 480], [92.4, 52.7, 23.4, 520], [92.9, 62.7, 35.5, 580],
