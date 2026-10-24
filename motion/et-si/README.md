@@ -24,13 +24,20 @@ Rig, fiche et maquette : `personnages/` (`node render.mjs <page.html> <sortie.pn
 Passants et chat : `personnages/extras.js`.
 
 Format sonore : **voix off du narrateur uniquement** (les personnages ne parlent
-pas) et **bruitages, sans musique**. La fin demande toujours de s'abonner et de liker.
+pas), **bruitages** et, à partir de l'épisode 3, **la musique de la chaîne**
+(`musique/musique-chaine.wav`) dès la première seconde, à **17 %** du volume.
+Pas d'effet sonore « titre » au début ni à la fin. La voix reste toujours au moins
+6 dB au-dessus des bruitages. La fin demande toujours de s'abonner et de liker.
+
+Ne jamais reprendre les situations d'un épisode précédent (déclaration, classe…).
 
 ## Épisodes
 
 | # | Titre | Dossier | Vidéo |
 |---|---|---|---|
 | 1 | Et si… tu pouvais entendre les pensées des autres ? | `ep1-pensees/` | `ep1-pensees/out/et-si-ep1-pensees.mp4` |
+| 2 | Et si… tu ne pouvais plus mentir ? | `ep2-mentir/` | `ep2-mentir/out/et-si-ep2-mentir.mp4` |
+| 3 | Et si… tu pouvais remonter le temps de 10 secondes ? | `ep3-rembobine/` | `ep3-rembobine/out/et-si-ep3-rembobine.mp4` |
 
 ## Fabriquer un épisode (pipeline de ep1)
 

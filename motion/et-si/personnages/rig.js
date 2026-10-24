@@ -99,6 +99,15 @@
           { t: 'cap', x1: s * 12, y1: 10, x2: s * 18, y2: 20, w: 9 },
         ], skin);
     }
+    if (type === 'remote' || type === 'remoteRed') { // télécommande tenue droite, gros bouton ◀◀
+      const btn = type === 'remote' ? '#F6B53D' : '#E5483D';
+      return union([{ t: 'ell', cx: 0, cy: 14, rx: 16, ry: 15 }], skin) +
+        `<g transform="translate(0 6) rotate(${-rot}) translate(${-s * 2} -46)">` +
+        path('M-17 0h34a7 7 0 0 1 7 7v62a7 7 0 0 1 -7 7h-34a7 7 0 0 1 -7 -7v-62a7 7 0 0 1 7 -7z', '#2A2D38') +
+        path('M-12 10h24v20h-24z', btn, 3) + `<path d="M-2 14l-8 6l8 6zM8 14l-8 6l8 6z" fill="${INK}"/>` +
+        `<circle cx="-7" cy="44" r="4" fill="#8A8D96"/><circle cx="7" cy="44" r="4" fill="#8A8D96"/><circle cx="-7" cy="58" r="4" fill="#8A8D96"/><circle cx="7" cy="58" r="4" fill="#8A8D96"/>` +
+        '</g>' + union([{ t: 'cap', x1: -s * 12, y1: 8, x2: -s * 20, y2: 18, w: 10 }, { t: 'cap', x1: s * 12, y1: 10, x2: s * 18, y2: 20, w: 9 }], skin);
+    }
     if (type === 'relax') { // main au repos, doigts groupés
       return union([
         { t: 'ell', cx: 0, cy: 13, rx: 15, ry: 14 },
