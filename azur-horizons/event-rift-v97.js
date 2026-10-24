@@ -412,7 +412,7 @@
   // v108 : les îles s'arrêtent en escalier devant le joueur qui a quitté la météorite (on peut s'y poser)
   var STAIR = [[38, 0, -30, 34], [98, 48, -100, 30], [150, -46, -180, 40], [72, -112, -265, 28]];
   function freeze(R, rx, ry, rz, yaw) {
-    if (!R || R.frozen) return; R.frozen = true; R.exitRel = ry - 265 - 80; // sous la dernière île : la faille de retour s'ouvre
+    if (!R || R.frozen) return; R.frozen = true; R.exitRel = ry - 265 - 35; // v119 : 35 m sous la dernière île, la faille de retour s'ouvre (80 m : on flottait trop longtemps dans le vide)
     var fx = -Math.sin(yaw), fz = -Math.cos(yaw), gx = Math.cos(yaw), gz = -Math.sin(yaw);
     for (var i = 0; i < R.isl.length; i++) {
       var il = R.isl[i], q = STAIR[i % STAIR.length];

@@ -372,7 +372,8 @@
     var wx = (-Math.sin(yaw) * mz + Math.cos(yaw) * mx) / len * want, wz = (-Math.cos(yaw) * mz - Math.sin(yaw) * mx) / len * want;
     var acc = RIDE.fg ? 14 : 3.2; RIDE.fvx += (wx - RIDE.fvx) * Math.min(1, acc * dt); RIDE.fvz += (wz - RIDE.fvz) * Math.min(1, acc * dt);
     if (RIDE.fg && p._jumpBuffer > 0) { p._jumpBuffer = 0; RIDE.vy = 6.8; RIDE.fg = false; p.jumping = true; }
-    if (!RIDE.fg) RIDE.vy = Math.max(-6.5, RIDE.vy - 3.2 * dt); // on flotte : on descend doucement
+    var deep = RW.exitRel != null && p.y < W.y + RW.exitRel + 40; // v119 : passé sous la dernière île, on tombe franchement vers la faille de retour
+    if (!RIDE.fg) RIDE.vy = Math.max(deep ? -16 : -6.5, RIDE.vy - (deep ? 9 : 3.2) * dt); // on flotte : on descend doucement
     var oy = p.y, nx = p.x + RIDE.fvx * dt, nz = p.z + RIDE.fvz * dt, ny = RIDE.fg ? p.y : p.y + RIDE.vy * dt, sup = null;
     var isl = RW.isl || [];
     for (var k = 0; k < isl.length; k++) {
@@ -492,6 +493,7 @@
     var p = me(); if (!p) return false;
     if (what === "portal" && RIDE.phase === "riftfree" && RW && RW.odd) { var it = RW.odd.items.filter(function (i) { return i.on && i.portal && (i.a || 0) > .55; })[0]; if (!it) return false; if (kind != null) it.portal.uniforms.kind.value = kind; var n = _n.set(0, 0, 1).applyQuaternion(it.obj.quaternion); RIDE.noPortal = 0; p.x = W.x + it.obj.position.x + n.x * 6; p.y = W.y + it.obj.position.y - 1; p.z = W.z + it.obj.position.z + n.z * 6; RIDE.fvx = 0; RIDE.fvz = 0; RIDE.vy = 0; RIDE.fg = false; var yw = Math.atan2(n.x, n.z); p.yaw = yw; if (root.AZUR) root.AZUR.yaw = yw; return it.portal.uniforms.kind.value; } // 6 m devant, tourné vers lui : il reste à avancer
     if (what === "home" && RIDE.phase === "dim" && RIDE.dim && RIDE.dim.portalW) { var q = RIDE.dim.portalW; p.x = q.x; p.y = q.y - 1; p.z = q.z; return true; }
+    if (what === "low" && RIDE.phase === "riftfree" && RW && RW.exitRel != null) { p.y = W.y + RW.exitRel + 60; RIDE.fg = false; RIDE.vy = 0; return true; } // au niveau de la dernière île, il reste à tomber
     if (what === "drop" && RIDE.phase === "riftfree" && RW) { p.y = W.y + (RW.exitRel != null ? RW.exitRel : -560) - 2; RIDE.fg = false; return true; }
     return false;
   };

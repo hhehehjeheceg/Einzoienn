@@ -982,10 +982,11 @@
   function rkS() { var a = tmp3.copy(BASE).addScaledVector(UP, 265.7).distanceTo(P), b = rocketPos(33.3, tmp3).distanceTo(P); return Math.max(1, b / Math.max(1, a)); }
   // v106 : comme sur la vidéo (0:20-0:41), la fusée s'incline doucement en s'éloignant de la colline : vue d'en bas elle
   // reste à ≈ 50° au-dessus de l'horizon (le joueur et la fusée dans la même image) au lieu de filer au zénith
-  function rkDrift(alt) { var dB = Math.hypot(BASE.x - P.x, BASE.z - P.z), x = alt * .84 - dB; return x <= -300 ? 0 : x >= 300 ? x : (x + 300) * (x + 300) / 1200; }
+  function rkDrift(alt) { // v119 : plus utilisée (la fusée montait en avançant)
+    var dB = Math.hypot(BASE.x - P.x, BASE.z - P.z), x = alt * .84 - dB; return x <= -300 ? 0 : x >= 300 ? x : (x + 300) * (x + 300) / 1200; }
   function rocketPos(t, out) {
     var alt = rkAlt(Math.min(t, 38.6));
-    return out.copy(BASE).addScaledVector(UP, 1.2 + alt).addScaledVector(F, rkDrift(alt));
+    return out.copy(BASE).addScaledVector(UP, 1.2 + alt); // v119 : tout droit vers le haut, à la verticale du pas de tir (plus de dérive vers l'avant)
   }
   /* distance de la caméra de référence (colline) au point d'entrée : sert à dimensionner les effets */
   function rkScale() { return 1; }
