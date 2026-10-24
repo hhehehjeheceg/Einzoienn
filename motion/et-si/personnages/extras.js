@@ -19,6 +19,8 @@
     amour: { brow: { in: -6, out: -2 }, eye: { lidBot: 0.3 }, mouth: 'smile', fx: ['blush'] },
     content: { brow: { in: -4, out: -2 }, eye: { lidBot: 0.25 }, mouth: 'smile' },
     rire: { brow: { in: -6, out: -2 }, eye: { lidTop: 1 }, mouth: 'grin' },
+    choque: { brow: { in: -14, out: -10 }, eye: { pupil: 0.5 }, mouth: 'o' },
+    triste: { brow: { in: -10, out: 6, arch: 2 }, eye: { lidTop: 0.3, lidTilt: -10, look: [0, 0.5] }, mouth: 'sad' },
   };
 
   // Passant : manteau, tête ronde, 6 coiffures. Hauteur ~ 470 px à l'échelle 1.
@@ -47,7 +49,8 @@
     const e = Object.assign({ lidCol: skin }, ex.eye);
     s += eye(-24, -386, 12, 14, e, '#3B2A24', -1) + eye(24, -386, 12, 14, e, '#3B2A24', 1);
     s += brow(-24, -410, -1, 22, ex.brow, hair, 6) + brow(24, -410, 1, 22, ex.brow, hair, 6);
-    s += `<g transform="translate(0 -348) scale(.7)">${mouth(ex.mouth)}</g>`;
+    s += `<g transform="translate(0 -348) scale(.7)">${mouth(o.mouth || ex.mouth)}</g>`;
+    if (o.glasses) s += `<g fill="none" stroke="${INK}" stroke-width="5"><circle cx="-24" cy="-386" r="19"/><circle cx="24" cy="-386" r="19"/><path d="M-5 -388H5M-43 -390L-64 -396M43 -390L64 -396"/></g>`;
     if (o.hairStyle !== 'long') s += (HAIR[o.hairStyle || 'court'] || HAIR.court)(hair);
     else s += path('M-56 -380Q-30 -420 0 -418Q30 -420 56 -380Q50 -430 0 -436Q-50 -430 -56 -380Z', hair);
     s += `<g transform="translate(0 -386) scale(.62) translate(0 70)">${fx(ex.fx, 0, -70)}</g>`;
