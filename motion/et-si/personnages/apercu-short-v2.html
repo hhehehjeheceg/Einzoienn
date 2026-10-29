@@ -1,0 +1,70 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Aperçu Short v2</title>
+<style>@font-face{font-family:Brico;src:url(../../claude-intro/fonts/bricolage.woff2)}@font-face{font-family:Anton;src:url(../../claude-intro/fonts/anton.woff2)}html,body{margin:0;background:#000}svg{display:block}</style></head>
+<body><svg id="s" width="1080" height="1920" viewBox="0 0 1080 1920"></svg>
+<script src="rig2.js"></script>
+<script>
+// Aperçu d'une image de « Pourquoi c'est horrible d'être né le 1er avril » avec le nouveau style et les nouveaux sous-titres.
+const K = EtSi2, { P, F, L, E, G, cel } = K.prims, INK = K.INK;
+const cv = document.createElement('canvas').getContext('2d');
+const measure = (t, size, font = 'Brico', w = 800) => { cv.font = `${w} ${size}px ${font}`; return cv.measureText(t).width; };
+let s = `<defs><filter id="cap" x="-10%" y="-30%" width="120%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000" flood-opacity=".35"/></filter>
+<radialGradient id="vig" cx="50%" cy="45%" r="75%"><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></radialGradient></defs>`;
+
+// ---- décor : salon décoré pour l'anniversaire
+s += `<rect width="1080" height="1920" fill="#F7D9B5"/>`;
+for (let x = -40; x < 1120; x += 120) s += `<rect x="${x}" y="0" width="60" height="1500" fill="#F2CFA6"/>`;
+s += cel('M90 330H470V720H90Z', '#BFE6F5', { dx: 0, dy: 0 }) + L('M280 330V720M90 525H470', INK, 6);
+s += `<rect x="-20" y="1440" width="1120" height="500" fill="#C99B6D"/>` + L('M-20 1440H1100', INK, 5);
+// guirlande de fanions
+let fl = '';
+for (let i = 0; i < 11; i++) { const x = 20 + i * 100, y = 250 + Math.sin(i / 10 * Math.PI) * 60; fl += P(`M${x} ${y}L${x + 80} ${y + 4}L${x + 40} ${y + 70}Z`, ['#E5483D', '#F6B53D', '#4FA3CF', '#7BD389'][i % 4], 4); }
+s += L('M0 240Q540 360 1080 240', INK, 4) + fl;
+// ballons
+[[130, 820, '#E5483D'], [960, 760, '#4FA3CF'], [1010, 900, '#F6B53D']].forEach(([x, y, c]) => { s += L(`M${x} ${y + 90}Q${x + 20} ${y + 200} ${x - 10} ${y + 320}`, INK, 3) + cel(`M${x} ${y - 90}C${x + 70} ${y - 90} ${x + 76} ${y + 40} ${x} ${y + 90}C${x - 76} ${y + 40} ${x - 70} ${y - 90} ${x} ${y - 90}Z`, c, { dx: 14, dy: 10 }) + E(x - 26, y - 40, 12, 22, '#FFFFFF', 0, 'opacity=".55"'); });
+
+// ---- personnages
+// le héros : bras croisés, chapeau de fête, poisson en papier scotché sur le sweat
+const hero = { body: 'enfant', spec: { hair: 'boucles', freckles: false }, top: 'hoodie', bottom: 'jean', pal: { skin: 'brun', hair: '#24160F', top: '#5FB57A', bottom: '#33456E', shoe: '#FBFAF6', shoeAcc: '#4FA3CF', iris: '#3B2418', accent: '#F6B53D' } };
+const hg = K.gesture('croise');
+s += K.person(Object.assign({ x: 540, y: 1700, scale: 1.3, t: 1.2 }, hero, hg, { expr: 'blase', exprOver: { lidT: 0.5, lx: -0.3 }, tilt: -5, turn: -0.12 }));
+// chapeau pointu + poisson d'avril
+s += G(cel('M-62 0L0 -170L62 0Q0 18 -62 0Z', '#4FA3CF', { dx: 10, dy: 8 }) + L('M-40 -40L36 -60M-24 -90L22 -104', '#FFE27A', 7) + cel('M-16 -176a16 16 0 1 0 32 0a16 16 0 1 0 -32 0Z', '#F6B53D', { dx: 3, dy: 3 }), 'translate(572 880) rotate(-12)');
+// le père qui se moque (montre du doigt) et la petite sœur qui rit
+s += K.person(Object.assign({ x: 150, y: 1790, scale: 0.98, t: 0.4, body: 'adulte', spec: { hair: 'court', beard: '#3A2621' }, top: 'chemise', bottom: 'jean',
+  pal: { skin: 'brun', hair: '#2A1B14', top: '#F4D06F', bottom: '#2F3B55', shoe: '#6B4330', iris: '#3B2418' } }, K.gesture('pointe', 'adulte'), { expr: 'rire', turn: 0.35, lean: -8, arms: { l: { at: [10, -420], hand: 'fist', bend: 1, handAbs: 90 }, r: { at: [262, -620], hand: 'point', handAbs: -84, bend: -1 } } }));
+s += K.person(Object.assign({ x: 905, y: 1800, scale: 1.0, flip: true, t: 0.8, body: 'petit', spec: { hair: 'tresses', lash: true }, top: 'robe', bottom: 'robe',
+  pal: { skin: 'brun', hair: '#24160F', top: '#F28CB1', shoe: '#E5483D', socks: '#FFFFFF', iris: '#3B2418' } }, K.gesture('pointe', 'petit'), { expr: 'rire', turn: 0.3 }));
+
+// ---- table + gâteau en forme de poisson
+s += cel('M150 1500H930V1560H150Z', '#F4F1EA', { dx: 10, dy: 8 }) + cel('M160 1560H920L900 1720H180Z', '#E8E2D6', { dx: 16, dy: 10 }) + L('M200 1560Q260 1620 320 1560Q380 1620 440 1560Q500 1620 560 1560Q620 1620 680 1560Q740 1620 800 1560Q860 1620 920 1560', '#E5483D', 5);
+s += G(cel('M-150 0C-90 -110 90 -110 140 0C90 110 -90 110 -150 0Z', '#FF9A5C', { dx: 14, dy: 10 }) + cel('M128 0L210 -70V70Z', '#FF9A5C', { dx: 10, dy: 6 }) +
+  L('M-40 -60Q-10 0 -40 60M10 -66Q40 0 10 66M60 -60Q86 0 60 60', '#F6F0E8', 9) + E(-96, -18, 16, 16, '#FFFFFF', 4) + E(-92, -16, 7, 7, INK) + L('M-140 20Q-120 34 -100 26', INK, 5) +
+  [-20, 40, 100].map((x, i) => cel(`M${x - 8} -96h16v-56h-16z`, ['#4FA3CF', '#F28CB1', '#7BD389'][i], { dx: 3, dy: 3, sw: 4 }) + P(`M${x} -186q12 16 0 30q-12 -14 0 -30z`, '#FFC83D', 3)).join(''), 'translate(540 1520) scale(.92)');
+
+// ---- titre (format « Pourquoi c'est horrible »)
+s += G(cel('M-430 -96H430Q470 -96 470 -56V56Q470 96 430 96H-430Q-470 96 -470 56V-56Q-470 -96 -430 -96Z', '#2B1D24', { dx: 0, dy: 0 }) +
+  `<text x="0" y="-26" font-family="Anton" font-size="48" letter-spacing="3" fill="#FFD23F" text-anchor="middle">POURQUOI C’EST HORRIBLE</text>` +
+  `<text x="0" y="56" font-family="Anton" font-size="76" letter-spacing="2" fill="#FFFFFF" text-anchor="middle">D’ÊTRE NÉ LE 1ER AVRIL</text>`, 'translate(540 120) rotate(-2)');
+
+// ---- nouveaux sous-titres : plus petits (60 px), mot actif dans une pastille jaune
+function captions(words, active, y0) {
+  const fs = 60, gap = 18, maxW = 880, lines = [[]];
+  let w = 0;
+  words.forEach((wd, i) => { const ww = measure(wd, fs) + (i === active ? 40 : 0); if (w + ww > maxW && lines[lines.length - 1].length) { lines.push([]); w = 0; } lines[lines.length - 1].push(i); w += ww + gap; });
+  let out = '';
+  lines.forEach((ln, li) => {
+    const tot = ln.reduce((a, i) => a + measure(words[i], fs) + (i === active ? 40 : 0) + gap, -gap);
+    let x = 540 - tot / 2; const y = y0 + li * 82;
+    ln.forEach(i => {
+      const pad = i === active ? 40 : 0, ww = measure(words[i], fs), cx = x + (ww + pad) / 2;
+      if (i === active) out += `<g transform="translate(${cx} ${y - 20}) rotate(-2) scale(1.08)"><rect x="${-ww / 2 - 16}" y="-44" width="${ww + 32}" height="80" rx="18" fill="#FFD23F" stroke="${INK}" stroke-width="5"/><text x="0" y="20" font-family="Brico" font-weight="800" font-size="${fs}" fill="${INK}" text-anchor="middle">${words[i]}</text></g>`;
+      else out += `<text x="${cx}" y="${y}" font-family="Brico" font-weight="800" font-size="${fs}" fill="#FFFFFF" stroke="#1C1418" stroke-width="11" stroke-linejoin="round" paint-order="stroke" text-anchor="middle" opacity="${i < active ? 1 : 0.92}">${words[i]}</text>`;
+      x += ww + pad + gap;
+    });
+  });
+  return `<g filter="url(#cap)">${out}</g>`;
+}
+s += `<rect width="1080" height="1920" fill="url(#vig)"/>`;
+s += captions(['MÊME', 'TON', 'GÂTEAU…', 'C’EST', 'UNE', 'BLAGUE.'], 5, 1230);
+document.getElementById('s').innerHTML = s;
+</script></body></html>

@@ -1,0 +1,40 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Planche personnages v2</title>
+<style>@font-face{font-family:Brico;src:url(../../claude-intro/fonts/bricolage.woff2)}@font-face{font-family:Anton;src:url(../../claude-intro/fonts/anton.woff2)}html,body{margin:0;background:#FBF4E8}svg{display:block}</style></head>
+<body><svg id="s" width="2400" height="3560" viewBox="0 0 2400 3560"></svg>
+<script src="rig2.js"></script>
+<script>
+const K = EtSi2;
+const T = (x, y, t, z = 26, c = '#2B1D24', o = '') => `<text x="${x}" y="${y}" font-size="${z}" font-family="Brico" font-weight="800" fill="${c}" text-anchor="middle" ${o}>${t}</text>`;
+const H = (x, y, t, sub, c) => `<text x="${x}" y="${y}" font-size="58" font-family="Anton" letter-spacing="3" fill="#2B1D24">${t}</text>` + `<text x="${x + 2}" y="${y + 40}" font-size="27" font-family="Brico" font-weight="700" fill="${c}">${sub}</text>`;
+let s = `<rect width="2400" height="3560" fill="#FBF4E8"/>`;
+s += `<text x="1200" y="96" font-size="70" font-family="Anton" letter-spacing="4" fill="#2B1D24" text-anchor="middle">NOUVEAUX PERSONNAGES</text>`;
+s += T(1200, 140, 'Gestes de tout le corps · visages très expressifs · effets seulement quand la scène en a besoin', 28, '#7A6A5E');
+// ---- gestes
+s += `<rect x="40" y="180" width="2320" height="1540" rx="44" fill="#FFE7B0"/>` + H(84, 262, 'GESTES', 'Bras, mains, épaules, buste, tête : tout bouge', '#B8771B');
+const G = [['salut', 'Salut'], ['facepalm', 'Facepalm'], ['hausse', 'Je sais pas'], ['croise', 'Bras croisés'], ['victoire', 'Victoire'], ['horreur', 'Horreur'],
+  ['pointe', 'Se moque'], ['reflechit', 'Réfléchit'], ['pleure', 'Pleure'], ['hanches', 'Fier'], ['panique', 'Panique'], ['course', 'Court']];
+G.forEach(([g, lab], i) => { const x = 230 + (i % 6) * 388, y = 960 + Math.floor(i / 6) * 700; s += K.leo(Object.assign({ x, y, scale: 0.84, t: 0.3 + i }, K.gesture(g))); s += T(x, y + 44, lab, 30); });
+// ---- expressions
+s += `<rect x="40" y="1750" width="2320" height="900" rx="44" fill="#E4F1F6"/>` + H(84, 1832, 'ÉMOTIONS', '24 expressions qui se mélangent en douceur pendant l’animation', '#3D6F86');
+const X = [['neutre', 'Neutre'], ['content', 'Content'], ['joie', 'Joie'], ['rire', 'Fou rire'], ['fier', 'Fier'], ['amoureux', 'Amoureux'], ['emerveille', 'Émerveillé'], ['timide', 'Timide'],
+  ['surpris', 'Surpris'], ['choque', 'Choqué'], ['peur', 'Peur'], ['panique', 'Panique'], ['triste', 'Triste'], ['pleure', 'Pleure'], ['touche', 'Ému'], ['gene', 'Gêné'],
+  ['enerve', 'Énervé'], ['furieux', 'Furieux'], ['vexe', 'Vexé'], ['mefiant', 'Méfiant'], ['degoute', 'Dégoûté'], ['blase', 'Blasé'], ['fatigue', 'Fatigué'], ['pense', 'Réfléchit']];
+X.forEach(([e, lab], i) => { const x = 200 + (i % 8) * 286, y = 2030 + Math.floor(i / 8) * 262; s += K.leo({ x, y, scale: 0.7, headOnly: true, expr: e, turn: [0, 0.2, -0.2][i % 3], tilt: [0, -4, 5, 3][i % 4] }); s += T(x, y + 112, lab, 25); });
+// ---- tout le monde
+s += `<rect x="40" y="2680" width="2320" height="840" rx="44" fill="#E6F2DF"/>` + H(84, 2762, 'TOUT LE MONDE', 'Même qualité pour Max, les passants et les héros des « Pourquoi c’est horrible… »', '#4E7A3A');
+const cast = [
+  ['max', 'ado', { turn: -0.2 }, 'pointe'],
+  [{ body: 'petit', spec: { hair: 'tresses', lash: true }, top: 'robe', bottom: 'robe', pal: { skin: 'brun', hair: '#2A1B14', top: '#F28CB1', shoe: '#E5483D', socks: '#FFFFFF', iris: '#4A2C1B' } }, 'petit', { expr: 'joie' }, 'salut'],
+  [{ body: 'enfant', spec: { hair: 'afro' }, top: 'tee', bottom: 'short', sleeve: 'court', pal: { skin: 'fonce', hair: '#1E1410', top: '#4FA3CF', bottom: '#2F4A6E', shoe: '#FFFFFF', shoeAcc: '#2FA56A', iris: '#3B2418' } }, 'enfant', { turn: 0.25 }, 'salut'],
+  [{ body: 'ado', spec: { hair: 'casquette', glasses: '#2B1D24' }, top: 'hoodie', bottom: 'jogging', pal: { skin: 'mat', hair: '#3D6FB6', top: '#7A5BC7', bottom: '#3A3D48', shoe: '#22232A', iris: '#4A2C1B' } }, 'ado', { turn: -0.25 }, 'croise'],
+  [{ body: 'ado', spec: { hair: 'hijab', lash: true }, top: 'pull', bottom: 'jean', pal: { skin: 'medium', hair: '#2F8F7A', top: '#F4D06F', bottom: '#3F5888', shoe: '#FBFAF6', iris: '#5A3A2A' } }, 'ado', {}, 'hausse'],
+  [{ body: 'adulte', spec: { hair: 'court', beard: '#3A2621' }, top: 'chemise', bottom: 'jean', pal: { skin: 'rose', hair: '#3A2621', top: '#9FC3E3', bottom: '#2F3B55', shoe: '#6B4330', iris: '#3D6FB6' } }, 'adulte', {}, 'facepalm'],
+  [{ body: 'rond', spec: { hair: 'chignon', lash: true }, top: 'manteau', bottom: 'jean', pal: { skin: 'tresFonce', hair: '#1E1410', top: '#E5483D', bottom: '#2F3B55', shoe: '#2B2B33', iris: '#3B2418' } }, 'rond', {}, 'hanches'],
+  [{ body: 'age', spec: { hair: 'chauve', glasses: '#8A5A3B', mustache: '#E8E2D6', browCol: '#C9C2B6' }, top: 'pull', bottom: 'jean', pal: { skin: 'clair', hair: '#D9D2C6', top: '#8DB580', bottom: '#5B5F6B', shoe: '#6B4330', iris: '#5A6E8A' } }, 'age', {}, 'reflechit'],
+];
+cast.forEach(([c, b, extra, g], i) => {
+  const x = 190 + i * 290, o = Object.assign({ x, y: 3460, scale: 0.72, t: i }, K.gesture(g, b), extra);
+  s += c === 'max' ? K.max(o) : K.person(Object.assign(o, c, { expr: o.expr }));
+});
+document.getElementById('s').innerHTML = s;
+</script></body></html>
