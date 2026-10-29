@@ -401,9 +401,9 @@ raw_m = subprocess.run(["ffmpeg", "-v", "error", "-i", str(HERE / "../musique/mu
 mus = np.frombuffer(raw_m, np.float32).reshape(-1, 2).T.astype(np.float64)
 while mus.shape[1] < N:
     mus = np.concatenate([mus, mus], axis=1)
-mus = mus[:, :N] * 0.17
+mus = mus[:, :N] * 0.11  # plus bas que les 17 % habituels : demandé après écoute
 mus[:, N - int(1.5 * SR):] *= np.linspace(1, 0, int(1.5 * SR))
-mus *= 1 - 0.3 * act
+mus *= 1 - 0.45 * act
 tm = np.arange(N) / SR
 mus *= 1 - 0.85 * np.clip(np.minimum((tm - 41.05) / 0.08, (41.7 - tm) / 0.4), 0, 1)  # le disque s'arrête net
 out = sfx + vo * VO_G + mus
