@@ -1,8 +1,13 @@
-# « Et si… » — série de YouTube Shorts
+# « Et si… » / « Pourquoi c'est horrible… » — séries de YouTube Shorts
 
-Shorts verticaux (9:16) d'une minute en motion design 2D. Chaque épisode plonge
-le spectateur dans un scénario « Et si… » : sur soi (aveugle, trisomie 21,
-couleur de peau…) ou sur le monde (plus de vent, plus d'oxygène…).
+Shorts verticaux (9:16) d'une minute en motion design 2D. Deux formats en alternance :
+
+- **« Et si… »** : le spectateur plonge dans un scénario, sur soi (aveugle, trisomie 21,
+  couleur de peau…) ou sur le monde (plus de vent, plus d'oxygène…). Avec Léo et Max.
+- **« Pourquoi c'est horrible… »** : une histoire à la 2e personne sur une situation de vie
+  (être né le 1er avril, avoir des parents influenceurs, être l'enfant du milieu…).
+  **Pas de Max**, et **des personnages différents à chaque épisode** (nouvelle famille,
+  nouveau héros, jamais Léo).
 
 ## Règles d'écriture
 
@@ -30,7 +35,9 @@ Pas d'effet sonore « titre » au début ni à la fin. La voix reste toujours au
 6 dB au-dessus des bruitages. La fin demande toujours de s'abonner et de liker.
 
 Ne jamais reprendre les situations d'un épisode précédent (déclaration, classe…).
-Pas de morale à la fin : la fin peut mal tourner. Pas de chuchotement dans la voix off.
+**Pas de morale, jamais de « bon moment » avant la chute** : la fin tourne mal, et ça empire
+jusqu'au bout. Pas de chuchotement dans la voix off : on doit entendre chaque mot (les fins
+de phrase sont remontées au mixage, un mot inaudible est réenregistré). Pas d'écho dans la voix.
 
 ## Épisodes
 
@@ -41,6 +48,23 @@ Pas de morale à la fin : la fin peut mal tourner. Pas de chuchotement dans la v
 | 3 | Et si… tu pouvais remonter le temps de 10 secondes ? | `ep3-rembobine/` | `ep3-rembobine/et-si-ep3-rembobine.mp4` |
 | 4 | Et si… tout le monde voyait ta note au-dessus de ta tête ? | `ep4-note/` | `ep4-note/et-si-ep4-note.mp4` |
 | 5 | Et si… tout ce que tu dessines devenait réel ? | `ep5-dessin/` | `ep5-dessin/et-si-ep5-dessin.mp4` |
+
+| # | Pourquoi c'est horrible… | Dossier | Vidéo |
+|---|---|---|---|
+| 1 | … d'avoir des parents influenceurs | `pch1-influenceurs/` | `pch1-influenceurs/pch1-influenceurs.mp4` (720p 60 i/s) |
+
+### Rig v2 et gestes (à partir de « Pourquoi c'est horrible » 1)
+
+- `personnages/rig2.js` (`EtSi2.person`) : un seul gabarit pour tous les corps (enfant, ado,
+  adulte, rond, âgé, petit), ombrage cel, 51 émotions, mains (ouverte, poing, pointe, prière,
+  téléphone, filmer…), coude « bas » pour les gestes devant le buste.
+- `personnages/gestes.js` (`EtSi2.geste(nom, corps)`) : 106 gestes calculés depuis les repères
+  du corps (prière, supplier, filmer à une ou deux mains, bras croisés…).
+- `pch1-influenceurs/pch1_lib.js` : acteurs animés (poses mélangées en ressort, regard qui
+  bouge, clignements, respiration, cheveux qui suivent) + effets (compteurs de vues,
+  notifications, viseur REC, clap, tampon, lumière annulaire…).
+- Rendu : chaque image est capturée deux fois et gardée seulement si les deux captures sont
+  identiques (le navigateur rate parfois un découpage d'ombre).
 
 ## Fabriquer un épisode (pipeline de ep1)
 

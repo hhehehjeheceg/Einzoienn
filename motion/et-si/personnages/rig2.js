@@ -75,6 +75,11 @@
     const W = D > l1 + l2 ? [S[0] + dx / D * (l1 + l2), S[1] + dy / D * (l1 + l2)] : T;
     return { E: [S[0] + Math.cos(ang) * l1, S[1] + Math.sin(ang) * l1], W };
   }
+  // bend 'low' : des deux solutions, garde celle dont le coude tombe le plus bas
+  function ikArm(S, sp, a, side) {
+    if (a.bend === 'low') { const p = ik2(S, sp.arm[0], sp.arm[1], a.at, 1), q = ik2(S, sp.arm[0], sp.arm[1], a.at, -1); return p.E[1] >= q.E[1] ? p : q; }
+    return ik2(S, sp.arm[0], sp.arm[1], a.at, (a.bend == null ? 1 : a.bend) * -side);
+  }
   // Angles [a1 (0 = bas, + = vers l'extérieur), a2 pliure] -> coude, poignet.
   function fk(S, side, l1, l2, a1, a2) {
     const dir = a => [side * Math.sin(rad(a)), Math.cos(rad(a))];
@@ -85,8 +90,24 @@
 
   // ------------------------------------------------------------------ mains « moufle » (poignet à l'origine, vers +y)
   // side = côté du bras (-1 gauche de l'écran, +1 droite) : le pouce est vers le corps.
-  function hand(type, side, skin, sc = 1) {
+  function hand(type, side, skin, sc = 1, rot = 0, extra = {}) {
     const s = -side; // côté du pouce
+    if (type === 'none') return '';
+    if (type === 'priere') {
+      // main plate vue de profil : bord intérieur (paume) en x = 0, dos de la main vers l'extérieur
+      const d = `M0 2C${s * 1} 24 ${s * 0} 50 ${s * 3} 64Q${s * 10} 73 ${s * 17} 64C${s * 23} 46 ${s * 25} 22 ${s * 22} 2Q${s * 11} -4 0 2Z`;
+      return G(cel(d, skin, { dx: s * 3, dy: 4, sw: 4.5 }) + L(`M${s * 6} 26Q${s * 8} 42 ${s * 7} 56`, shadowOf(skin), 2.4) + cel(cap([s * 4, 12], [s * 2, 32], 12), skin, { dx: 2, dy: 2, sw: 4 }), `scale(${sc})`);
+    }
+    if (type === 'phone' || type === 'filme') {
+      // le téléphone reste droit quelle que soit la rotation du bras
+      const back = type === 'filme', pc = extra.phone || '#2A2D38';
+      let ph = cel('M-26 -48H26Q34 -48 34 -40V40Q34 48 26 48H-26Q-34 48 -34 40V-40Q-34 -48 -26 -48Z', pc, { dx: 4, dy: 4, sw: 4.5 });
+      if (back) ph += E(-14, -32, 9, 9, '#14161C', 3) + E(-14, -32, 3.5, 3.5, '#6FD3F7') + E(12, -34, 4, 4, extra.rec ? '#FF3B3B' : '#8A8D96') + L('M-8 26H8', '#5A5E6B', 4);
+      else ph += F('M-26 -40H26V34H-26Z', extra.screen || '#7FC8F0') + L('M-6 41H6', '#5A5E6B', 3);
+      const pal_ = shadowOf(skin);
+      return G(G(ph, `rotate(${r1(-rot)}) translate(${s * 2} -20)`) +
+        cel(cap([s * 24, 6], [s * 28, 30], 14), skin, { dx: 3, dy: 3, sw: 4 }) + cel(cap([-s * 24, 12], [-s * 26, 34], 13), skin, { dx: 3, dy: 3, sw: 4 }), `scale(${sc})`);
+    }
     const sh = shadowOf(skin), o = { dx: 5, dy: 4, sw: 4.5 };
     const fing = (x, y, a, l, w = 15) => cap([x, y], [x + Math.sin(rad(a)) * l, y + Math.cos(rad(a)) * l], w);
     const palm = 'M-20 2Q-28 24 -22 38Q0 48 22 38Q28 24 20 2Q0 -6 -20 2Z';
@@ -117,7 +138,7 @@
   // ------------------------------------------------------------------ expressions
   const BASE = { bIn: 0, bOut: 0, bUp: 0, lidT: 0, lidB: 0, tilt: 0, pupil: 1, lx: 0, ly: 0, eyeS: 1, happy: 0, closed: 0,
     smile: 0, open: 0, wide: 1, asym: 0, teeth: 0.8, tongue: 0, cheek: 0,
-    sweat: 0, tears: 0, stream: 0, shock: 0, vein: 0, gloom: 0, steam: 0, sparkle: 0, wet: 0, zzz: 0, q: 0, excl: 0, love: 0,
+    sweat: 0, tears: 0, stream: 0, winkL: 0, winkR: 0, flush: 0, pale: 0, puff: 0, shock: 0, vein: 0, gloom: 0, steam: 0, sparkle: 0, wet: 0, zzz: 0, q: 0, excl: 0, love: 0,
     eye: '', ms: '' };
   const EXPR = {
     neutre: {},
@@ -150,6 +171,28 @@
     vexe: { bIn: 12, bOut: 2, lidT: 0.48, tilt: 10, lx: 0.75, ms: 'pout' },
     touche: { bIn: -10, bOut: 6, lidT: 0.2, tilt: -8, ly: 0.3, smile: 0.35, wet: 1 },
     ok: { bUp: 6, closed: 0, lidB: 0.25, smile: 0.7, asym: 0.4, cheek: 0.4 },
+    excite: { bUp: 14, eyeS: 1.12, pupil: 0.9, smile: 1, open: 0.9, ms: 'D', cheek: 0.8, wide: 1.15 },
+    honte: { bIn: -10, bOut: 6, lidT: 0.35, ly: 0.8, lx: -0.3, smile: -0.2, cheek: 1, flush: 0.7 },
+    jaloux: { bIn: 12, bOut: 0, lidT: 0.45, lidB: 0.2, tilt: 10, lx: 0.9, ms: 'pout', asym: 0 },
+    soulage: { bIn: -6, bOut: 6, closed: 1, smile: 0.5, open: 0.1, cheek: 0.3 },
+    ennui: { bIn: 0, bOut: 6, lidT: 0.6, ly: 0.2, lx: 0.4, smile: -0.25, wide: 0.7, asym: -0.4 },
+    concentre: { bIn: 12, bOut: 2, lidT: 0.3, lidB: 0.2, tilt: 6, ly: 0.3, ms: 'langue' },
+    malin: { bIn: 14, bOut: -8, lidT: 0.38, tilt: 10, lx: -0.6, smile: 0.8, asym: 1, open: 0.3, teeth: 1 },
+    crie: { bIn: 18, bOut: -12, lidT: 0.2, tilt: 14, ms: 'scream', flush: 0.4 },
+    boude: { bIn: 12, bOut: 4, lidT: 0.42, tilt: 6, lx: -0.85, ms: 'pout', puff: 0.6 },
+    sanglote: { bIn: -18, bOut: 10, lidT: 0.55, tilt: -14, ly: 0.4, ms: 'wail', wide: 0.8, stream: 0.7, flush: 0.3 },
+    ebahi: { bUp: 18, eyeS: 1.25, pupil: 0.7, ms: 'baille', wet: 0.5 },
+    genesourire: { bIn: -8, bOut: 4, lx: 0.6, ms: 'grimace', wide: 1.1, cheek: 0.8 },
+    clin: { bIn: 2, bOut: -6, winkR: 1, smile: 0.85, open: 0.35, asym: 0.6, cheek: 0.6 },
+    langue: { bUp: 6, winkL: 1, ms: 'langue', cheek: 0.4 },
+    bisou: { bIn: -4, bUp: 6, closed: 1, ms: 'bisou', cheek: 1 },
+    baille: { bIn: -4, bOut: 6, closed: 1, ms: 'baille' },
+    pouffe: { bIn: -8, bUp: 8, closed: 1, ms: 'pouffe', puff: 0.9, flush: 0.5, cheek: 1 },
+    rouge: { bIn: 22, bOut: -14, lidT: 0.42, tilt: 22, pupil: 0.6, ms: 'teeth', flush: 1 },
+    malade: { bIn: -8, bOut: 6, lidT: 0.4, ly: 0.3, ms: 'wavy', pale: 1 },
+    terrifie: { bIn: -22, bOut: -8, bUp: 20, eyeS: 1.25, pupil: 0.28, ms: 'scream', pale: 0.6 },
+    ravi: { bUp: 12, happy: 1, smile: 1, open: 0.5, cheek: 1, ms: '' },
+    supplie: { bIn: -18, bOut: 6, bUp: 6, eyeS: 1.16, pupil: 1.28, ly: -0.5, wet: 1, ms: 'pout', cheek: 0.6 },
   };
   function expr(name, over) { return Object.assign({}, BASE, EXPR[name] || {}, over || {}); }
   function mixExpr(a, b, k) {
@@ -218,6 +261,11 @@
       case 'teeth': { const d = `M${-w} ${-W * 0.22}Q0 ${-W * 0.3} ${w} ${-W * 0.22}Q${w + 6} 0 ${w} ${W * 0.26}Q0 ${W * 0.34} ${-w} ${W * 0.26}Q${-w - 6} 0 ${-w} ${-W * 0.22}Z`; return F(d, '#FFFFFF') + L(`M${-w + 4} 0H${w - 4}` + [-0.5, 0, 0.5].map(k => `M${r1(w * k)} ${-W * 0.26}V${W * 0.3}`).join(''), INK, 2.4, 'opacity=".55"') + `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${OL - 0.5}"/>`; }
       case 'wavy': return L(`M${-w} 0q${w / 4} ${-W * 0.22} ${w / 2} 0t${w / 2} 0t${w / 2} 0t${w / 2} 0`, INK, OL);
       case 'pout': return P(`M${-W * 0.2} ${W * 0.05}Q0 ${-W * 0.22} ${W * 0.2} ${W * 0.05}Q0 ${W * 0.24} ${-W * 0.2} ${W * 0.05}Z`, '#C94A5A', 4);
+      case 'bisou': return P(`M${-W * 0.16} 0Q${-W * 0.3} ${-W * 0.3} 0 ${-W * 0.2}Q${W * 0.3} ${-W * 0.3} ${W * 0.16} 0Q${W * 0.3} ${W * 0.3} 0 ${W * 0.22}Q${-W * 0.3} ${W * 0.3} ${-W * 0.16} 0Z`, '#D9506A', 4) + L(`M${-W * 0.1} 0H${W * 0.1}`, INK, 2.5);
+      case 'langue': return L(`M${-w} ${-W * 0.05}Q0 ${W * 0.25} ${w} ${-W * 0.1}`, INK, OL) + P(`M${-W * 0.32} ${W * 0.08}Q${-W * 0.34} ${W * 0.75} 0 ${W * 0.78}Q${W * 0.34} ${W * 0.75} ${W * 0.32} ${W * 0.08}Z`, '#E5636B', 4) + L(`M0 ${W * 0.2}V${W * 0.52}`, '#B8404B', 3);
+      case 'baille': return filled(`M0 ${-W * 0.45}C${W * 0.55} ${-W * 0.45} ${W * 0.6} ${W * 0.6} ${W * 0.4} ${W * 1.2}C${W * 0.25} ${W * 1.5} ${-W * 0.25} ${W * 1.5} ${-W * 0.4} ${W * 1.2}C${-W * 0.6} ${W * 0.6} ${-W * 0.55} ${-W * 0.45} 0 ${-W * 0.45}Z`, false, [W * 1.2, W * 0.36, W * 0.2]);
+      case 'pouffe': return L(`M${-w * 0.7} 0Q0 ${-W * 0.12} ${w * 0.7} 0`, INK, OL) + L(`M${-w * 0.7} 0q-4 -4 -2 -9M${w * 0.7} 0q4 -4 2 -9`, INK, IL);
+      case 'grimace': { const d = `M${-w * 1.1} ${-W * 0.05}Q${-w * 0.5} ${-W * 0.35} 0 ${-W * 0.1}Q${w * 0.5} ${W * 0.15} ${w * 1.1} ${-W * 0.25}Q${w * 0.9} ${W * 0.3} 0 ${W * 0.3}Q${-w * 0.9} ${W * 0.4} ${-w * 1.1} ${-W * 0.05}Z`; return F(d, '#FFFFFF') + L(`M${-w} ${W * 0.08}H${w}` + [-0.5, 0, 0.5].map(k => `M${r1(w * k)} ${-W * 0.25}V${W * 0.32}`).join(''), INK, 2.2, 'opacity=".5"') + `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${OL - 0.5}" stroke-linejoin="round"/>`; }
       case 'beurk': return filled(`M${-w} ${W * 0.1}Q${-w * 0.3} ${-W * 0.25} 0 0Q${w * 0.4} ${W * 0.25} ${w} ${-W * 0.05}Q${w * 0.6} ${W * 0.5} 0 ${W * 0.45}Q${-w * 0.6} ${W * 0.5} ${-w} ${W * 0.1}Z`, false, [W * 0.55, W * 0.3, W * 0.18]);
     }
     const sm = f.smile, op = f.open, as = f.asym;
@@ -237,6 +285,8 @@
     let s = '';
     const op = v => `opacity="${r1(clamp(v) * 100) / 100}"`;
     if (f.cheek > 0.05) for (const sd of [-1, 1]) s += E(fx + sd * R * 0.6, R * 0.32, R * 0.18, R * 0.1, '#F06A6A', 0, op(f.cheek * 0.45));
+    if (f.flush > 0.05) { const g = nid('fl'); s += `<linearGradient id="${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E5303F" stop-opacity="0"/><stop offset=".5" stop-color="#E5303F" stop-opacity=".55"/><stop offset="1" stop-color="#E5303F" stop-opacity=".7"/></linearGradient>`; s += F(`M${-R * 1.1} ${-R * 0.4}H${R * 1.1}V${R * 1.1}H${-R * 1.1}Z`, `url(#${g})`, op(f.flush)); }
+    if (f.pale > 0.05) s += F(`M${-R * 1.1} ${-R * 1.1}H${R * 1.1}V${R * 1.1}H${-R * 1.1}Z`, '#7FC79A', op(f.pale * 0.45));
     if (f.gloom > 0.05) { const g = nid('gl'); s += `<linearGradient id="${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6B4FB8" stop-opacity=".75"/><stop offset="1" stop-color="#6B4FB8" stop-opacity="0"/></linearGradient>`; s += F(`M${-R} ${-R * 0.95}H${R}V${-R * 0.15}H${-R}Z`, `url(#${g})`, op(f.gloom)); }
     return s;
   }
@@ -311,13 +361,15 @@
     const face = sp.jaw === 'anguleux'
       ? `M0 ${-ch}C${cw * 0.62} ${-ch} ${cw} ${-ch * 0.72} ${cw} ${-ch * 0.12}C${cw} ${ch * 0.42} ${cw * 0.7} ${ch * 0.8} ${cw * 0.3} ${ch * 0.98}Q0 ${ch * 1.08} ${-cw * 0.3} ${ch * 0.98}C${-cw * 0.7} ${ch * 0.8} ${-cw} ${ch * 0.42} ${-cw} ${-ch * 0.12}C${-cw} ${-ch * 0.72} ${-cw * 0.62} ${-ch} 0 ${-ch}Z`
       : `M0 ${-ch}C${cw * 0.6} ${-ch} ${cw} ${-ch * 0.66} ${cw} ${-ch * 0.04}C${cw} ${ch * 0.52} ${cw * 0.64} ${ch * 0.94} 0 ${ch * 0.95}C${-cw * 0.64} ${ch * 0.94} ${-cw} ${ch * 0.52} ${-cw} ${-ch * 0.04}C${-cw} ${-ch * 0.66} ${-cw * 0.6} ${-ch} 0 ${-ch}Z`;
+    if (f.puff > 0.05) for (const sd of [-1, 1]) s += cel(`M${r1(sd * cw * 0.7)} ${r1(R * 0.12)}a${r1(R * 0.36 * f.puff)} ${r1(R * 0.34 * f.puff)} 0 1 0 0.1 0Z`, pal.skin, { dx: sd * 6, dy: 6 });
     s += cel(face, pal.skin, { dx: 16 - turn * 10, dy: 10, inner: fxLayer(f, R, fx, t) });
     // traits
     const ey = R * (sp.eyeY || 0.04) + fy, sep = R * (sp.eyeSep || 0.4), erx = R * (sp.eyeW || 0.23), ery = R * (sp.eyeH || 0.29);
     if (sp.freckles) for (const sd of [-1, 1]) { const x0 = fx + sd * R * 0.58; s += `<g fill="${shade(pal.skin, 0.22)}"><circle cx="${r1(x0)}" cy="${r1(ey + R * 0.4)}" r="3.2"/><circle cx="${r1(x0 + sd * 13)}" cy="${r1(ey + R * 0.48)}" r="2.8"/><circle cx="${r1(x0 - sd * 9)}" cy="${r1(ey + R * 0.52)}" r="2.6"/></g>`; }
     for (const sd of [-1, 1]) {
       const far = Math.max(0, -sd * turn), ex = fx + sd * sep * (1 - 0.22 * sd * turn);
-      s += G(eye(erx, ery, f, pal.iris, sd, pal.skin, sp.lash, o.blink), `translate(${r1(ex)} ${r1(ey)}) scale(${r1((1 - 0.3 * far) * 100) / 100} 1)`);
+      const wk = sd < 0 ? f.winkL : f.winkR;
+      s += G(eye(erx, ery, f, pal.iris, sd, pal.skin, sp.lash, Math.max(o.blink || 0, wk > 0.5 ? 1 : 0)), `translate(${r1(ex)} ${r1(ey)}) scale(${r1((1 - 0.3 * far) * 100) / 100} 1)`);
     }
     if (sp.glasses) for (const sd of [-1, 1]) s += L(`M${r1(fx + sd * sep - erx * 1.3)} ${r1(ey)}a${r1(erx * 1.3)} ${r1(ery * 1.08)} 0 1 0 ${r1(erx * 2.6)} 0a${r1(erx * 1.3)} ${r1(ery * 1.08)} 0 1 0 ${r1(-erx * 2.6)} 0Z`, sp.glasses, 5) + (sd > 0 ? L(`M${r1(fx - sep + erx * 1.3)} ${r1(ey - 4)}Q${r1(fx)} ${r1(ey - 14)} ${r1(fx + sep - erx * 1.3)} ${r1(ey - 4)}`, sp.glasses, 5) : '');
     // nez
@@ -419,9 +471,11 @@
     const S = [side * (sp.shO - 16), sp.shY + 32 - shrug * 16];
     let r, hType = 'relax', front = false, hr = 0;
     if (Array.isArray(a)) { r = fk(S, side, sp.arm[0], sp.arm[1], a[0], a[1]); hType = a[2] || 'relax'; front = a[3] !== 'back'; }
-    else if (a && a.at) { r = ik2(S, sp.arm[0], sp.arm[1], a.at, (a.bend == null ? 1 : a.bend) * -side); hType = a.hand || 'relax'; front = !a.back; hr = a.handRot || 0; }
+    else if (a && a.at) { r = ikArm(S, sp, a, side); hType = a.hand || 'relax'; front = !a.back; hr = a.handRot || 0; }
+    else if (a && a.pts) { r = { E: a.pts.E, W: a.pts.W }; hType = a.pts.hand; front = !a.pts.back; }
     else { r = fk(S, side, sp.arm[0], sp.arm[1], 12, -16); front = true; }
-    const abs = a && !Array.isArray(a) && a.handAbs != null ? a.handAbs * side : null;
+    let abs = a && !Array.isArray(a) && a.handAbs != null ? a.handAbs * side : null;
+    if (a && a.pts) abs = a.pts.rot;
     const sleeve = o.sleeve || 'long', top = pal.sleeve || pal.top;
     let s = '';
     const armD = limbPath(S, r.E, r.W, sp.armW[0], sp.armW[1]);
@@ -434,8 +488,24 @@
       s += cel(cap(c0, r.W, sp.armW[1] + 4), pal.cuff || shade(top, 0.18), { dx: 3, dy: 3, sw: 4 });
     }
     const ang = Math.atan2(r.W[1] - r.E[1], r.W[0] - r.E[0]) * 180 / Math.PI - 90;
-    s += G(hand(hType, side, pal.skin, sp.hand), `translate(${r1(r.W[0])} ${r1(r.W[1])}) rotate(${r1(abs != null ? abs : ang + hr)})`);
+    const rr = abs != null ? abs : ang + hr;
+    s += G(hand(hType, side, pal.skin, sp.hand, rr, { phone: pal.phone, screen: pal.screen, rec: o.rec }), `translate(${r1(r.W[0])} ${r1(r.W[1])}) rotate(${r1(rr)})`);
     return { s, front, S, W: r.W };
+  }
+
+  // Résout un bras en points (épaule, coude, poignet, main, angle de main) pour pouvoir mélanger deux poses.
+  function armSolve(o, side, a) {
+    const sp = Object.assign({}, BODY[o.body || 'enfant'], o.spec || {});
+    const shrug = o.shrug || 0;
+    const S = [side * (sp.shO - 16), sp.shY + 32 - shrug * 16];
+    let r, hand = 'relax', back = false, hr = 0;
+    if (Array.isArray(a)) { r = fk(S, side, sp.arm[0], sp.arm[1], a[0], a[1]); hand = a[2] || 'relax'; back = a[3] === 'back'; }
+    else if (a && a.at) { r = ikArm(S, sp, a, side); hand = a.hand || 'relax'; back = !!a.back; hr = a.handRot || 0; }
+    else if (a && a.pts) return a.pts;
+    else r = fk(S, side, sp.arm[0], sp.arm[1], 12, -16);
+    const ang = Math.atan2(r.W[1] - r.E[1], r.W[0] - r.E[0]) * 180 / Math.PI - 90;
+    const rot = a && !Array.isArray(a) && a.handAbs != null ? a.handAbs * side : ang + hr;
+    return { E: r.E, W: r.W, hand, back, rot };
   }
 
   // ------------------------------------------------------------------ personnage complet
@@ -495,7 +565,7 @@
       salut: { arms: { l: [12, -16, 'relax'], r: { at: [sp.shO + 70, hy - 10], hand: 'open', handAbs: 200 } }, tilt: -6, lean: -3, expr: 'joie' },
       facepalm: { arms: { l: [12, -16, 'relax'], r: { at: [R * 0.32, hy + R * 0.62], hand: 'open', handAbs: 172, bend: -1 } }, tilt: 10, nod: 0.6, lean: 4, expr: 'blase' },
       hausse: { arms: { l: { at: [-sp.shO - 70, sp.shY + 66], hand: 'open', handAbs: -140, bend: -1 }, r: { at: [sp.shO + 70, sp.shY + 66], hand: 'open', handAbs: -140, bend: -1 } }, shrug: 1, tilt: 8, expr: 'pense', exprOver: { q: 0 } },
-      croise: { arms: { l: { at: [sp.shO - 4, sp.shY + 116], hand: 'fist', bend: 1, handAbs: 90 }, r: { at: [-sp.shO + 4, sp.shY + 100], hand: 'fist', bend: 1, handAbs: 90 } }, tilt: -4, expr: 'vexe' },
+      croise: { arms: { l: { at: [sp.shO * 0.52, sp.shY + R * 1.0], hand: 'none', bend: 1, handAbs: 90 }, r: { at: [-sp.shO * 0.16, sp.shY + R * 0.8], hand: 'relax', bend: 1, handAbs: 90 } }, tilt: -4, expr: 'vexe' },
       victoire: { arms: { l: { at: [-sp.shO - 40, hy - R * 0.9], hand: 'fist' }, r: { at: [sp.shO + 40, hy - R * 0.9], hand: 'fist' } }, lift: [16, 16], jump: 50, squash: -0.05, tilt: 4, expr: 'joie' },
       horreur: { arms: { l: { at: [-R * 0.86, hy + R * 0.92], hand: 'open', handAbs: 168, bend: -1 }, r: { at: [R * 0.86, hy + R * 0.92], hand: 'open', handAbs: 168, bend: -1 } }, shrug: 0.6, expr: 'choque' },
       pointe: { arms: { l: { at: [sp.shO * 0.05, sp.waistY - 66], hand: 'fist', bend: 1, handAbs: 90 }, r: { at: [sp.shO + 160, sp.shY + 30], hand: 'point', handRot: -6 } }, lean: -8, tilt: -8, turn: 0.3, expr: 'rire' },
@@ -526,6 +596,6 @@
     return Math.max(one(ph), seed % 3 === 0 ? one(ph - 0.22) : 0);
   }
 
-  root.EtSi2 = { person, leo, max, expr, mixExpr, gesture, EXPR, BODY, SKIN, HAIR, walk, idle, blinkAt, hand, INK, shade, tint,
+  root.EtSi2 = { person, leo, max, expr, mixExpr, gesture, armSolve, EXPR, BODY, SKIN, HAIR, walk, idle, blinkAt, hand, INK, shade, tint,
     prims: { P, F, L, E, G, cel, limbPath, cap, ik2, fk } };
 })(typeof window !== 'undefined' ? window : globalThis);

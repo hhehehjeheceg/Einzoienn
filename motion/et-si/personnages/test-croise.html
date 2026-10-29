@@ -1,0 +1,11 @@
+<!doctype html><html><head><meta charset="utf-8"><style>@font-face{font-family:Brico;src:url(../../claude-intro/fonts/bricolage.woff2)}html,body{margin:0;background:#FBF4E8}svg{display:block}</style></head>
+<body><svg id="s" width="2400" height="1100" viewBox="0 0 2400 1100"></svg>
+<script src="rig2.js"></script><script src="gestes.js"></script>
+<script>
+const K = EtSi2; let s = '';
+const MOM = o => K.person(Object.assign(o, { body: 'adulte', spec: { hair: 'long', lash: true }, top: 'tee', sleeve: 'court', pal: { skin: '#F2C3A6', hair: '#9C4A2E', top: '#F28CB1', bottom: '#3F5888', iris: '#2FA56A', phone: '#F7A8C8' } }));
+const DAD = o => K.person(Object.assign(o, { body: 'adulte', spec: { hair: 'court', beard: '#2A1B14' }, top: 'tee', sleeve: 'court', bottom: 'jogging', pal: { skin: '#C98E62', hair: '#1E1410', top: '#FFFFFF', bottom: '#4B4E63', shoe: '#22232A' } }));
+const L = [['priere', K.leo, 'enfant'], ['supplie', K.leo, 'enfant'], ['filme', MOM, 'adulte'], ['filme_deux_mains', DAD, 'adulte'], ['bras_croises', K.leo, 'enfant'], ['filme_deux_mains', K.leo, 'enfant'], ['priere', MOM, 'adulte']];
+L.forEach(([g, f, b], i) => { const x = 180 + i * 340; s += f(Object.assign({ x, y: 1020, scale: 1.0, t: 0.3 }, K.geste(g, b))); s += `<text x="${x}" y="1080" font-size="28" font-family="Brico" font-weight="800" text-anchor="middle">${g}</text>`; });
+document.getElementById('s').innerHTML = s;
+</script></body></html>
