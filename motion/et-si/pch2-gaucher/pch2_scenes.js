@@ -105,7 +105,7 @@
       const r = rng(Math.floor(k * 12));
       for (let i = 0; i < 6; i++) { const kk = ((k * 1.6 + i / 6) % 1); w += grp(cel('M-26 -18L22 -24L28 14L-18 22Z', '#FFFDF6', { dx: 3, dy: 3, sw: 4 }), at(560 + (i % 2 ? 1 : -1) * (80 + kk * 300), 980 - Math.sin(kk * Math.PI) * 300 + kk * 300, 0.8 + 0.4 * (i % 3), kk * 400 * (i % 2 ? 1 : -1))); }
       let ui = onoma(300, 520, 'CROUNCH', 120, t, T.machent + 0.05, { rot: -12 }) + onoma(800, 1500, 'MIAM', 90, t, T.machent + 0.45, { fill: '#FF8FC0', rot: 10 });
-      return { w, ui, cam: cam0(1.0 + 0.05 * Math.sin(k * 11), 560, 1000, { shake: 6 }), flash: cutFlash(t, T.machent - 0.08), capY: 1720 };
+      return { w, ui, cam: cam0(1.0 + 0.05 * Math.sin(k * 11), 560, 1000, { shake: 6 }), flash: cutFlash(t, T.machent - 0.08), capY: 1460 };
     }
     let w = classroom();
     w += actor(HERO, K2.hero, t, { seed: 3 });
@@ -124,7 +124,7 @@
     let ui = '';
     if (t > T.rien - 0.05 && t < T.machent) ui += onoma(780, 900, 'RIEN.', 90, t, T.rien - 0.05, { fill: '#FFFFFF', rot: 6 });
     if (after) ui += onoma(800, 760, 'BOUHOU', 70, t, T.papier + 0.7, { fill: '#9AD0F5', rot: 8 });
-    return { w, ui, cam: cam0(lerp(1.3, 1.45, inv(T.ciseaux, T.machent, t)), 560, 1200), flash: after ? cutFlash(t, T.papier + 0.55) : 0, capY: 1720 };
+    return { w, ui, cam: cam0(lerp(1.3, 1.45, inv(T.ciseaux, T.machent, t)), 560, 1200), flash: after ? cutFlash(t, T.papier + 0.55) : 0, capY: 1460 };
   }
 
   // ================================================================== 3. la main dans l'encre
@@ -152,7 +152,7 @@
       w += grp(ink, 'rotate(-3 540 980)');
       w += bigHand(handX + 150, handY - 125, 1.25, -8, { ink: clamp(k * 1.4), sleeve: HERO.pal.top, skin: SK });
       let ui = onoma(820, 360, 'SPLOTCH', 100, t, T.encre, { fill: '#9AC4FF', rot: 8, t1: T.fin - 0.3 });
-      return { w, ui, cam: cam0(1.12 + 0.12 * k, lerp(420, 600, k) + (handX - 540) * 0.6, lerp(820, 1080, k), { rot: -2 + k * 3 }), capY: 1720 };
+      return { w, ui, cam: cam0(1.12 + 0.12 * k, lerp(420, 600, k) + (handX - 540) * 0.6, lerp(820, 1080, k), { rot: -2 + k * 3 }), capY: 1460 };
     }
     // le héros montre sa main : le côté tout bleu
     let w = classroom({ wall: '#F3E6D8', stripe: '#EEDCCB' });
@@ -163,7 +163,7 @@
     let ui = '';
     if (t > T.bleu - 0.1) ui += rays(hp[0] + 34, hp[1] - 60, 18, 900, t * 0.6, '#FFFFFF', 0.18 * bk) + ring(hp[0] + 34, hp[1] - 60, t, T.bleu, 0.5, 380, '#9AC4FF', 20) + sparkles(hp[0] + 34, hp[1] - 60, t, T.bleu, 12, 240, 31, ['#9AC4FF', '#FFFFFF']);
     ui += onoma(330, 560, 'BEURK', 96, t, T.bleu + 0.15, { fill: '#7BD389', rot: -8 });
-    return { w, ui, cam: cam0(lerp(1.15, 1.3, inv(T.fin, T.cahier, t)) + 0.1 * punch(t, T.bleu, 5, 16), 620, 1010), flash: cutFlash(t, T.fin - 0.15), capY: 1740 };
+    return { w, ui, cam: cam0(lerp(1.15, 1.3, inv(T.fin, T.cahier, t)) + 0.1 * punch(t, T.bleu, 5, 16), 620, 1010), flash: cutFlash(t, T.fin - 0.15), capY: 1460 };
   }
 
   // ================================================================== 4. la spirale dans le poignet
@@ -178,11 +178,11 @@
       w += bigHand(lerp(420, 380, press), lerp(960, 1010, press) - lift * 200, 1.35 + 0.05 * press - lift * 0.1, 90 - lift * 10, { sleeve: HERO.pal.top, skin: SK });
       if (lift > 0.05) for (let i = 0; i < 5; i++) w += L(`M${300 + i * 40} ${r1(1060 - lift * 200)}v60`, '#E5483D', 9 * lift);
       let ui = onoma(760, 640, 'AÏE !', 130, t, T.poignet, { fill: '#FF6B6B', rot: 10 }) + ring(400, 1000, t, T.poignet, 0.4, 500, '#FF6B6B', 24);
-      return { w, ui, cam: cam0(1.05 + 0.25 * press, 480, 1000, { shake: 18 * decay(t, T.poignet, 9) * (t > T.poignet ? 1 : 0) }), flash: t > T.poignet ? 0.4 * decay(t, T.poignet, 14) : 0, capY: 1720 };
+      return { w, ui, cam: cam0(1.05 + 0.25 * press, 480, 1000, { shake: 18 * decay(t, T.poignet, 9) * (t > T.poignet ? 1 : 0) }), flash: t > T.poignet ? 0.4 * decay(t, T.poignet, 14) : 0, capY: 1460 };
     }
     let w = `<rect x="-800" y="-800" width="2700" height="3600" fill="#FFB3B3"/>` + rays(540, 1000, 20, 2200, t * 0.5, '#FFC2C2');
     w += actor(HERO, K4.hero, t, { seed: 3 });
-    return { w, ui: '', cam: cam0(1.0 + 0.04 * Math.sin(t * 30) * decay(t, T.poignet + 0.45, 4), 540, 960), flash: cutFlash(t, T.poignet + 0.45), capY: 1700 };
+    return { w, ui: '', cam: cam0(1.0 + 0.04 * Math.sin(t * 30) * decay(t, T.poignet + 0.45, 4), 540, 960), flash: cutFlash(t, T.poignet + 0.45), capY: 1460 };
   }
 
   // ================================================================== 5. cantine : les coudes
@@ -230,7 +230,7 @@
     });
     const n = BITES.filter(b => t > b).length;
     if (n > 0) ui += grp(`<path d="${rr(-90, -50, 180, 100, 24)}" fill="#1C1418" stroke="#FFFFFF" stroke-width="5"/>` + txt(0, 22, '×' + n, 70, '#FFD23F', { font: 'Anton', weight: 400 }), `translate(900 380) rotate(6) scale(${r2(1 + 0.25 * punch(t, BITES[n - 1], 8, 26))})`);
-    return { w, ui, cam: cam0(1.18 + 0.03 * n, 540, 1260, { shake }), capY: 1740 };
+    return { w, ui, cam: cam0(1.18 + 0.03 * n, 540, 1260, { shake }), capY: 1460 };
   }
 
   // ================================================================== 6. tableau : la manche efface
@@ -255,7 +255,7 @@
     w += backHead(180, 1760 + laugh, 1.3, '#B5532A', '#F0C8A8', '#F28CB1') + backHead(560, 1790 - laugh, 1.35, '#24160F', '#C98E62', '#7FB7BE') + backHead(930, 1760 + laugh, 1.3, '#E3B94F', '#F2C9AC', '#5FB57A');
     let ui = '';
     if (t > T.manche) ui += onoma(260, 560, 'HAHAHA', 90, t, T.manche + 0.05, { fill: '#FFFFFF', rot: -8 }) + onoma(820, 1220, 'MDR', 80, t, T.manche + 0.25, { fill: '#FFD23F', rot: 10 });
-    return { w, ui, cam: cam0(1.22, lerp(420, 700, Ez.sine(k)), 1080), capY: 1740 };
+    return { w, ui, cam: cam0(1.22, lerp(420, 700, Ez.sine(k)), 1080), capY: 1460 };
   }
 
   // ================================================================== 7. mamie te « corrige »
@@ -280,7 +280,7 @@
     w += pen(hp[0] + (swapped ? 10 : -10), hp[1] - 8, swapped ? 160 : -160, 0.45);
     let ui = bubble(760, 760, 520, 190, 'LA BONNE MAIN !', 56, t, T.corriger - 0.2, { shout: true, font: 'Anton', fill: '#FFFFFF', tail: [120, 170] });
     ui += onoma(330, 1000, '?!', 110, t, T.corriger + 0.5, { fill: '#FFD23F', rot: -10 });
-    return { w, ui, cam: cam0(1.1, 560, 1240), capY: 1740 };
+    return { w, ui, cam: cam0(1.1, 560, 1240), capY: 1460 };
   }
 
   // ================================================================== 8. le stylo spécial gaucher
@@ -304,7 +304,7 @@
     if (t > T.special) ui += ring(hp[0], hp[1], t, T.special, 0.5, 600, '#FFE27A', 22) + sparkles(hp[0], hp[1], t, T.special, 16, 420, 83);
     ui += grp(`<path d="${rr(-150, -50, 300, 100, 50)}" fill="#E5483D" stroke="#FFFFFF" stroke-width="5"/>` + txt(0, 20, '4,99 €', 58, '#FFFFFF', { font: 'Anton', weight: 400 }), `translate(250 ${r1(520 + Math.sin(t * 2) * 10)}) rotate(-8) scale(${r2(spring(t, T.enfin + 0.2, 2.4, 0.5))})`);
     if (t > T.bavure) ui += confetti(540, 900, t, T.bavure, 40, 85);
-    return { w, ui, cam: cam0(1.0 + 0.06 * Ez.io(inv(T.alors, T.premier, t)), 540, 1150), flash: cutFlash(t, T.special, 0.4), capY: 1740 };
+    return { w, ui, cam: cam0(1.0 + 0.06 * Ez.io(inv(T.alors, T.premier, t)), 540, 1150), flash: cutFlash(t, T.special, 0.4), capY: 1460 };
   }
 
   // ================================================================== 9. le contrôle (tu es fier)
@@ -331,7 +331,7 @@
       ui += speedLines(270, 600, t, 22, 5, 0.18, '#FFFFFF', 300);
     }
     if (t > T.fier - 0.1) ui += rays(540, 1100, 20, 1400, t * 0.6, '#FFE27A', 0.25 * Ez.out(inv(T.fier, T.fier + 0.3, t))) + sparkles(540, 1050, t, T.fier, 16, 420, 93) + onoma(540, 560, 'FINI !', 130, t, T.fier, { rot: -6 });
-    return { w, ui, cam: cam0(1.12 + 0.06 * punch(t, T.fier, 4, 14), 540, 1250), flash: cutFlash(t, T.fier - 0.1, 0.3), capY: 1740 };
+    return { w, ui, cam: cam0(1.12 + 0.06 * punch(t, T.fier, 4, 14), 540, 1250), flash: cutFlash(t, T.fier - 0.1, 0.3), capY: 1460 };
   }
 
   // ================================================================== 10. le radiateur
@@ -353,7 +353,7 @@
       const placed = t > T.radiateur + 0.15;
       const px = placed ? 820 : (hp[0] + hl[0]) / 2, py = placed ? 1170 : (hp[1] + hl[1]) / 2 - 10;
       for (let i = 0; i < 5; i++) w += grp(paper(0, 0, 220, 50, 0, { margin: false, step: 100 }), at(px + (i - 2) * 3, py - i * 9, 1, (i - 2) * 2));
-      return { w, ui: thermo(t), cam: cam0(1.08, 600, 1220), capY: 1740 };
+      return { w, ui: thermo(t), cam: cam0(1.08, 600, 1220), capY: 1460 };
     }
     // gros plan : l'encre s'efface à la chaleur
     let w = `<rect x="-800" y="-800" width="2700" height="3600" fill="#F4F1EA"/>`;
@@ -362,8 +362,8 @@
     let inner = txt(-260, -440, 'CONTRÔLE', 66, '#E5483D', { anchor: 'start', font: 'Anton', weight: 400, ls: 3 }) + txt(150, -440, 'Nom : Yanis', 40, '#2A4FA8', { anchor: 'start', font: 'Caveat', weight: 700, op: 1 - clamp(k * 1.4 - 0.3) });
     for (let i = 0; i < 10; i++) { const fadeAt = 1 - i / 10; inner += scribbleLine(-280, -340 + i * 80, 560, 1, 91 + i, { w: 6, op: 1 - clamp((k - (1 - fadeAt) * 0.8) * 4) }); }
     w += paper(540, 960, 760, 1100, -2, { inner, step: 80 });
-    let ui = thermo(t) + grp(`<circle r="130" fill="#FFFFFF" stroke="${INK}" stroke-width="8"/><clipPath id="face"><circle r="124"/></clipPath><g clip-path="url(#face)">` + actor(HERO, K10.hero, t, { seed: 3, x: -540, y: -1240 }) + `</g>`, `translate(860 1430) scale(${r2(spring(t, T.devient, 2.4, 0.55))})`);
-    return { w, ui, cam: cam0(1.0 + 0.04 * Math.abs(Math.sin(t * 7)) * clamp(k * 2), 540, 960), heat: 0.6 + 0.4 * clamp(k * 2), flash: cutFlash(t, T.tienne - 0.15, 0.3), capY: 1740 };
+    let ui = thermo(t) + grp(`<circle r="130" fill="#FFFFFF" stroke="${INK}" stroke-width="8"/><clipPath id="face"><circle r="124"/></clipPath><g clip-path="url(#face)">` + actor(HERO, K10.hero, t, { seed: 3, x: -540, y: -1240 }) + `</g>`, `translate(860 1140) scale(${r2(spring(t, T.devient, 2.4, 0.55))})`);
+    return { w, ui, cam: cam0(1.0 + 0.04 * Math.abs(Math.sin(t * 7)) * clamp(k * 2), 540, 960), heat: 0.6 + 0.4 * clamp(k * 2), flash: cutFlash(t, T.tienne - 0.15, 0.3), capY: 1460 };
   }
   function thermo(t) {
     const h = Ez.out(inv(T.radiateur, T.blanche, t));
@@ -382,7 +382,7 @@
       w += `<ellipse cx="480" cy="880" rx="210" ry="270" fill="none" stroke="#E5483D" stroke-width="34" stroke-linecap="round" stroke-dasharray="1600" stroke-dashoffset="${r1(1600 * (1 - k))}" transform="rotate(-8 480 880)"/>`;
       w += txt(760, 1060, '/20', 150, '#E5483D', { font: 'Caveat', weight: 700, op: clamp((t - T.zero2 - 0.35) * 5) });
       let ui = stamp(540, 1380, 'COPIE BLANCHE', t, T.copie, { size: 110, col: '#E5483D', rot: -10 });
-      return { w, ui, cam: cam0(1.05 + 0.1 * k, 520, 960, { shake: 16 * decay(t, T.copie + 0.16, 9) * (t > T.copie + 0.16 ? 1 : 0) }), capY: 1740 };
+      return { w, ui, cam: cam0(1.05 + 0.1 * k, 520, 960, { shake: 16 * decay(t, T.copie + 0.16, 9) * (t > T.copie + 0.16 ? 1 : 0) }), capY: 1460 };
     }
     let w = classroom({ wall: '#D9D9E3', stripe: '#D0D0DC' });
     w += actor(HERO, K11.hero, t, { seed: 3, fx: { pale: 0.7, gloom: 1 } });
@@ -393,7 +393,7 @@
     const pk = Ez.out(inv(T.copie + 0.55, T.copie + 0.9, t));
     w += grp(paper(0, 0, 220, 300, 0, { margin: false, step: 40, inner: `<ellipse cx="-20" cy="-10" rx="60" ry="80" fill="none" stroke="#E5483D" stroke-width="12"/>` }), at(540, lerp(1600, 1380, pk), 1, -6));
     let ui = onoma(300, 520, 'HAHA', 80, t, T.copie + 0.8, { fill: '#FFFFFF', rot: -10 });
-    return { w, ui, cam: cam0(1.15, 540, 1180), sat: 0.55, flash: cutFlash(t, T.copie + 0.55, 0.3), capY: 1740 };
+    return { w, ui, cam: cam0(1.15, 540, 1180), sat: 0.55, flash: cutFlash(t, T.copie + 0.55, 0.3), capY: 1460 };
   }
 
   // ================================================================== 12. Et toi ? gaucher ou droitier
@@ -413,7 +413,7 @@
       const k = spring(t, T.disle - 0.2, 2.4, 0.6), typed = 'Gaucher et fier'.slice(0, Math.floor(clamp((t - T.disle - 0.2) * 14, 0, 15)));
       ui += grp(`<path d="${rr(-470, -60, 940, 120, 60)}" fill="#FFFFFF" stroke="${INK}" stroke-width="6"/><circle cx="-400" cy="0" r="38" fill="#F28C38"/>` + txt(-340, 16, (typed || 'Ajouter un commentaire…') + (Math.floor(t * 3) % 2 ? '|' : ''), 42, typed ? INK : '#9A94A0', { anchor: 'start', weight: typed ? 800 : 600 }), `translate(540 ${r1(lerp(2100, 1560, k))})`);
     }
-    return { w, ui, cam: cam0(1.0 + 0.03 * Math.sin(t * 0.9), 540, 1100), capY: 1420 };
+    return { w, ui, cam: cam0(1.0 + 0.03 * Math.sin(t * 0.9), 540, 1100), capY: 1300 };
   }
 
   // ================================================================== 13. abonne-toi / like / prochain
@@ -449,7 +449,7 @@
       ui += grp(card, `translate(540 ${r1(lerp(-300, 470, k))}) rotate(${r1(-2 + Math.sin(t * 1.3) * 0.8)})`);
     }
     if (t > T.horrible + 1.0) ui += bubble(760, 820, 420, 170, 'L’AUTRE MAIN !', 54, t, T.horrible + 1.0, { shout: true, font: 'Anton', fill: '#FFFFFF', tail: [40, 150] });
-    return { w, ui, cam: cam0(1 + 0.03 * Math.sin(t * 0.7), 540, 1160), cap: t < T.horrible + 0.7, capY: 1420 };
+    return { w, ui, cam: cam0(1 + 0.03 * Math.sin(t * 0.7), 540, 1160), cap: t < T.horrible + 0.7, capY: 1300 };
   }
 
   X.T = T; X.W = W; X.DUR = DUR;
