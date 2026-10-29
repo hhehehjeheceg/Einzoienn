@@ -1,0 +1,15 @@
+<!doctype html><html><head><meta charset="utf-8"><style>@font-face{font-family:Brico;src:url(../../claude-intro/fonts/bricolage.woff2)}@font-face{font-family:Anton;src:url(../../claude-intro/fonts/anton.woff2)}html,body{margin:0;background:#FBF4E8}svg{display:block}</style></head>
+<body><svg id="s" width="2400" height="1400" viewBox="0 0 2400 1400"><defs><filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="22"/></filter></defs><g id="g"></g></svg>
+<script src="../personnages/rig2.js"></script><script src="../personnages/gestes.js"></script>
+<script>window.CUES=[];</script><script src="../pch1-influenceurs/pch1_lib.js"></script><script src="pch2_props.js"></script><script src="pch2_cast.js"></script>
+<script>
+const X = window.PCH; let s = '';
+s += X.scissors(200, 400, 1, 0, 0.8) + X.scissors(450, 400, 1, 0, 0.4, { teeth: true, face: true });
+s += X.bigHand(800, 300, 1, 0, { ink: 1 }) + X.pen(1150, 400, 30, 1.2, { glow: 1 });
+s += X.spiralBook(1550, 300, 0.7) + X.tray(2100, 300, 1.2) + X.fork(2300, 400, 20, 1.2);
+s += X.radiator(250, 1000, 1, 0.3, 1) + X.penBox(600, 1100, 0.8, 0, { ticks: 1.5 }) + X.board(720, 700, 300, 200) + X.paper(720, 700, 300, 260, -4, { inner: X.scribbleLine(-100, -60, 220, 0.7, 3) });
+s += X.backHead(400, 0, 1, '#2A1A12', '#C98E62', '#E5483D') + X.inkBlot(2200, 950, 120, 4) + X.onoma(2200, 1200, 'CROUNCH', 90, 1, 0);
+if (window.CAST) Object.values(window.CAST).forEach((c, i) => { s += K2(c, i); });
+function K2(c, i) { return X.K.person(Object.assign({}, c, { x: 1200 + i * 200, y: 1390, scale: 0.55, expr: ['excite','enerve','blase','fier','rire','malin'][i] })); }
+document.getElementById('g').innerHTML = s;
+</script></body></html>
