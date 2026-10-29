@@ -52,6 +52,7 @@ de phrase sont remontées au mixage, un mot inaudible est réenregistré). Pas d
 | # | Pourquoi c'est horrible… | Dossier | Vidéo |
 |---|---|---|---|
 | 1 | … d'avoir des parents influenceurs | `pch1-influenceurs/` | `pch1-influenceurs/pch1-influenceurs.mp4` (720p 60 i/s) |
+| 2 | … d'être gaucher | `pch2-gaucher/` | `pch2-gaucher/pch2-gaucher.mp4` (720p 60 i/s) |
 
 ### Rig v2 et gestes (à partir de « Pourquoi c'est horrible » 1)
 
@@ -68,7 +69,8 @@ de phrase sont remontées au mixage, un mot inaudible est réenregistré). Pas d
 
 ## Fabriquer un épisode (pipeline de ep1)
 
-1. Voix off ElevenLabs (`eleven_v4`, voix « Martin »), balises d'émotion dans le texte.
+1. Voix off ElevenLabs (`eleven_v4`), balises d'émotion dans le texte. Narrateur : « Martin » jusqu'à « Pourquoi c'est horrible » 1,
+   puis **« Joseph »** (`lmMH7HJkyAb80H3rpokz`, choisi par l'auteur) à partir de « Pourquoi c'est horrible » 2. Un court essai de voix est envoyé avant de tout produire.
 2. Alignement mot à mot (Scribe) → `audio/words_a.json`.
 3. `python3 build_cues.py` : insère les silences dramatiques, écrit `out/vo_timeline.wav`
    et `cues.js` (temps de chaque mot sur la timeline du film).

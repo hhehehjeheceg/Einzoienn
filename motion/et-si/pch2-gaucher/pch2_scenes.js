@@ -124,11 +124,11 @@
     let ui = '';
     if (t > T.rien - 0.05 && t < T.machent) ui += onoma(780, 900, 'RIEN.', 90, t, T.rien - 0.05, { fill: '#FFFFFF', rot: 6 });
     if (after) ui += onoma(800, 760, 'BOUHOU', 70, t, T.papier + 0.7, { fill: '#9AD0F5', rot: 8 });
-    return { w, ui, cam: cam0(lerp(1.12, 1.25, inv(T.ciseaux, T.machent, t)), 560, 1250), flash: after ? cutFlash(t, T.papier + 0.55) : 0, capY: 1720 };
+    return { w, ui, cam: cam0(lerp(1.3, 1.45, inv(T.ciseaux, T.machent, t)), 560, 1200), flash: after ? cutFlash(t, T.papier + 0.55) : 0, capY: 1720 };
   }
 
   // ================================================================== 3. la main dans l'encre
-  const K3 = { hero: [[0, { g: 'repos', expr: 'blase', x: 540, y: 2000, scale: 1.55, armsOver: { r: { at: [150, -700], hand: 'open', bend: 'low', handAbs: 170 } } }],
+  const K3 = { hero: [[0, { g: 'repos', expr: 'blase', x: 540, y: 2000, scale: 1.55, armsOver: { r: { at: [175, -590], hand: 'open', bend: 'low', handAbs: 170 } } }],
     [T.bleu, { expr: 'degoute', d: 0.2 }], [T.bleu + 0.6, { expr: 'blase', exprOver: { lx: 0.9, ly: -0.4 } }]] };
   function s3(t) {
     const shotB = t >= T.fin - 0.15;
@@ -152,7 +152,7 @@
       w += grp(ink, 'rotate(-3 540 980)');
       w += bigHand(handX + 150, handY - 125, 1.25, -8, { ink: clamp(k * 1.4), sleeve: HERO.pal.top, skin: SK });
       let ui = onoma(820, 360, 'SPLOTCH', 100, t, T.encre, { fill: '#9AC4FF', rot: 8, t1: T.fin - 0.3 });
-      return { w, ui, cam: cam0(1.05 + 0.15 * k, lerp(500, 640, k), lerp(820, 1080, k), { rot: -2 + k * 3 }), capY: 1720 };
+      return { w, ui, cam: cam0(1.12 + 0.12 * k, lerp(420, 600, k) + (handX - 540) * 0.6, lerp(820, 1080, k), { rot: -2 + k * 3 }), capY: 1720 };
     }
     // le héros montre sa main : le côté tout bleu
     let w = classroom({ wall: '#F3E6D8', stripe: '#EEDCCB' });
@@ -163,7 +163,7 @@
     let ui = '';
     if (t > T.bleu - 0.1) ui += rays(hp[0] + 34, hp[1] - 60, 18, 900, t * 0.6, '#FFFFFF', 0.18 * bk) + ring(hp[0] + 34, hp[1] - 60, t, T.bleu, 0.5, 380, '#9AC4FF', 20) + sparkles(hp[0] + 34, hp[1] - 60, t, T.bleu, 12, 240, 31, ['#9AC4FF', '#FFFFFF']);
     ui += onoma(330, 560, 'BEURK', 96, t, T.bleu + 0.15, { fill: '#7BD389', rot: -8 });
-    return { w, ui, cam: cam0(lerp(1.25, 1.4, inv(T.fin, T.cahier, t)) + 0.1 * punch(t, T.bleu, 5, 16), 640, 940), flash: cutFlash(t, T.fin - 0.15), capY: 1740 };
+    return { w, ui, cam: cam0(lerp(1.15, 1.3, inv(T.fin, T.cahier, t)) + 0.1 * punch(t, T.bleu, 5, 16), 620, 1010), flash: cutFlash(t, T.fin - 0.15), capY: 1740 };
   }
 
   // ================================================================== 4. la spirale dans le poignet
