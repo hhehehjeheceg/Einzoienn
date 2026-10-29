@@ -30,7 +30,7 @@ Passants et chat : `personnages/extras.js`.
 
 Format sonore : **voix off du narrateur uniquement** (les personnages ne parlent
 pas), **bruitages** et, à partir de l'épisode 3, **la musique de la chaîne**
-(`musique/musique-chaine.wav`) dès la première seconde, à **17 %** du volume (« Et si… » 3 à 5) ; à partir de « Pourquoi c'est horrible » 1, **11 %** et baissée de 45 % sous la voix (17 % était trop fort).
+(`musique/musique-chaine.wav`) dès la première seconde, à **17 %** du volume (« Et si… » 3 à 5) ; à partir de « Pourquoi c'est horrible » 1, la musique est **réglée par rapport à la voix : 21 dB sous la voix quand on parle**, creusée entre 1 et 4 kHz (17 % fixe la rendait plus forte que la voix).
 Pas d'effet sonore « titre » au début ni à la fin. La voix reste toujours au moins
 6 dB au-dessus des bruitages. La fin demande toujours de s'abonner et de liker.
 

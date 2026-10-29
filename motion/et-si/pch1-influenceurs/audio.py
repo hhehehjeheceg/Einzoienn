@@ -330,26 +330,13 @@ def smooth(g, att=0.01, rel=0.08):
 
 
 hop = 48
-venv = env_of(vo, 0.06)
-speech = venv > venv.max() * 10 ** (-38 / 20)
-ref = np.median(venv[speech])
-# 1) nivellement : un mot trop bas est remonté (jusqu'à +10 dB), un mot trop fort est baissé
-lvl = np.clip((ref / venv) ** 0.75, 10 ** (-6 / 20), 10 ** (10 / 20))
-lvl[~speech] = 1.0
-lvl_s = np.interp(np.arange(N), np.arange(0, N, hop), smooth(lvl[::hop], 0.004, 0.012))
-vo = vo * lvl_s
-# 2) expandeur : entre les mots, la réverbération est coupée (pas d'écho)
-venv2 = env_of(vo, 0.025)
-thr = np.median(venv2[venv2 > venv2.max() * 0.05]) * 0.16
-gexp = np.clip((venv2 / thr) ** 2.0, 0.06, 1.0)
-gexp_s = np.interp(np.arange(N), np.arange(0, N, hop), smooth(gexp[::hop], 0.002, 0.03))
-vo = vo * gexp_s
-# 3) compression douce vers le bas + présence
-venv3 = env_of(vo, 0.03)
-ref3 = np.percentile(venv3[venv3 > venv3.max() * 0.05], 70)
-vo = vo * np.minimum(1.0, (ref3 / venv3) ** 0.3)
-pres = sosfilt(butter(2, [2500, 5000], "band", fs=SR, output="sos"), vo)
-vo = vo + 0.25 * pres
+# même traitement de voix que les épisodes précédents (ép. 5) : le volume et le timbre habituels
+venv = np.sqrt(np.convolve((vo ** 2).mean(0), np.ones(int(0.03 * SR)) / int(0.03 * SR), "same")) + 1e-7
+ref = np.percentile(venv[venv > venv.max() * 0.05], 70)
+g = np.minimum(1.0, (ref / venv) ** 0.3)                       # compression vers le bas seulement
+g *= np.clip((venv / (ref * 0.12)) ** 1.5, 0.25, 1.0)          # expandeur : coupe les traînes entre les mots (pas d'écho)
+g = np.convolve(g, np.ones(int(0.015 * SR)) / int(0.015 * SR), "same")
+vo = vo * g
 VO_G = 1.4
 
 # contrôle : niveau de chaque mot après traitement
@@ -401,12 +388,20 @@ raw_m = subprocess.run(["ffmpeg", "-v", "error", "-i", str(HERE / "../musique/mu
 mus = np.frombuffer(raw_m, np.float32).reshape(-1, 2).T.astype(np.float64)
 while mus.shape[1] < N:
     mus = np.concatenate([mus, mus], axis=1)
-mus = mus[:, :N] * 0.11  # plus bas que les 17 % habituels : demandé après écoute
+mus = mus[:, :N] * 0.17  # niveau de départ, recalé plus bas par rapport à la voix
 mus[:, N - int(1.5 * SR):] *= np.linspace(1, 0, int(1.5 * SR))
 mus *= 1 - 0.45 * act
 tm = np.arange(N) / SR
 mus *= 1 - 0.85 * np.clip(np.minimum((tm - 41.05) / 0.08, (41.7 - tm) / 0.4), 0, 1)  # le disque s'arrête net
+# la musique est réglée par rapport à la voix : toujours 21 dB sous la voix quand on parle,
+# et creusée dans les fréquences de la voix (1-4 kHz) pour qu'elle ne la masque jamais
+_ve = np.sqrt(np.convolve((vo ** 2).mean(0), np.ones(4800) / 4800, 'same')); _sp = _ve > _ve.max() * 0.1
+_db = lambda x, m: 20 * np.log10(np.sqrt((x[:, m] ** 2).mean()) + 1e-12)
+mus = mus - 0.45 * sosfilt(butter(2, [1000, 4000], "band", fs=SR, output="sos"), mus)
+mus *= 10 ** ((_db(vo * VO_G, _sp) - 21 - _db(mus, _sp)) / 20)
 out = sfx + vo * VO_G + mus
+print(f"hors voix : musique {_db(mus, ~_sp) - _db(vo * VO_G, _sp):.1f} dB sous la voix ; sfx pendant voix {_db(sfx, _sp) - _db(vo * VO_G, _sp):.1f} dB")
+print(f"pendant la voix : voix {_db(vo * VO_G, _sp):.1f} dB, musique {_db(mus, _sp):.1f} dB -> écart {_db(vo * VO_G, _sp) - _db(mus, _sp):.1f} dB")
 out /= max(1e-9, np.abs(out).max()) / 0.9
 pcm = (np.clip(out, -1, 1) * 32767).astype("<i2").T.tobytes()
 with wave.open(str(OUT / "mix_raw.wav"), "wb") as f:
