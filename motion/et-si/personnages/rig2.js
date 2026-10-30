@@ -193,6 +193,9 @@
     terrifie: { bIn: -22, bOut: -8, bUp: 20, eyeS: 1.25, pupil: 0.28, ms: 'scream', pale: 0.6 },
     ravi: { bUp: 12, happy: 1, smile: 1, open: 0.5, cheek: 1, ms: '' },
     supplie: { bIn: -18, bOut: 6, bUp: 6, eyeS: 1.16, pupil: 1.28, ly: -0.5, wet: 1, ms: 'pout', cheek: 0.6 },
+    grin: { bUp: 10, happy: 0.6, lidB: 0.3, cheek: 0.9, ms: 'grin', wide: 1.05 },
+    crispe: { bIn: -6, bOut: 4, bUp: 6, eyeS: 1.05, ms: 'grin', wide: 1.1, sweat: 1 },
+    douleur: { bIn: -14, bOut: 10, closed: 1, tilt: -10, ms: 'grimace', wide: 1.1, tears: 0.6 },
   };
   function expr(name, over) { return Object.assign({}, BASE, EXPR[name] || {}, over || {}); }
   function mixExpr(a, b, k) {
@@ -244,11 +247,18 @@
     return L(`M${r1(ix)} ${r1(iy)}Q${r1((ix + ox) / 2)} ${r1(my)} ${r1(ox)} ${r1(oy)}`, col, th);
   }
   // bouche (centrée 0,0)
-  function mouth(f, W, inCol = '#5A1A27') {
+  // fil + bagues d'appareil dentaire sur une rangée de dents (centre y, demi-largeur w)
+  function bracesRow(y, w, W) {
+    let s = L(`M${r1(-w)} ${r1(y)}Q0 ${r1(y + W * 0.06)} ${r1(w)} ${r1(y)}`, '#8E96A3', Math.max(2.2, W * 0.07));
+    const n = Math.max(3, Math.round(w / (W * 0.22)));
+    for (let i = 0; i < n; i++) { const x = -w + (i + 0.5) * (2 * w / n), q = W * 0.075; s += `<rect x="${r1(x - q)}" y="${r1(y - q + (1 - Math.pow(x / w, 2)) * W * 0.03)}" width="${r1(q * 2)}" height="${r1(q * 2)}" rx="${r1(q * 0.3)}" fill="#C9CED6" stroke="#5B6270" stroke-width="1.6"/>`; }
+    return s;
+  }
+  function mouth(f, W, inCol = '#5A1A27', braces = false) {
     const filled = (d, teeth, tongue, tTop) => {
       const c = nid('m');
       let s = `<clipPath id="${c}"><path d="${d}"/></clipPath>` + F(d, inCol) + `<g clip-path="url(#${c})">`;
-      if (teeth) s += F(`M-200 -200H200V${r1(tTop)}H-200Z`, '#FFFFFF');
+      if (teeth) s += F(`M-200 -200H200V${r1(tTop)}H-200Z`, '#FFFFFF') + (braces ? bracesRow(tTop - W * 0.13, W * 1.2, W) : '');
       if (tongue) s += E(0, tongue[0], tongue[1], tongue[2], '#E5636B');
       return s + '</g>' + `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${OL - 0.5}" stroke-linejoin="round"/>`;
     };
@@ -258,14 +268,16 @@
       case 'scream': return filled(`M0 ${-W * 0.35}C${W * 0.62} ${-W * 0.35} ${W * 0.7} ${W * 0.4} ${W * 0.55} ${W * 1.05}C${W * 0.4} ${W * 1.5} ${-W * 0.4} ${W * 1.5} ${-W * 0.55} ${W * 1.05}C${-W * 0.7} ${W * 0.4} ${-W * 0.62} ${-W * 0.35} 0 ${-W * 0.35}Z`, true, [W * 1.15, W * 0.42, W * 0.24], -W * 0.18);
       case 'wail': return filled(`M${-W * 0.9} ${W * 0.3}Q0 ${-W * 0.5} ${W * 0.9} ${W * 0.3}Q${W * 0.6} ${W * 1.1} 0 ${W * 1.1}Q${-W * 0.6} ${W * 1.1} ${-W * 0.9} ${W * 0.3}Z`, true, [W * 0.95, W * 0.45, W * 0.22], -W * 0.05);
       case 'D': return filled(`M${-w} ${-W * 0.1}Q0 ${-W * 0.2} ${w} ${-W * 0.1}Q${w * 0.8} ${W * 1.0} 0 ${W * 1.0}Q${-w * 0.8} ${W * 1.0} ${-w} ${-W * 0.1}Z`, true, [W * 0.9, W * 0.5, W * 0.2], W * 0.12);
-      case 'teeth': { const d = `M${-w} ${-W * 0.22}Q0 ${-W * 0.3} ${w} ${-W * 0.22}Q${w + 6} 0 ${w} ${W * 0.26}Q0 ${W * 0.34} ${-w} ${W * 0.26}Q${-w - 6} 0 ${-w} ${-W * 0.22}Z`; return F(d, '#FFFFFF') + L(`M${-w + 4} 0H${w - 4}` + [-0.5, 0, 0.5].map(k => `M${r1(w * k)} ${-W * 0.26}V${W * 0.3}`).join(''), INK, 2.4, 'opacity=".55"') + `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${OL - 0.5}"/>`; }
+      case 'teeth': { const d = `M${-w} ${-W * 0.22}Q0 ${-W * 0.3} ${w} ${-W * 0.22}Q${w + 6} 0 ${w} ${W * 0.26}Q0 ${W * 0.34} ${-w} ${W * 0.26}Q${-w - 6} 0 ${-w} ${-W * 0.22}Z`; return F(d, '#FFFFFF') + L(`M${-w + 4} 0H${w - 4}` + [-0.5, 0, 0.5].map(k => `M${r1(w * k)} ${-W * 0.26}V${W * 0.3}`).join(''), INK, 2.4, 'opacity=".55"') + (braces ? bracesRow(-W * 0.1, w * 0.92, W) + bracesRow(W * 0.13, w * 0.88, W) : '') + `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${OL - 0.5}"/>`; }
+      // grand sourire plein de dents (montre bien l'appareil)
+      case 'grin': { const d = `M${-w * 1.15} ${-W * 0.3}Q0 ${-W * 0.12} ${w * 1.15} ${-W * 0.3}Q${w * 0.95} ${W * 0.62} 0 ${W * 0.66}Q${-w * 0.95} ${W * 0.62} ${-w * 1.15} ${-W * 0.3}Z`, c = nid('m'); return `<clipPath id="${c}"><path d="${d}"/></clipPath>` + F(d, inCol) + `<g clip-path="url(#${c})">` + F(`M-200 -200H200V${r1(W * 0.16)}H-200Z`, '#FFFFFF') + F(`M-200 ${r1(W * 0.34)}H200V200H-200Z`, '#FFFFFF') + L([-0.6, -0.3, 0, 0.3, 0.6].map(k => `M${r1(w * k)} ${-W * 0.3}V${W * 0.16}`).join(''), INK, 2, 'opacity=".35"') + (braces ? bracesRow(-W * 0.04, w * 1.1, W) + bracesRow(W * 0.46, w * 0.9, W) : '') + '</g>' + `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${OL - 0.5}" stroke-linejoin="round"/>`; }
       case 'wavy': return L(`M${-w} 0q${w / 4} ${-W * 0.22} ${w / 2} 0t${w / 2} 0t${w / 2} 0t${w / 2} 0`, INK, OL);
       case 'pout': return P(`M${-W * 0.2} ${W * 0.05}Q0 ${-W * 0.22} ${W * 0.2} ${W * 0.05}Q0 ${W * 0.24} ${-W * 0.2} ${W * 0.05}Z`, '#C94A5A', 4);
       case 'bisou': return P(`M${-W * 0.16} 0Q${-W * 0.3} ${-W * 0.3} 0 ${-W * 0.2}Q${W * 0.3} ${-W * 0.3} ${W * 0.16} 0Q${W * 0.3} ${W * 0.3} 0 ${W * 0.22}Q${-W * 0.3} ${W * 0.3} ${-W * 0.16} 0Z`, '#D9506A', 4) + L(`M${-W * 0.1} 0H${W * 0.1}`, INK, 2.5);
       case 'langue': return L(`M${-w} ${-W * 0.05}Q0 ${W * 0.25} ${w} ${-W * 0.1}`, INK, OL) + P(`M${-W * 0.32} ${W * 0.08}Q${-W * 0.34} ${W * 0.75} 0 ${W * 0.78}Q${W * 0.34} ${W * 0.75} ${W * 0.32} ${W * 0.08}Z`, '#E5636B', 4) + L(`M0 ${W * 0.2}V${W * 0.52}`, '#B8404B', 3);
       case 'baille': return filled(`M0 ${-W * 0.45}C${W * 0.55} ${-W * 0.45} ${W * 0.6} ${W * 0.6} ${W * 0.4} ${W * 1.2}C${W * 0.25} ${W * 1.5} ${-W * 0.25} ${W * 1.5} ${-W * 0.4} ${W * 1.2}C${-W * 0.6} ${W * 0.6} ${-W * 0.55} ${-W * 0.45} 0 ${-W * 0.45}Z`, false, [W * 1.2, W * 0.36, W * 0.2]);
       case 'pouffe': return L(`M${-w * 0.7} 0Q0 ${-W * 0.12} ${w * 0.7} 0`, INK, OL) + L(`M${-w * 0.7} 0q-4 -4 -2 -9M${w * 0.7} 0q4 -4 2 -9`, INK, IL);
-      case 'grimace': { const d = `M${-w * 1.1} ${-W * 0.05}Q${-w * 0.5} ${-W * 0.35} 0 ${-W * 0.1}Q${w * 0.5} ${W * 0.15} ${w * 1.1} ${-W * 0.25}Q${w * 0.9} ${W * 0.3} 0 ${W * 0.3}Q${-w * 0.9} ${W * 0.4} ${-w * 1.1} ${-W * 0.05}Z`; return F(d, '#FFFFFF') + L(`M${-w} ${W * 0.08}H${w}` + [-0.5, 0, 0.5].map(k => `M${r1(w * k)} ${-W * 0.25}V${W * 0.32}`).join(''), INK, 2.2, 'opacity=".5"') + `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${OL - 0.5}" stroke-linejoin="round"/>`; }
+      case 'grimace': { const d = `M${-w * 1.1} ${-W * 0.05}Q${-w * 0.5} ${-W * 0.35} 0 ${-W * 0.1}Q${w * 0.5} ${W * 0.15} ${w * 1.1} ${-W * 0.25}Q${w * 0.9} ${W * 0.3} 0 ${W * 0.3}Q${-w * 0.9} ${W * 0.4} ${-w * 1.1} ${-W * 0.05}Z`; return F(d, '#FFFFFF') + L(`M${-w} ${W * 0.08}H${w}` + [-0.5, 0, 0.5].map(k => `M${r1(w * k)} ${-W * 0.25}V${W * 0.32}`).join(''), INK, 2.2, 'opacity=".5"') + (braces ? bracesRow(W * 0.0, w * 0.95, W) : '') + `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${OL - 0.5}" stroke-linejoin="round"/>`; }
       case 'beurk': return filled(`M${-w} ${W * 0.1}Q${-w * 0.3} ${-W * 0.25} 0 0Q${w * 0.4} ${W * 0.25} ${w} ${-W * 0.05}Q${w * 0.6} ${W * 0.5} 0 ${W * 0.45}Q${-w * 0.6} ${W * 0.5} ${-w} ${W * 0.1}Z`, false, [W * 0.55, W * 0.3, W * 0.18]);
     }
     const sm = f.smile, op = f.open, as = f.asym;
@@ -339,6 +351,23 @@
         cel(`M${-R * 1.06} ${-R * 0.36}Q0 ${-R * 0.5} ${R * 1.06} ${-R * 0.36}Q${R * 1.02} ${-R * 0.12} ${R * 0.6} ${-R * 0.14}Q0 ${-R * 0.26} ${-R * 0.6} ${-R * 0.14}Q${-R * 1.02} ${-R * 0.12} ${-R * 1.06} ${-R * 0.36}Z`, shade(c, 0.16), { dx: 4, dy: 4 }) + E(0, -R * 1.2, 9, 6, shade(c, 0.3), 3) },
     bonnet: { front: (R, c) => cel(`M${-R * 1.03} ${-R * 0.28}C${-R * 1.07} ${-R * 1.0} ${-R * 0.6} ${-R * 1.3} 0 ${-R * 1.3}C${R * 0.6} ${-R * 1.3} ${R * 1.07} ${-R * 1.0} ${R * 1.03} ${-R * 0.28}Z`, c, { dx: 12, dy: 8 }) +
         cel(`M${-R * 1.07} ${-R * 0.5}H${R * 1.07}V${-R * 0.22}H${-R * 1.07}Z`, shade(c, 0.15), { dx: 3, dy: 3 }) + cel(`M-22 ${-R * 1.3}a22 22 0 1 0 44 0a22 22 0 1 0 -44 0Z`, tint(c, 0.4), { dx: 4, dy: 3 }) },
+    // mèche longue sur le côté (cache un peu un œil)
+    meche: { back: (R, c) => P(`M${-R * 1.02} ${R * 0.25}C${-R * 1.12} ${-R * 0.7} ${-R * 0.72} ${-R * 1.2} 0 ${-R * 1.18}C${R * 0.72} ${-R * 1.2} ${R * 1.12} ${-R * 0.7} ${R * 1.02} ${R * 0.25}Z`, shade(c, 0.2)),
+      front: (R, c, sw) => cel(`M${-R * 1.0} ${-R * 0.05}C${-R * 1.06} ${-R * 0.85} ${-R * 0.55} ${-R * 1.2} ${R * 0.1} ${-R * 1.16}C${R * 0.7} ${-R * 1.12} ${R * 1.08} ${-R * 0.7} ${R * 1.0} ${-R * 0.1}C${R * 0.86} ${-R * 0.5} ${R * 0.6} ${-R * 0.62} ${R * 0.4} ${-R * 0.6}` +
+        `C${R * 0.2} ${-R * 0.42} ${-R * 0.1} ${-R * 0.2} ${-R * (0.56 + (sw || 0) * 0.004)} ${R * 0.12}C${-R * 0.5} ${-R * 0.2} ${-R * 0.7} ${-R * 0.4} ${-R * 0.86} ${-R * 0.42}C${-R * 0.94} ${-R * 0.3} ${-R * 0.98} ${-R * 0.18} ${-R * 1.0} ${-R * 0.05}Z`, c, { dx: 10, dy: 8 }) +
+        L(`M${R * 0.5} ${-R * 0.95}Q${-R * 0.1} ${-R * 0.7} ${-R * 0.42} ${-R * 0.1}`, tint(c, 0.3), 6) },
+    // deux macarons sur le dessus
+    macarons: { back: (R, c, sw) => [-1, 1].map(sd => cel(`M${r1(sd * R * 0.72 - R * 0.36)} ${r1(-R * 1.0)}a${r1(R * 0.36)} ${r1(R * 0.34)} 0 1 0 ${r1(R * 0.72)} 0a${r1(R * 0.36)} ${r1(R * 0.34)} 0 1 0 ${r1(-R * 0.72)} 0Z`, c, { dx: 8, dy: 6 }) + L(`M${r1(sd * R * 0.72 - R * 0.2)} ${r1(-R * 1.08)}q${r1(R * 0.2)} ${r1(-R * 0.14)} ${r1(R * 0.4)} 0`, shade(c, 0.25), 4)).join(''),
+      front: (R, c) => HAIR.chignon.front(R, c) },
+    // crête en pointes
+    crete: { back: (R, c) => P(`M${-R * 0.96} ${-R * 0.1}C${-R * 1.0} ${-R * 0.8} ${-R * 0.6} ${-R * 1.08} 0 ${-R * 1.08}C${R * 0.6} ${-R * 1.08} ${R * 1.0} ${-R * 0.8} ${R * 0.96} ${-R * 0.1}Z`, shade(c, 0.35)),
+      front: (R, c, sw) => cel(`M${-R * 0.5} ${-R * 0.82}L${-R * 0.62} ${-R * 1.3}L${-R * 0.28} ${-R * 1.02}L${-R * 0.22} ${-R * 1.55}L${R * 0.06} ${-R * 1.08}L${R * 0.24} ${-R * 1.62}L${R * 0.36} ${-R * 1.04}L${R * 0.66} ${-R * 1.34}L${R * 0.54} ${-R * 0.82}Q0 ${-R * 0.7} ${-R * 0.5} ${-R * 0.82}Z`, c, { dx: 8, dy: 6 }) },
+    // carré avec frange droite
+    carre: { back: (R, c) => cel(`M${-R * 1.14} ${R * 0.78}C${-R * 1.3} ${-R * 0.2} ${-R * 1.16} ${-R * 1.2} 0 ${-R * 1.2}C${R * 1.16} ${-R * 1.2} ${R * 1.3} ${-R * 0.2} ${R * 1.14} ${R * 0.78}Q0 ${R * 0.9} ${-R * 1.14} ${R * 0.78}Z`, c, { dx: 14, dy: 10 }),
+      front: (R, c) => cel(`M${-R * 1.02} ${R * 0.5}C${-R * 1.1} ${-R * 0.7} ${-R * 0.62} ${-R * 1.14} 0 ${-R * 1.14}C${R * 0.62} ${-R * 1.14} ${R * 1.1} ${-R * 0.7} ${R * 1.02} ${R * 0.5}L${R * 0.86} ${R * 0.5}L${R * 0.86} ${-R * 0.38}H${-R * 0.86}L${-R * 0.86} ${R * 0.5}Z`, c, { dx: 10, dy: 8 }) + L(`M${-R * 0.6} ${-R * 0.38}V${-R * 0.5}M${-R * 0.2} ${-R * 0.38}V${-R * 0.52}M${R * 0.2} ${-R * 0.38}V${-R * 0.52}M${R * 0.6} ${-R * 0.38}V${-R * 0.5}`, shade(c, 0.25), 3) },
+    // frange + queue basse
+    frange: { back: (R, c) => cel(`M${-R * 0.5} ${R * 0.5}C${-R * 0.6} ${R * 1.2} ${R * 0.6} ${R * 1.2} ${R * 0.5} ${R * 0.5}Z`, c, { dx: 8, dy: 6 }) + P(`M${-R * 1.0} ${R * 0.1}C${-R * 1.1} ${-R * 0.8} ${-R * 0.6} ${-R * 1.16} 0 ${-R * 1.16}C${R * 0.6} ${-R * 1.16} ${R * 1.1} ${-R * 0.8} ${R * 1.0} ${R * 0.1}Z`, c),
+      front: (R, c) => cel(`M${-R * 1.0} ${-R * 0.0}C${-R * 1.06} ${-R * 0.82} ${-R * 0.6} ${-R * 1.14} 0 ${-R * 1.14}C${R * 0.6} ${-R * 1.14} ${R * 1.06} ${-R * 0.82} ${R * 1.0} ${-R * 0.0}C${R * 0.9} ${-R * 0.3} ${R * 0.8} ${-R * 0.4} ${R * 0.7} ${-R * 0.42}Q0 ${-R * 0.3} ${-R * 0.7} ${-R * 0.42}C${-R * 0.8} ${-R * 0.4} ${-R * 0.9} ${-R * 0.3} ${-R * 1.0} ${-R * 0.0}Z`, c, { dx: 10, dy: 8 }) },
     chauve: { front: (R, c) => cel(`M${-R * 1.0} ${-R * 0.25}Q${-R * 1.08} ${R * 0.1} ${-R * 0.94} ${R * 0.32}L${-R * 0.86} ${R * 0.1}Q${-R * 0.9} ${-R * 0.1} ${-R * 0.86} ${-R * 0.28}Z`, c, { dx: 3, dy: 3, sw: 3.5 }) + cel(`M${R * 1.0} ${-R * 0.25}Q${R * 1.08} ${R * 0.1} ${R * 0.94} ${R * 0.32}L${R * 0.86} ${R * 0.1}Q${R * 0.9} ${-R * 0.1} ${R * 0.86} ${-R * 0.28}Z`, c, { dx: 3, dy: 3, sw: 3.5 }) + L(`M${-R * 0.5} ${-R * 0.8}Q${-R * 0.2} ${-R * 0.94} ${R * 0.1} ${-R * 0.88}`, '#FFFFFF', 6, 'opacity=".5"') },
   };
 
@@ -377,7 +406,7 @@
     s += sp.nose === 'pointu' ? L(`M${r1(nx)} ${r1(ny - R * 0.18)}L${r1(nx + R * 0.12 + turn * 6)} ${r1(ny + R * 0.06)}Q${r1(nx + R * 0.04)} ${r1(ny + R * 0.13)} ${r1(nx - R * 0.05)} ${r1(ny + R * 0.08)}`, INK, IL + 0.6)
       : P(`M${r1(nx - R * 0.08)} ${r1(ny)}Q${r1(nx + turn * 6)} ${r1(ny - R * 0.1)} ${r1(nx + R * 0.08)} ${r1(ny)}Q${r1(nx + turn * 4)} ${r1(ny + R * 0.08)} ${r1(nx - R * 0.08)} ${r1(ny)}Z`, shade(pal.skin, 0.12), 3);
     if (sp.beard) s += cel(`M${-R * 0.95} ${R * 0.1}C${-R * 0.92} ${R * 0.72} ${-R * 0.5} ${R * 1.06} 0 ${R * 1.08}C${R * 0.5} ${R * 1.06} ${R * 0.92} ${R * 0.72} ${R * 0.95} ${R * 0.1}Q${R * 0.7} ${R * 0.62} ${r1(fx + R * 0.32)} ${R * 0.52}Q${r1(fx)} ${R * 0.44} ${r1(fx - R * 0.32)} ${R * 0.52}Q${-R * 0.7} ${R * 0.62} ${-R * 0.95} ${R * 0.1}Z`, sp.beard, { dx: 8, dy: 6 });
-    s += G(mouth(f, R * (sp.mouthW || 0.25)), `translate(${r1(fx * 1.08)} ${r1(ey + R * 0.6)})`);
+    s += G(mouth(f, R * (sp.mouthW || 0.25), undefined, !!sp.braces), `translate(${r1(fx * 1.08)} ${r1(ey + R * 0.6)})`);
     if (sp.mustache) s += cel(`M${r1(fx - R * 0.32)} ${r1(ey + R * 0.52)}Q${r1(fx)} ${r1(ey + R * 0.32)} ${r1(fx + R * 0.32)} ${r1(ey + R * 0.52)}Q${r1(fx)} ${r1(ey + R * 0.46)} ${r1(fx - R * 0.32)} ${r1(ey + R * 0.52)}Z`, sp.mustache, { dx: 3, dy: 3, sw: 4 });
     // cheveux avant + sourcils
     if (hs.front) s += G(hs.front(R, pal.hair, o.hairSway), `translate(${r1(fx * 0.4)} 0)`);
@@ -390,6 +419,7 @@
   // ------------------------------------------------------------------ gabarits
   const BODY = {
     enfant: { R: 116, shY: -430, shO: 82, neckLen: 0, waistY: -238, hemW: 76, hipW: 32, arm: [84, 78], armW: [40, 33], legW: [50, 42], foot: 1, hand: 1.08 },
+    grand: { R: 96, shY: -640, shO: 88, neckLen: 22, waistY: -392, hemW: 74, hipW: 32, arm: [122, 112], armW: [36, 29], legW: [46, 36], foot: 1.12, hand: 1.04 },
     ado: { R: 100, shY: -548, shO: 92, neckLen: 12, waistY: -326, hemW: 80, hipW: 34, arm: [104, 98], armW: [40, 31], legW: [50, 40], foot: 1.08, hand: 1.06 },
     adulte: { R: 98, shY: -598, shO: 100, neckLen: 16, waistY: -356, hemW: 86, hipW: 38, arm: [114, 106], armW: [42, 33], legW: [54, 42], foot: 1.12, hand: 1.1 },
     rond: { R: 100, shY: -578, shO: 108, neckLen: 10, waistY: -340, hemW: 116, hipW: 46, arm: [110, 102], armW: [46, 37], legW: [62, 50], foot: 1.15, hand: 1.12, belly: 1 },
@@ -422,6 +452,14 @@
     }
     if (top === 'chemise') { inner.push(L(`M${bt} ${shY + 6}V${waistY}`, shade(col, 0.4), IL)); for (let i = 0; i < 4; i++) inner.push(E(bt + 9, shY + 30 + i * (waistY - shY - 50) / 3, 4, 4, '#FFFFFF', 2)); }
     if (top === 'pull') inner.push(F(`M-300 ${waistY - 24}H300V${waistY + 30}H-300Z`, shade(col, 0.14)), L(`M-300 ${waistY - 24}H300`, INK, IL), L(`M${-hemW * 0.5 + bt} ${shY + 60}l14 14l14 -14l14 14l14 -14`, tint(col, 0.35), 4));
+    if (top === 'raye') for (let y = shY + 30; y < waistY + 20; y += 34) inner.push(F(`M-300 ${y}H300V${y + 15}H-300Z`, pal.stripe || tint(col, 0.55)));
+    if (top === 'gilet') { inner.push(F(`M${-30 + bt} ${shY - 20}L${-26 + bt} ${waistY + 20}H${26 + bt}L${30 + bt} ${shY - 20}Z`, pal.tee || '#FFFFFF')); inner.push(L(`M${-30 + bt} ${shY}L${-26 + bt} ${waistY}M${30 + bt} ${shY}L${26 + bt} ${waistY}`, INK, IL)); for (let i = 0; i < 3; i++) inner.push(E(-38 + bt, shY + 60 + i * 50, 5, 5, shade(col, 0.4), 2)); }
+    if (top === 'salopette') {
+      const bc = pal.bib || pal.bottom;
+      inner.push(F(`M${-hemW * 0.66 + bt} ${waistY - 120}H${hemW * 0.66 + bt}V${waistY + 40}H${-hemW * 0.66 + bt}Z`, bc), L(`M${-hemW * 0.66 + bt} ${waistY + 40}V${waistY - 120}H${hemW * 0.66 + bt}V${waistY + 40}`, INK, IL));
+      inner.push(F(`M${-26 + bt} ${waistY - 100}h52v34h-52z`, shade(bc, 0.15)), L(`M${-26 + bt} ${waistY - 100}h52v34h-52z`, INK, 3));
+      for (const sd of [-1, 1]) inner.push(L(`M${sd * hemW * 0.5 + bt} ${waistY - 116}L${sd * (shO - 34)} ${shY + 6}`, bc, 22), L(`M${sd * hemW * 0.5 + bt} ${waistY - 116}L${sd * (shO - 34)} ${shY + 6}`, INK, 2.5), E(sd * hemW * 0.5 + bt, waistY - 112, 8, 8, '#F2C94C', 3));
+    }
     if (o.motif) inner.push(o.motif);
     let s = pre + cel(d, col, { dx: 20, dy: 12, inner: inner.join('') });
     if (top === 'hoodie') {
@@ -430,7 +468,7 @@
       for (const sd of [-1, 1]) s += L(`M${sd * 18 + bt} ${shY + 4}Q${sd * 22 + bt + sw} ${shY + 40} ${sd * 15 + bt + sw * 1.6} ${shY + 74}`, pal.string || '#FFF6E6', 6) + P(`M${sd * 15 + bt + sw * 1.6 - 5} ${shY + 70}h10v16h-10z`, pal.accent || '#E5483D', 3);
     }
     if (top === 'veste') { post += L(`M${-18 + bt} ${shY + 6}Q${bt} ${shY + 52} ${18 + bt} ${shY + 6}`, pal.chain || '#F2C94C', 5); post += cel(`M${-shO + 16} ${shY + 66}h34v34h-34z`, pal.patch || '#F3E6CC', { dx: 3, dy: 3, sw: 4 }) + L(`M${-shO + 23} ${shY + 92}V${shY + 74}l10 11l10 -11V${shY + 92}`, col, 5); }
-    if (top === 'tee' || top === 'robe' || top === 'pull') s += L(`M${-sp.R * 0.26 + bt} ${shY}Q${bt} ${shY + 22} ${sp.R * 0.26 + bt} ${shY}`, INK, IL);
+    if (top === 'tee' || top === 'robe' || top === 'pull' || top === 'raye' || top === 'salopette') s += L(`M${-sp.R * 0.26 + bt} ${shY}Q${bt} ${shY + 22} ${sp.R * 0.26 + bt} ${shY}`, INK, IL);
     if (top === 'chemise') s += P(`M${-30 + bt} ${shY - 6}L${bt} ${shY + 18}L${-8 + bt} ${shY + 30}L${-36 + bt} ${shY + 10}Z`, '#FFFFFF', 3.5) + P(`M${30 + bt} ${shY - 6}L${bt} ${shY + 18}L${8 + bt} ${shY + 30}L${36 + bt} ${shY + 10}Z`, '#FFFFFF', 3.5);
     return { s: s + post, d };
   }

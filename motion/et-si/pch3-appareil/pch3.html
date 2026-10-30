@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Appareil dentaire</title>
+<style>
+@font-face{font-family:Brico;src:url(../../claude-intro/fonts/bricolage.woff2)}
+@font-face{font-family:Anton;src:url(../../claude-intro/fonts/anton.woff2)}
+@font-face{font-family:Caveat;src:url(../../claude-intro/fonts/caveat-700.woff2)}
+html,body{margin:0;background:#000;overflow:hidden}
+svg{display:block}
+</style></head>
+<body>
+<svg id="svg" width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg"><defs id="defs"></defs><g id="stage"></g></svg>
+<audio id="au" src="out/mix.wav" preload="auto"></audio>
+<script>{ const q = new URLSearchParams(location.search); if (q.get('w')) { const s = document.getElementById('svg'); s.setAttribute('width', q.get('w')); s.setAttribute('height', Math.round(q.get('w') * 16 / 9)); } }</script>
+<script src="../personnages/rig2.js"></script>
+<script src="../personnages/gestes.js"></script>
+<script src="cues.js"></script>
+<script src="../personnages/acteurs.js"></script>
+<script src="../pch2-gaucher/pch2_props.js"></script>
+<script src="pch3_props.js"></script>
+<script src="pch3_cast.js"></script>
+<script src="pch3_scenes.js"></script>
+<script src="pch3.js"></script>
+</body></html>
