@@ -7,8 +7,11 @@
   const SCENES = X.SCENES;
 
   function camTf(c, t) {
-    const sh = c.shake || 0;
-    const sx = sh ? noise1(t * 2.3, 11) * sh : 0, sy = sh ? noise1(t * 2.1, 17) * sh : 0;
+    // caméra « à l'épaule » : légère dérive permanente + tremblement des impacts
+    const sh = c.shake || 0, hh = c.hand == null ? 1 : c.hand;
+    const sx = (sh ? noise1(t * 2.3, 11) * sh : 0) + hh * (Math.sin(t * 0.7 + 1.3) * 5 + Math.sin(t * 1.9) * 2);
+    const sy = (sh ? noise1(t * 2.1, 17) * sh : 0) + hh * (Math.sin(t * 0.6 + 0.4) * 4 + Math.sin(t * 2.3 + 2) * 1.5);
+    c = Object.assign({}, c, { rot: (c.rot || 0) + hh * Math.sin(t * 0.5 + 0.8) * 0.35, z: c.z * (1 + hh * 0.008 * Math.sin(t * 0.4)) });
     return `translate(${r1(540 + sx)} ${r1(960 + sy)}) rotate(${r2(c.rot || 0)}) scale(${Math.round(c.z * 1000) / 1000}) translate(${r1(-c.fx)} ${r1(-c.fy)})`;
   }
   function renderScene(S, t, k) {

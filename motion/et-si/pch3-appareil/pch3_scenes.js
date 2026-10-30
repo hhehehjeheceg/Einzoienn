@@ -6,7 +6,7 @@
     rays, ring, sparkles, confetti, hearts, speedLines, flashBurst, springWord, stamp, bubble, room, windowBox, picture, plant, table, door,
     actor, handPos, desk, paper, board, backHead, onoma, locker,
     bigMouth, pureeBowl, spoon, band, gum, caramel, popcorn, redX, pliers, dentalChair, dentalLamp, calendar, camera, headgear, bed, boardSquare, spit } = X;
-  const { HERO, AMIE, CRUSH, CANCRE, ORTHO, PROF } = window.CAST;
+  const { HERO, AMI, CRUSH, CANCRE, ORTHO, PROF } = window.CAST;
 
   const norm = w => w.toLowerCase().replace(/[’]/g, "'").replace(/[«»?!.,…:;"]/g, '').trim();
   const CUES = window.CUES;
@@ -98,7 +98,7 @@
     }
     let w = room({ wall: '#FCE7C8', stripe: '#F8DDB6', floor: '#B7C3CF', fy: 1520, planks: false });
     w += cel('M60 300H460V560H60Z', '#E5483D', { dx: 0, dy: 10, inner: txt(260, 400, 'MENU', 56, '#FFFFFF', { font: 'Anton', weight: 400, ls: 3 }) + txt(260, 480, 'Épinards', 44, '#FFFFFF', { font: 'Caveat', weight: 700 }) });
-    w += actor(HERO, K3.hero, t, { seed: 5 }) + actor(AMIE, K3.amie, t, { seed: 12 });
+    w += actor(HERO, K3.hero, t, { seed: 5 }) + actor(AMI, K3.amie, t, { seed: 12 });
     // restes verts dans le sourire de l'héroïne
     if (t > T.souris - 0.05) { const [hx, hy, R] = headAt(HERO, 300, 1720, 1); for (let i = 0; i < 4; i++) w += P(`M${r1(hx - 20 + i * 14)} ${r1(hy + R * 0.6)}l8 -3l2 9l-9 2z`, '#3E8E3E', 2); }
     let ui = '';
@@ -168,7 +168,7 @@
   };
   function s7(t) {
     let w = room({ wall: '#E9E2F7', stripe: '#E0D7F3', floor: '#BFC6CF', fy: 1500, planks: false }) + locker(-60, 1500, '#8E4FD6', 3) + locker(650, 1500, '#4FA3CF', 3);
-    w += actor(AMIE, K7.amie, t, { seed: 12 });
+    w += actor(AMI, K7.amie, t, { seed: 12 });
     w += actor(HERO, K7.hero, t, { seed: 5, walk: t > T.college - 0.3 && t < T.college + 0.7 ? 7 : 0 });
     w += actor(CANCRE, K7.cancre, t, { seed: 18 });
     let ui = '';
@@ -239,7 +239,7 @@
   function s10(t) {
     let w = classroom({ wall: '#FFF1D6', stripe: '#FBE8C6' }) + cel('M-60 1400H1140V1520H-60Z', '#C9A27A', { dx: 0, dy: 8 });
     w += txt(540, 300, 'PHOTO DE CLASSE', 60, '#E5483D', { font: 'Anton', weight: 400, ls: 4, stroke: '#FFFFFF', sw: 8 });
-    w += actor(AMIE, K10.amie, t, { seed: 12 }) + actor(CRUSH, K10.crush, t, { seed: 14 }) + actor(HERO_NB, K10.hero, t, { seed: 5 });
+    w += actor(AMI, K10.amie, t, { seed: 12 }) + actor(CRUSH, K10.crush, t, { seed: 14 }) + actor(HERO_NB, K10.hero, t, { seed: 5 });
     let ui = '';
     // décompte de l'appareil photo
     const n = 3 - Math.floor(inv(T.fais, T.la - 0.3, t) * 3);

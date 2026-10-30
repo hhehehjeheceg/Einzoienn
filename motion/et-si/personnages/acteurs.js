@@ -1,5 +1,5 @@
 // Boîte à outils commune des épisodes (v3, à partir de « Pourquoi c'est horrible » 3) — moteur seek(t).
-// v3 : clignement à chaque changement d'émotion, transfert de poids à chaque geste,
+// v3 : micro-gestes au repos (appui, coups d'œil), clignement à chaque changement d'émotion, transfert de poids à chaque geste,
 // étirement / écrasement des sauts, tête qui suit le buste (follow-through).
 // Outils, effets, décors et acteurs animés (mélange de poses en ressort + couche de vie).
 // Tout dépend du temps t : aucune minuterie, aucun état d'une image à l'autre.
@@ -420,6 +420,10 @@
       o.blink = Math.max(o.blink || 0, K.blinkAt(t, seed));
     }
     f.bUp += Math.sin(t * 1.7 + seed) * 1.2 * amp;
+    // micro-gestes au repos : changement d'appui lent, coup d'œil de côté de temps en temps
+    o.sway = (o.sway || 0) + Math.sin(t * 0.9 + seed * 1.3) * 5 * amp;
+    const slot = Math.floor((t + seed * 1.7) / 2.6), ph = ((t + seed * 1.7) % 2.6) / 2.6;
+    if (hash(slot * 31 + seed) < 0.45) { const dir = hash(slot * 7 + seed) < 0.5 ? -1 : 1, g = Math.sin(Math.PI * clamp((ph - 0.3) / 0.4)) * (ph > 0.3 && ph < 0.7 ? 1 : 0); o.turn = (o.turn || 0) + dir * 0.18 * g * amp; f.lx = clamp(f.lx + dir * 0.35 * g * amp, -1, 1); }
     o.hairSway = (o.hairSway || 0) + id.hairSway - (tk.dTilt || 0) * 0.9 - (tk.dTurn || 0) * 40 + (tk.dx || 0) * -0.06;
     return o;
   }

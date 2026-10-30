@@ -395,7 +395,7 @@ fo = int(1.2 * SR)
 mix[:, N - fo:] *= np.linspace(1, 0, fo)
 
 # ---------------------------------------------------------------- voix : nivellement + anti-écho
-raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(OUT / "vo_timeline.wav"), "-f", "f32le", "-ac", "2", "-ar", str(SR), "-"],
+raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(OUT / "vo_timeline_fix.wav"), "-f", "f32le", "-ac", "2", "-ar", str(SR), "-"],
                      capture_output=True, check=True).stdout
 vo = np.frombuffer(raw, np.float32).reshape(-1, 2).T.astype(np.float64)
 vo = np.concatenate([vo, np.zeros((2, max(0, N - vo.shape[1])))], axis=1)[:, :N]
