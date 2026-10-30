@@ -53,6 +53,7 @@ de phrase sont remontées au mixage, un mot inaudible est réenregistré). Pas d
 |---|---|---|---|
 | 1 | … d'avoir des parents influenceurs | `pch1-influenceurs/` | `pch1-influenceurs/pch1-influenceurs.mp4` (720p 60 i/s) |
 | 2 | … d'être gaucher | `pch2-gaucher/` | `pch2-gaucher/pch2-gaucher.mp4` (720p 60 i/s) |
+| 3 | … d'avoir un appareil dentaire | `pch3-appareil/` | `pch3-appareil/pch3-appareil.mp4` (720p 60 i/s) |
 
 ### Rig v2 et gestes (à partir de « Pourquoi c'est horrible » 1)
 
@@ -64,6 +65,10 @@ de phrase sont remontées au mixage, un mot inaudible est réenregistré). Pas d
 - `pch1-influenceurs/pch1_lib.js` : acteurs animés (poses mélangées en ressort, regard qui
   bouge, clignements, respiration, cheveux qui suivent) + effets (compteurs de vues,
   notifications, viseur REC, clap, tampon, lumière annulaire…).
+- `personnages/acteurs.js` (v3, à partir de « Pourquoi c'est horrible » 3) : clignement à chaque changement
+  d'émotion, transfert de poids à chaque geste, étirement / écrasement des sauts, tête qui suit le buste.
+- Rig : appareil dentaire (`spec.braces`), sourire `grin`, coiffures meche / macarons / crete / carre / frange,
+  hauts salopette / raye / gilet, corps `grand`.
 - Rendu : chaque image est capturée deux fois et gardée seulement si les deux captures sont
   identiques (le navigateur rate parfois un découpage d'ombre).
 
