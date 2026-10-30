@@ -31,6 +31,7 @@
   const MAIN_TABS = ["play", "pass", "quests", "locker", "shop", "career"];
   const MODE_SUB = {
     solo: "Battle Royale · solo",
+    titan: "Mode Gant du Titan",
     duo: "Battle Royale · sans remplissage",
     squad: "Battle Royale · sans remplissage",
     creative: "Mode créatif",
@@ -45,6 +46,7 @@
     creative: "CRÉATIF",
     training: "ENTRAÎNEMENT",
     event: "LA FIN",
+    titan: "GANT DU TITAN",
     eventflight: "LA FIN · VOL",
   };
   const esc = (v) =>

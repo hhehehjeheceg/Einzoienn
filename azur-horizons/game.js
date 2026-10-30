@@ -22,6 +22,7 @@
   const MODES = {
  creative:["Créatif", "Ton île. Tes règles.", 1],
     solo: ["Solo", "Seul face à l’orage", 1],
+    titan: ["Gant du Titan", "Ramasse le gant, deviens le Titan", 1],
     duo: ["Duo", "À deux, plus loin", 2],
     squad: ["Escouade", "Votre équipe de quatre", 4],
     training: ["Entraînement", "Explorez. Construisez. Essayez.", 1],

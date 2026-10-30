@@ -5,7 +5,7 @@
   if (!H) return;
   const P = H.prototype;
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
-  const modeNames = {solo:"SOLO",duo:"DUO",squad:"ESCOUADE",creative:"CRÉATIF",training:"ENTRAÎNEMENT",event:"ÉVÉNEMENT · THE END",eventflight:"ÉVÉNEMENT 2 · VOL LIBRE"};
+  const modeNames = {solo:"SOLO",titan:"GANT DU TITAN",duo:"DUO",squad:"ESCOUADE",creative:"CRÉATIF",training:"ENTRAÎNEMENT",event:"ÉVÉNEMENT · THE END",eventflight:"ÉVÉNEMENT 2 · VOL LIBRE"};
 
   const previousRenderMenu = P.renderMenu;
   P.renderMenu = function () {

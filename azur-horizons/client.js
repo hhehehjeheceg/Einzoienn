@@ -15,6 +15,7 @@
       Math.floor(Math.max(0, n) / 60) + ":" + String(Math.floor(Math.max(0, n)) % 60).padStart(2, "0");
   const MODES = {
     solo: { name: "Solo", icon: "solo", text: "Un seul survivant.", tag: "TOI + 99 IA · 100 PARTICIPANTS" },
+    titan: { name: "Gant du Titan", icon: "star", text: "Un gant tombe du ciel dans une météorite : celui qui le ramasse devient un Titan géant aux six pouvoirs. Tous contre lui.", tag: "SOLO · 100 PARTICIPANTS · 1 TITAN" },
     duo: {
       name: "Duo",
       icon: "users",
@@ -1236,7 +1237,7 @@
   const v050Bind = Horizons.prototype.bind;
   const v050LoadProfile = Horizons.prototype.loadProfile;
   const SAVE_V1 = "/tasklet/drive/azur/saves/azur-profile.json";
-  const BR_MODES = ["solo", "duo", "squad"];
+  const BR_MODES = ["solo", "duo", "squad", "titan"];
   const LOADING_ART = {
     "loading-abysses":"./assets/loading-lagune-azur.svg",
     "loading-vigie":"./assets/loading-observatoire.svg",
