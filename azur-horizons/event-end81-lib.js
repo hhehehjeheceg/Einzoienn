@@ -761,6 +761,56 @@
     this.mesh.visible = n > 0;
   };
 
+  /* ------------------------------------------- v121 : panache continu */
+  /* Le panache de la fusée du lancement (vidéo 0:10-0:35) : une seule colonne continue, lavande et rose, bosselée
+   * comme un chou-fleur, orange vif contre la tuyère, qui s'élargit en vieillissant puis se défait par lambeaux.
+   * Un ruban qui fait toujours face à la caméra ; update() reçoit les points du bas (vieux) vers le haut (récent). */
+  L.Plume = function (parent, segs) {
+    var n = this.n = segs || 80, vc = (n + 1) * 2, idx = [];
+    this.pos = new Float32Array(vc * 3); this.uv = new Float32Array(vc * 2); this.ext = new Float32Array(vc * 2);
+    for (var i = 0; i < n; i++) { var a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    var g = this.geo = new T.BufferGeometry();
+    this.aPos = new T.BufferAttribute(this.pos, 3); this.aUv = new T.BufferAttribute(this.uv, 2); this.aExt = new T.BufferAttribute(this.ext, 2);
+    this.aPos.setUsage(T.DynamicDrawUsage); this.aUv.setUsage(T.DynamicDrawUsage); this.aExt.setUsage(T.DynamicDrawUsage);
+    g.setAttribute('position', this.aPos); g.setAttribute('uv', this.aUv); g.setAttribute('ext', this.aExt); g.setIndex(idx);
+    this.mat = new T.ShaderMaterial({
+      transparent: true, depthWrite: false, fog: false, side: T.DoubleSide,
+      uniforms: { time: { value: 0 }, seed: { value: 3.7 }, amt: { value: 1 }, lit: { value: new T.Color(.95, .82, .98) }, shade: { value: new T.Color(.5, .42, .76) } },
+      vertexShader: 'attribute vec2 ext;varying vec2 vUv;varying vec2 vExt;void main(){vUv=uv;vExt=ext;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+      fragmentShader: [
+        'uniform float time,seed,amt;uniform vec3 lit,shade;varying vec2 vUv;varying vec2 vExt;', NOISE,
+        'void main(){float x=vUv.x,y=vUv.y,age=vExt.x,f=vExt.y;if(f<.004)discard;',
+        ' float n1=fbm(vec2(y*.85,x*1.2+seed)+vec2(0.,time*.02));float n2=fbm3(vec2(y*2.9+7.,x*2.8-time*.04));',
+        ' float edge=abs(x)+(n1-.5)*.8+(n2-.5)*.32;float a=1.-smoothstep(.5,.92,edge);',
+        ' float lump=fbm(vec2(y*2.1+3.,x*2.3-1.));float cav=smoothstep(.3,.75,fbm3(vec2(y*4.3,x*4.1+9.)));',
+        ' float l=.5+.5*smoothstep(-.9,.9,x*.9+(lump-.5)*1.5);l=l*(.72+.28*cav);',
+        ' vec3 c=mix(shade,lit,l);',
+        ' float hot=exp(-age*.75);c=mix(c,vec3(1.25,1.02,.7),hot*.9*(1.-abs(x)*.55));c+=vec3(1.3,.5,.12)*hot*hot*.8;',
+        ' c+=vec3(.9,.45,.6)*.12*exp(-age*.12);',
+        ' float br=fbm(vec2(y*1.6+11.,x*1.9+5.));float thr=1.-f;a*=smoothstep(thr-.16,thr+.16,br*1.15+.03)*pow(f,.35);',
+        ' gl_FragColor=vec4(c,a*amt);}'
+      ].join('\n')
+    });
+    this.mat.toneMapped = false;
+    this.mesh = new T.Mesh(g, this.mat); this.mesh.frustumCulled = false; this.mesh.visible = false; this.mesh.renderOrder = 5; parent.add(this.mesh);
+    this._s = new T.Vector3(); this._d = new T.Vector3();
+  };
+  /* pts[i] = { x, y, z, w (demi-largeur), age (s), f (0 défait → 1 intact), v (coordonnée du bruit, collée à la fumée) } */
+  L.Plume.prototype.update = function (pts, m, cam, time) {
+    var n = this.n, P = this.pos, U = this.uv, X = this.ext, s = this._s, d = this._d; m = Math.min(m, n + 1);
+    this.mesh.visible = m > 1; if (m < 2) return;
+    for (var i = 0; i <= n; i++) {
+      var j = Math.min(i, m - 1), q = pts[j], a = pts[Math.max(0, j - 1)], b = pts[Math.min(m - 1, j + 1)];
+      d.set(b.x - a.x, b.y - a.y, b.z - a.z); if (d.lengthSq() < 1e-6) d.set(0, 1, 0);
+      s.set(cam.x - q.x, cam.y - q.y, cam.z - q.z).cross(d); if (s.lengthSq() < 1e-8) s.set(1, 0, 0); s.normalize();
+      var k = i * 6, k2 = i * 4, f = i < m ? q.f : 0;
+      P[k] = q.x - s.x * q.w; P[k + 1] = q.y - s.y * q.w; P[k + 2] = q.z - s.z * q.w; P[k + 3] = q.x + s.x * q.w; P[k + 4] = q.y + s.y * q.w; P[k + 5] = q.z + s.z * q.w;
+      U[k2] = -1; U[k2 + 1] = q.v; U[k2 + 2] = 1; U[k2 + 3] = q.v;
+      X[k2] = q.age; X[k2 + 1] = f; X[k2 + 2] = q.age; X[k2 + 3] = f;
+    }
+    this.aPos.needsUpdate = this.aUv.needsUpdate = this.aExt.needsUpdate = true; this.mat.uniforms.time.value = time || 0;
+  };
+
   /* ------------------------------------------------- traînée de fusée */
   L.Trail = function (parent, points, radius, col, core, headTex, opts) {
     opts = opts || {};

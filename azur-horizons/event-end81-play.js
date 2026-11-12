@@ -228,6 +228,13 @@
   function steerCam(t, p, dt) {
     if (t < steerUser - 2) steerUser = -999; // retour en arrière dans le film (revoir l'événement) : la caméra guidée reprend tout de suite
     var s = S(); if (!G || !s || !s.ZP || !s.STAR || p.vehicleId) return;
+    // outil de vérification : E.__look = { x, y, z } (point à viser) ou { yaw, pitch } en degrés dans le repère de la vidéo
+    if (E.__look) {
+      var lk = E.__look, lx, ly, lz;
+      if (lk.yaw != null) { var ya = lk.yaw * Math.PI / 180, pa = (lk.pitch || 0) * Math.PI / 180, RX = -s.F.z, RZ = s.F.x; lx = (s.F.x * Math.cos(ya) + RX * Math.sin(ya)) * Math.cos(pa); lz = (s.F.z * Math.cos(ya) + RZ * Math.sin(ya)) * Math.cos(pa); ly = Math.sin(pa); }
+      else { lx = lk.x - p.x; ly = lk.y - (p.y + 1.8); lz = lk.z - p.z; }
+      G.yaw = Math.atan2(-lx, -lz); G.pitch = Math.max(-1.4, Math.min(1.45, Math.atan2(ly, Math.hypot(lx, lz)))); return;
+    }
     // v97 : jamais en vol (planeur, chute) ni quand le joueur se déplace : la caméra donne la direction
     var mi = p._input || {}; if (p.gliding || (p.falling && !p._eventFloat) || Math.abs(+mi.moveX || 0) + Math.abs(+mi.moveZ || 0) > .05) { steerUser = Math.max(steerUser, VT() - 1.5); return; }
     var tgt = null, pk = .8, O2 = E.end81 && E.end81.O, an = E.anchors || {};

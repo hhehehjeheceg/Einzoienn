@@ -1331,7 +1331,7 @@ function eventFrame(){
  var KS=clamp(Math.hypot(METEOR_SITE.x-Px,METEOR_SITE.z-Pz)/500,.3,1),my=71*Math.PI/180;
  var tx=Fx*Math.sin(my)-Rx*Math.cos(my),tz=Fz*Math.sin(my)-Rz*Math.cos(my),dx=Fx*Math.cos(my)+Rx*Math.sin(my),dz=Fz*Math.cos(my)+Rz*Math.sin(my);
  var mx=tx*.68+dx*.12,my2=-.73,mz=tz*.68+dz*.12,ml=Math.hypot(mx,my2,mz);mx/=ml;my2/=ml;mz/=ml;
- var RCy=heightAt(METEOR_SITE.x,METEOR_SITE.z)+8,D=100*KS;
+ var RCy=heightAt(METEOR_SITE.x,METEOR_SITE.z)+48,D=100*KS;/* v121 : 40 m plus haut, au-dessus des toits vus de la colline */
  EVF={P:{x:Px,y:Py,z:Pz},F:{x:Fx,z:Fz},KS:KS,MDIR:{x:mx,y:my2,z:mz},RC:{x:METEOR_SITE.x,y:RCy,z:METEOR_SITE.z},MET:{x:METEOR_SITE.x-mx*D,y:RCy-my2*D,z:METEOR_SITE.z-mz*D},R:26*.8*KS};
  return EVF;
 }

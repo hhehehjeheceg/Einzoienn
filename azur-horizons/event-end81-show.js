@@ -1132,7 +1132,8 @@
     L.setOp(O.spiralCore, win(t, 20.8, 33.6, 2, .3) * .55); O.spiralCore.scale.setScalar((12 + 2 * Math.sin(t * 11)) * (O.rkS || 1));
     // explosion de foudre sphérique
     var b1 = win(t, 38.6, 42.6, .25, 2.2), g1 = U.easeOut((t - 38.6) / 1.8);
-    L.setOp(O.b1Shell, b1 * .35 * ramp(t, 39.4, 40.3)); // v106 : moins blanc — la vidéo (0:41) montre une sphère bleu sombre et de fins éclairs O.b1Shell.scale.setScalar((55 + 125 * g1) * 3.3 * (O.b1S || 1)); O.b1Shell.material.map = X.shell[flick % 2]; O.b1Shell.material.rotation = t * .1;
+    L.setOp(O.b1Shell, b1 * .35 * ramp(t, 39.4, 40.3)); // v106 : moins blanc — la vidéo (0:41) montre une sphère bleu sombre et de fins éclairs
+    O.b1Shell.scale.setScalar((55 + 125 * g1) * 3.3 * (O.b1S || 1)); O.b1Shell.material.map = X.shell[flick % 2]; O.b1Shell.material.rotation = t * .1;
     L.setOp(O.b1Bolts, b1 * .6); O.b1Bolts.scale.setScalar((100 + 210 * g1) * 3.3 * (O.b1S || 1)); O.b1Bolts.material.map = X.burstBig[flick % 2]; O.b1Bolts.material.rotation = (flick % 5) * .4;
     var fl1 = win(t, 38.75, 39.6, .06, .55); L.setOp(O.b1Core, Math.max(win(t, 38.5, 41.8, .1, 1.6) * .4, fl1)); O.b1Core.scale.setScalar((18 + 18 * g1 + 70 * fl1) * 3.3 * (O.b1S || 1));
     O.darkCloud.material.opacity = win(t, 34.5, 47, 2, 3) * .55; O.darkCloud.visible = O.darkCloud.material.opacity > .01;
@@ -1154,7 +1155,8 @@
     var po = win(t, 81.6, 87.7, 1, .5), opn = U.easeOut((t - 81.6) / 1.6) * (1 - ramp(t, 87.1, 87.7));
     L.setOp(O.portal, 0); O.portal.scale.setScalar(40 + 300 * opn); O.portal.material.rotation = t * .05;
     L.setOp(O.portalCrack, 0); O.portalCrack.scale.setScalar(70 + 120 * opn); O.portalCrack.material.map = X.crack[flick % 2]; O.portalCrack.material.rotation = flick * .3;
-    L.setOp(O.portalFlash, win(t, 85.5, 87.3, .4, .6) * .28); // v106 : simple lueur rose dans l'anneau (vidéo 1:26) O.portalFlash.scale.setScalar(140 + 260 * ramp(t, 85.5, 86.6));
+    L.setOp(O.portalFlash, win(t, 85.5, 87.3, .4, .6) * .28); // v106 : simple lueur rose dans l'anneau (vidéo 1:26)
+    O.portalFlash.scale.setScalar(140 + 260 * ramp(t, 85.5, 86.6));
     L.setOp(O.portalBeam, win(t, 86.6, 87.9, .1, .6)); O.portalBeam.material.map = X.bursts[flick % 3]; O.portalBeam.scale.setScalar(300);
     var po2 = win(t, 83, 87.4, .8, .5); L.setOp(O.portal2, 0); O.portal2.scale.setScalar(110 * U.easeOut((t - 83) / 1.2)); L.setOp(O.portal2Crack, po2 * (.6 + .4 * hsh(flick + 3))); O.portal2Crack.material.map = X.crack[(flick + 1) % 2];
     // éclats de verre quand la fusée traverse
@@ -1454,7 +1456,8 @@
     L.setOp(fx.nova2, nv * .75); fx.nova2.material.rotation = -t * .02; fx.nova2.scale.setScalar((1.5 + .5 * ramp(t, 225.2, 236)) * kd * 420);
     L.setOp(fx.rays, (win(t, 223.6, 254.4, .6, .4) * (.035 + .015 * Math.sin(t * 1.7)) + win(t, 226.2, 230, .5, 2.5) * .1 + win(t, 243, 253, 3, .8) * .06)); fx.rays.material.rotation = t * .04; fx.rays.scale.setScalar(kd * 1300 + 500 * win(t, 223.6, 229, .5, 4) + 700 * ramp(t, 244, 252));
     L.setOp(fx.rays2, win(t, 224, 254.4, 1, .4) * .04 + win(t, 244, 253, 3, .8) * .05); fx.rays2.material.rotation = -t * .06; fx.rays2.scale.setScalar((2000 + 800 * Math.sin(t * .8)) * kd);
-    L.setOp(fx.big, win(t, 223.2, 226.6, .3, 1.4) * .85 + win(t, 250.5, 253.2, 1.5, 1.2) * .06); // v106 : grand voile blanc au souffle (vidéo 3:45) fx.big.scale.setScalar((900 + 900 * ramp(t, 223.2, 224.2) + 600 * ramp(t, 251.5, 254)) * kd);
+    L.setOp(fx.big, win(t, 223.2, 226.6, .3, 1.4) * .85 + win(t, 250.5, 253.2, 1.5, 1.2) * .06); // v106 : grand voile blanc au souffle (vidéo 3:45)
+    fx.big.scale.setScalar((900 + 900 * ramp(t, 223.2, 224.2) + 600 * ramp(t, 251.5, 254)) * kd);
     O.mlines.forEach(function (g, i) {
       var op = (win(t, 226 + (i % 4) * .2, 231, .4, 3) * (.6 + .4 * Math.sin(t * 3 + i)) + win(t, 229, 251, 2, 3) * .18 + win(t, 245, 253, 1, .8) * .25) * .5;
       var d = tmp.copy(g.userData.dir).applyAxisAngle(UP, t * .03 * (i % 2 ? 1 : -1));
@@ -1650,6 +1653,8 @@
     if (s8) { SPOT.px = s8.spot.px; SPOT.pz = s8.spot.pz; SPOT.bx = s8.launch.x; SPOT.bz = s8.launch.z; }
     P.set(SPOT.px, H(SPOT.px, SPOT.pz), SPOT.pz); BASE.set(SPOT.bx, H(SPOT.bx, SPOT.bz) + .4, SPOT.bz);
     F.set(BASE.x - P.x, 0, BASE.z - P.z).normalize(); R.crossVectors(F, UP).normalize();
+    // v121 : la colline du point de vue est dégagée — les arbres à moins de 30 m cachaient le ciel pendant tout le spectacle
+    try { var w0 = api.world(), nK = 0; if (w0) { (w0.flora || []).forEach(function (f) { if (f && !f.dead && Math.hypot(f.x - P.x, f.z - P.z) < 30) { f.dead = true; nK++; } }); if (nK) w0.floraRev = (w0.floraRev | 0) + 1; (w0.objects || []).forEach(function (o) { if (o && !o.dead && (o.type === 'tree' || o.type === 'rock') && Math.hypot(o.x - P.x, o.z - P.z) < 32) o.dead = true; }); } } catch (e) {}
     if (s8 && LK) ZP.set(LK.x, H(LK.x, LK.z) + 20, LK.z); else ZP.set(0, H(0, 0) + 20, 0);
     STAR.copy(ZP).add(new T.Vector3(0, 1350, 0));
     // la météorite file vers le bas-gauche de l'écran (panache vers le haut-droite, ~47°) quand on la regarde
@@ -1692,7 +1697,8 @@
     O.hemi.intensity = 0;
     var sc = v.scene; if (sc.fog) { sc.fog.color.setRGB(lerp(lerp(.12, .02, dark), .01, space), lerp(lerp(.33, .06, dark), .015, space), lerp(lerp(.50, .12, dark), .04, space)); sc.fog.density = lerp(.00042, .00028, space); }
     v.renderer.toneMappingExposure = lerp(lerp(1.3, .95, dark), .92, space) + .18 * bright;
-    var su = O.sky.material.uniforms; su.time.value = t; su.red.value = red; su.space.value = space; su.dark.value = dark; su.glow.value = (1 - .7 * dark) * (1 - ramp(t, 185, 187.5) * (1 - ramp(t, 252, 254))); // v106 : pas de halo lunaire pendant l'apesanteur su.bright.value = bright * .35;
+    var su = O.sky.material.uniforms; su.time.value = t; su.red.value = red; su.space.value = space; su.dark.value = dark; su.glow.value = (1 - .7 * dark) * (1 - ramp(t, 185, 187.5) * (1 - ramp(t, 252, 254))); // v106 : pas de halo lunaire pendant l'apesanteur
+    su.bright.value = bright * .35;
     O.sky.position.copy(cam.position); O.stars.position.copy(cam.position); O.stars2.position.copy(cam.position);
     O.stars.material.uniforms.time.value = t; O.stars.material.uniforms.amt.value = 1 - .3 * red;
     O.stars2.material.uniforms.time.value = t; O.stars2.material.uniforms.amt.value = space * 2.2; // v105b : ciel d'espace bien étoilé (vidéo)
