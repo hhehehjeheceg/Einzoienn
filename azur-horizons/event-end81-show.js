@@ -316,11 +316,50 @@
     for (var i = 0; i < n; i++) { var f = i / (n - 1) * div, i0 = Math.floor(f), i1 = Math.min(div, i0 + 1); out.push((Ls[i0] + (Ls[i1] - Ls[i0]) * (f - i0)) / tot); }
     return out;
   }
+  /* v121b — vitesse sans à-coups : l'ancienne interpolation freinait la fusée à chaque point relevé (toutes les 0,25 s),
+   * elle avançait par saccades. Vitesses lissées (moyenne glissante) puis courbe monotone (Fritsch-Butland) : la tête
+   * passe toujours dans l'ordre par les points de la trajectoire, sans jamais reculer ni s'arrêter. */
+  function evenSpeed(tp, fr) {
+    var n = tp.length, v = [], i, pass;
+    if (n < 3) return fr.slice();
+    for (i = 0; i < n - 1; i++) v.push((fr[i + 1] - fr[i]) / Math.max(1e-3, tp[i + 1] - tp[i]));
+    for (pass = 0; pass < 2; pass++) { var w = v.slice(); for (i = 0; i < v.length; i++) w[i] = (v[Math.max(0, i - 1)] + 2 * v[i] + v[Math.min(v.length - 1, i + 1)]) / 4; v = w; }
+    var out = [0]; for (i = 0; i < n - 1; i++) out.push(out[i] + Math.max(1e-5, v[i]) * (tp[i + 1] - tp[i]));
+    var tot = out[n - 1]; for (i = 0; i < n; i++) out[i] /= tot;
+    return out;
+  }
+  function slopes(tp, fr) {
+    var n = tp.length, d = [], m = [], i;
+    for (i = 0; i < n - 1; i++) d.push((fr[i + 1] - fr[i]) / Math.max(1e-4, tp[i + 1] - tp[i]));
+    m[0] = d[0]; m[n - 1] = d[n - 2];
+    for (i = 1; i < n - 1; i++) {
+      if (d[i - 1] * d[i] <= 0) { m[i] = 0; continue; }
+      var h0 = tp[i] - tp[i - 1], h1 = tp[i + 1] - tp[i], w1 = 2 * h1 + h0, w2 = h1 + 2 * h0;
+      m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]);
+    }
+    return m;
+  }
   function keyK(tr, t) {
     var tp = tr.spec.tp, fr = tr.fr, n = tp.length;
     if (t <= tp[0]) return 0; if (t >= tp[n - 1]) return 1;
-    for (var i = 0; i < n - 1; i++) if (t < tp[i + 1]) { var u = (t - tp[i]) / (tp[i + 1] - tp[i]); u = u * u * (3 - 2 * u) * .25 + u * .75; return fr[i] + (fr[i + 1] - fr[i]) * u; }
+    var m = tr.slopes || (tr.slopes = slopes(tp, fr));
+    for (var i = 0; i < n - 1; i++) if (t < tp[i + 1]) {
+      var h = tp[i + 1] - tp[i], s = (t - tp[i]) / h, s2 = s * s, s3 = s2 * s;
+      return Math.min(1, Math.max(0, (2 * s3 - 3 * s2 + 1) * fr[i] + (s3 - 2 * s2 + s) * h * m[i] + (3 * s2 - 2 * s3) * fr[i + 1] + (s3 - s2) * h * m[i + 1]));
+    }
     return 1;
+  }
+  /* v121b — une fusée ne sort jamais de nulle part : elle part du cœur d'une faille ouverte à cet instant (la méduse,
+   * l'anneau, la faille d'une autre fusée…) ; s'il n'y en a pas, une faille s'ouvre pour elle (addTrail). */
+  function riftAt(p, t) {
+    var eye = tmp3.copy(P); eye.y += 1.7; var best = null, bd = 1e9;
+    for (var i = 0; i < RIFTS.length; i++) {
+      var r = RIFTS[i]; if (r.cap || t < r.a - .3 || t > r.b - .3) continue;
+      var dr = r.pos.distanceTo(eye), da = tmp.copy(p).sub(eye).normalize().angleTo(tmp2.copy(r.pos).sub(eye).normalize()) / D2R;
+      var half = Math.atan2(Math.min(r.size, dr * .5) * .5, dr) / D2R, lim = Math.max(2.5, half * .75);
+      if (da < lim && da < bd) { bd = da; best = r; }
+    }
+    return best;
   }
   // v93 : la fin d'une trajectoire est-elle déjà dans la faille de l'île (122° ; 28°) ?
   function near122(p) { return O.b3p && p.distanceTo(O.b3p) < 60 * KS; }
@@ -328,6 +367,14 @@
     if (spec.path) { spec.tp = spec.path.map(function (q) { return q[0]; }); spec.pts = spec.path.map(function (q) { return [q[1], q[2], q[3]]; }); spec.a = spec.tp[0]; spec.b = spec.tp[spec.tp.length - 1]; }
     var real = !!spec.real, k = real ? 1 : KS;
     var pts = spec.pts.map(function (a) { return sp(a, real); });
+    // v121b : trajectoires relevées sur la vidéo un peu lissées (les petits zigzags du relevé faisaient des crochets bizarres)
+    if (spec.tp && pts.length >= 5) { var sm2 = pts.map(function (q) { return q.clone(); }); for (var si = 1; si < pts.length - 1; si++) sm2[si].copy(pts[si]).multiplyScalar(.5).addScaledVector(pts[si - 1], .25).addScaledVector(pts[si + 1], .25); pts = sm2; }
+    // v121b : départ dans une faille ouverte (on la fait briller au passage), sinon une faille s'ouvre pour la fusée
+    if (!spec.cap && !spec.exit) {
+      var src = riftAt(pts[0], spec.a);
+      if (src) { pts[0] = src.pos.clone(); (src.flash || (src.flash = [])).push(spec.a - .05); }
+      else spec.exit = true;
+    }
     // v95 collait sur la roche toute fusée finissant près de la météorite : elle s'y écrasait dans un simple éclair, sans faille
     // ni explosion (incohérent). v118 : plus de choc sur la météorite — ces fusées entrent dans une faille comme les autres.
     if (false && !real && !spec.cap && pts.length > 2 && MET_B.lengthSq() > 0) {
@@ -343,7 +390,7 @@
     var rkS = Math.max(.9, 1.5 * k) * (spec.rocketScale || 1);
     var tr = new L.Trail(grp, pts, (spec.radius || 3) * 1.45 * k, spec.col || 0x79c4ff, spec.core || 0xffffff, X.star, { headSize: (spec.headSize || 70) * 1.5 * k, headColor: 0xd8f2ff, rocket: near ? (L.models ? L.models.riftRocket(X, rkS) : L.riftRocket(rkS * 1.07)) : null, grow: spec.grow, segs: spec.segs || 120 });
     tr.spec = spec; TRAILS.push(tr);
-    if (spec.tp) tr.fr = arcFracs(tr.curve, pts.length);
+    if (spec.tp) tr.fr = evenSpeed(spec.tp, arcFracs(tr.curve, pts.length));
     var p0 = pts[0], p1 = pts[pts.length - 1];
     // v120 : failles d'entrée et de sortie bien visibles (avant : 47 m à 360 m, une tache de 30 px — on croyait que la fusée disparaissait)
     if (spec.exit) addRift(p0, Math.max(110 * k, p0.distanceTo(P) * .2) / k, spec.a - 1.8, spec.a + 1.8, { fi: .6, fo: 1, flash: [spec.a - .2], curl: 1.4, narrow: true, real: real });
@@ -1016,6 +1063,7 @@
       var side = R2() < .5 ? -1 : 1, ang = Math.atan2(F.z, F.x) + side * (Math.PI / 2 + (R2() - .5) * 1.4) + (R2() < .2 ? Math.PI : 0);
       O.launchPuffs.push({ tb: 3.0 + R2() * 6.5 + (i % 5 === 0 ? 5 : 0), ang: ang, v: 12 + R2() * 22, up: .5 + R2() * 1.6, s: 7 + R2() * 9, rot: R2() * 6.28, var: i % 4, h: R2() * 5 });
     }
+    O.plume = L.Plume ? new L.Plume(grp, low ? 64 : 110) : null; O.plumePts = []; // v121b : panache continu (vidéo 0:10-0:40)
     O.column = []; var N = low ? 130 : 230;
     for (var j = 0; j < N; j++) { var k = j / (N - 1); O.column.push({ k: k, te: 9.6 + k * 29, off: new T.Vector3((R2() - .5), (R2() - .5) * .5, (R2() - .5)), rot: R2() * 6.28, var: j % 4, s: .8 + R2() * .5 }); }
     O.e1 = rocketPos(33.3, new T.Vector3()); O.rkS = rkS();
@@ -1068,9 +1116,28 @@
       var warm = win(t, 8.3, 20, 1, 6) * cl(1 - dist / 60) * 1.2;
       sys.add(x, y, z, s, .93, .94, 1.0, a, q.rot + age * .05, q.var, .35, warm);
     }
-    // colonne de fumée rose de la fusée
+    // v121b — le panache de la vidéo : une seule colonne continue, lavande-rose, bosselée, orange contre la tuyère,
+    // qui s'élargit en vieillissant, dérive un peu avec le vent puis se défait par lambeaux après l'entrée dans la faille
+    if (O.plume) {
+      var pp = O.plumePts, np = 0;
+      if (t > 9.75 && t < 62) {
+        var tTop = Math.min(t, 38.6), N2 = O.plume.n + 1;
+        for (var j2 = 0; j2 < N2; j2++) {
+          var u2 = j2 / (N2 - 1), te = 9.6 + (tTop - 9.6) * Math.pow(u2, .62), age3 = Math.max(0, t - te), kk2 = u2;
+          rocketPos(te, tmp); var alt = tmp.y - BASE.y;
+          var q2 = pp[np] || (pp[np] = { x: 0, y: 0, z: 0, w: 1, age: 0, f: 1, v: 0 });
+          q2.x = tmp.x + R.x * age3 * .35 + F.x * age3 * .08; q2.z = tmp.z + R.z * age3 * .35 + F.z * age3 * .08; q2.y = tmp.y - 3.5 - age3 * .35;
+          q2.w = (1.6 + 2.6 * Math.pow(age3, .65) + alt * .0035) * (j2 === N2 - 1 ? .35 : 1);
+          q2.age = age3; q2.v = alt * .045 + 7;
+          q2.f = (1 - ramp(t, 38.9 + (1 - kk2) * 1.5, 41.5 + (1 - kk2) * 3.2)) * (1 - ramp(t, 52, 62)) * ramp(alt, 0, 6);
+          np++;
+        }
+      }
+      O.plume.update(pp, np, camPos, t);
+    }
+    // colonne de fumée rose de la fusée (ancienne version en boules, gardée sans le panache continu)
     var col = O.column;
-    if (t > 9.6 && t < 62) for (var j = 0; j < col.length; j++) {
+    if (!O.plume && t > 9.6 && t < 62) for (var j = 0; j < col.length; j++) {
       var c = col[j], age2 = t - c.te; if (age2 <= 0) continue;
       rocketPos(c.te, tmp); var size = (4 + 4 * c.k) * c.s * (1 + age2 * .2) * (.8 + .5 * rkGrow(c.te)); // v100 : fine contre la fusée, elle ne s'élargit qu'en vieillissant // v85 : traînée fine près de la fusée, qui s'élargit en vieillissant (vidéo)
       tmp.addScaledVector(c.off, size * .3); tmp.x += R.x * age2 * .15; tmp.z += R.z * age2 * .15; tmp.y -= 2 + age2 * .2;
@@ -1310,7 +1377,8 @@
       var gx = ZP.x + Math.cos(a) * 680, gz = ZP.z + Math.sin(a) * 680, p3 = new T.Vector3(gx, Math.max(H(gx, gz), 0) + 3, gz);
       var tr = new L.Trail(grp, [p0, pm, p1, p2, p3], 2.3, 0x8fd2ff, 0xffffff, X.star, { headSize: 70, rocket: L.models ? L.models.riftRocket(X, 1.9) : L.riftRocket(1.8), grow: 1.5 }); // v89 : traînées fines comme la vidéo
       tr.spec = { tp: [204.8 + e * .1, 209.2 + e * .08, 211.0 + e * .1, 212.6 + e * .12, 213.6 + e * .2], tail: 1.6 }; tr.fr = arcFracs(tr.curve, 5);
-      tr.a = tr.spec.tp[0]; tr.b = tr.spec.tp[4]; O.escort.push(tr); FLASHES.push({ pos: p3.clone().add(new T.Vector3(0, 6, 0)), t: tr.b, size: 160 }); addBoom(p3, tr.b, 1.4, true); // v93 : elles s'écrasent et explosent
+      tr.a = tr.spec.tp[0]; tr.b = tr.spec.tp[4]; O.escort.push(tr);
+      addRift(p0, 70, tr.a - 1, tr.a + 1.6, { fi: .35, fo: 1, flash: [tr.a - .05], curl: 1.4, narrow: true, real: true, seed: 31 + e }); // v121b : elles sortent chacune d'une faille FLASHES.push({ pos: p3.clone().add(new T.Vector3(0, 6, 0)), t: tr.b, size: 160 }); addBoom(p3, tr.b, 1.4, true); // v93 : elles s'écrasent et explosent
     }
     O.fireCol = new T.Mesh(new T.CylinderGeometry(9, 15, 1, 16, 1, true), new T.MeshBasicMaterial({ color: 0xff1e3c, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, fog: false, side: T.DoubleSide }));
     O.fireCol.frustumCulled = false; O.fireCol.visible = false; grp.add(O.fireCol);
