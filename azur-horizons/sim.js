@@ -356,7 +356,7 @@ function player(w,id,name,bot,team,equipment){
 }
 function nearestRegion(x,z){ var q=0,bd=Infinity; for(var i=0;i<regions.length;i++){var dx=x-regions[i].x,dz=z-regions[i].z,d=dx*dx+dz*dz;if(d<bd){bd=d;q=i;}} return q; }
 function World(opts){
- opts=opts||{}; this.eventVariant=opts.mode==='eventflight'?'flight':'crash'; this.mode=opts.mode==='eventflight'?'event':opts.mode||'solo'; this.seed=opts.seed==null?123:opts.seed; this.rng=new RNG(this.seed); this._transportTime=0;
+ opts=opts||{}; this.eventVariant=opts.mode==='eventflight'?'flight':'crash'; this.titanMode=opts.mode==='titan';/* v122 : « Gant du Titan » = bataille royale solo + règles de titan-mode-v122.js */ this.mode=opts.mode==='eventflight'?'event':opts.mode==='titan'?'solo':opts.mode||'solo'; this.seed=opts.seed==null?123:opts.seed; this.rng=new RNG(this.seed); this._transportTime=0;
  this.phase=(this.mode==='training'||this.mode==='creative')?'active':'waiting'; this.phaseTime=0; this.elapsed=0; this.tick=0;
  this.players=[];this.objects=[];this.loot=[];this.builds=[];this.vehicles=[];this.events=[];
  this.storm={x:0,z:0,radius:Math.ceil(MAP.shoreEnd*Math.SQRT2),nextX:0,nextZ:0,nextRadius:MAP.halfSize,phase:0,timer:75,damage:1};

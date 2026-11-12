@@ -895,7 +895,7 @@
         let m = this.actors.get(q.id);
         // v92 : les bots portent surtout la tenue de recrue (variantes choisies par ch1-chars-v92 via `bot`)
         const botN = q.bot ? parseInt(q.id.replace(/\D/g, "")) || 0 : 0;
-        const eq = q.bot
+        const eq = q.bot && !q._titan // v122 : un bot devenu Titan porte la tenue du Titan
           ? {
               character: "char-ambre",
               bot: botN,

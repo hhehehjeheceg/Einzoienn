@@ -414,7 +414,7 @@
     }
     for (var f = 0; f < FLASHES.length; f++) {
       var fl = FLASHES[f], s2 = O.flashPool[f % O.flashPool.length], op = win(t, fl.t - .05, fl.t + .9, .08, .7);
-      if (op > .003) { s2.position.copy(fl.pos); s2.scale.setScalar(fl.size * .55 * (1 + .6 * ramp(t, fl.t, fl.t + .6))); L.setOp(s2, op * .75); s2.userData.used = frame; }
+      if (op > .003) { s2.position.copy(fl.pos); s2.scale.setScalar(fl.size * .32 * (1 + .6 * ramp(t, fl.t, fl.t + .6))); L.setOp(s2, op * .6); s2.userData.used = frame; }
       else if (s2.userData.used !== frame) L.setOp(s2, 0);
     }
   }
@@ -661,8 +661,8 @@
     // éclair à l'horizon quand la 2e fusée rentre dans sa faille (63 s)
     // v89 : la « frénésie » (vidéo 75,8 → 77,5) : une rafale d'éclats de foudre tout près du joueur, calée sur les coups de la musique
     O.frenzy = [[75.85, 40, 22, 150, 150], [76.1, -25, 17, 110, 120], [76.3, 28, 13, 95, 170], [76.6, -40, 10, 120, 150], [76.82, 6, 15, 100, 190], [77.1, -18, 11, 110, 160], [77.35, 24, 24, 140, 130]].map(function (f) {
-      var sp = L.sprite(grp, X.burstBig[0], 0xa8d4ff, f[4], true, 0), co = L.sprite(grp, X.star, 0xffffff, f[4] * .5, true, 0), pos = skyPos(f[1], f[2], f[3]);
-      sp.position.copy(pos); co.position.copy(pos); return { t: f[0], s: f[4], sp: sp, co: co };
+      var sz = f[4] * .62, sp = L.sprite(grp, X.burstBig[0], 0xa8d4ff, sz, true, 0), co = L.sprite(grp, X.star, 0xffffff, sz * .5, true, 0), pos = skyPos(f[1], f[2], f[3]);
+      sp.position.copy(pos); co.position.copy(pos); return { t: f[0], s: sz, sp: sp, co: co }; // v121b : 38 % plus petites (l'écran devenait tout blanc)
     });
     O.b0p = skyPos(31.3, 1.8, 430); O.b0Bolts = L.sprite(grp, X.burstBig[1], 0xb8d8ff, 420, true, 0); O.b0Bolts.position.copy(O.b0p);
     // gerbe finale de la frénésie (110,5-117)
@@ -969,8 +969,8 @@
     var gk = ramp(t, 124, 127) * .35 + ramp(t, 135, 141) * .4 + ramp(t, 145, 150) * .5;
     var pulse = .8 + .2 * Math.sin(t * 9), ge = gk * pulse * (1 - ramp(t, 153, 154.5));
     // v85 : comme les 3 vidéos, une lueur cyan éblouissante qui grossit au point d'impact pendant toute la capture
-    L.setOp(O.gGlow, ge * .34); O.gGlow.scale.setScalar(110 + 260 * gk);
-    L.setOp(O.gGlow2, ge * .6); O.gGlow2.scale.setScalar(50 + 130 * gk);
+    L.setOp(O.gGlow, ge * .24); O.gGlow.scale.setScalar(80 + 160 * gk); // v121b : plus une boule blanche géante
+    L.setOp(O.gGlow2, ge * .5); O.gGlow2.scale.setScalar(30 + 75 * gk);
     O.gLight.intensity = ge * 10 + win(t, 152.7, 156, .1, 2.2) * 40;
     // rayon du sol vers la météorite
     var cb = win(t, 140.5, 151.4, 3, .35) * (.45 + .55 * ramp(t, 146.5, 150.6)) * (.8 + .2 * Math.sin(t * 23));
@@ -1201,7 +1201,7 @@
     var b1 = win(t, 38.6, 42.6, .25, 2.2), g1 = U.easeOut((t - 38.6) / 1.8);
     L.setOp(O.b1Shell, b1 * .35 * ramp(t, 39.4, 40.3)); // v106 : moins blanc — la vidéo (0:41) montre une sphère bleu sombre et de fins éclairs
     O.b1Shell.scale.setScalar((55 + 125 * g1) * 3.3 * (O.b1S || 1)); O.b1Shell.material.map = X.shell[flick % 2]; O.b1Shell.material.rotation = t * .1;
-    L.setOp(O.b1Bolts, b1 * .6); O.b1Bolts.scale.setScalar((100 + 210 * g1) * 3.3 * (O.b1S || 1)); O.b1Bolts.material.map = X.burstBig[flick % 2]; O.b1Bolts.material.rotation = (flick % 5) * .4;
+    L.setOp(O.b1Bolts, b1 * .42); O.b1Bolts.scale.setScalar((100 + 210 * g1) * 2.5 * (O.b1S || 1)); O.b1Bolts.material.map = X.burstBig[flick % 2]; O.b1Bolts.material.rotation = (flick % 5) * .4;
     var fl1 = win(t, 38.75, 39.6, .06, .55); L.setOp(O.b1Core, Math.max(win(t, 38.5, 41.8, .1, 1.6) * .4, fl1)); O.b1Core.scale.setScalar((18 + 18 * g1 + 70 * fl1) * 3.3 * (O.b1S || 1));
     O.darkCloud.material.opacity = win(t, 34.5, 47, 2, 3) * .55; O.darkCloud.visible = O.darkCloud.material.opacity > .01;
     // anneaux
@@ -1215,8 +1215,8 @@
     // sphère rouge + gerbe près de la montagne (75,5-80)
     L.setOp(O.redSphere, win(t, 75.2, 76.3, .3, .2)); O.redSphere.scale.setScalar(34 + 14 * Math.sin(t * 20));
     L.setOp(O.redArcs, win(t, 75.2, 76.3, .2, .2)); O.redArcs.material.map = X.arcs[flick % 3];
-    L.setOp(O.b2Bolts, win(t, 76, 79.4, .1, 2) * .8); O.b2Bolts.scale.setScalar(120 + 260 * U.easeOut((t - 76) / 1.2)); O.b2Bolts.position.copy(O.b2p).lerp(O.b2hi, ramp(t, 76.6, 77.8)); O.b2Bolts.material.map = X.burstBig[(flick + 1) % 2]; O.b2Bolts.material.rotation = flick * .5;
-    L.setOp(O.b2Core, win(t, 76, 78.6, .08, 1.8) * .8); O.b2Core.scale.setScalar(60 + 90 * ramp(t, 76, 77)); O.b2Core.position.copy(O.b2p).lerp(O.b2hi, ramp(t, 76.6, 77.8));
+    L.setOp(O.b2Bolts, win(t, 76, 79.4, .1, 2) * .55); O.b2Bolts.scale.setScalar(80 + 170 * U.easeOut((t - 76) / 1.2)); // v121b : moins éblouissant (l'écran devenait blanc) O.b2Bolts.position.copy(O.b2p).lerp(O.b2hi, ramp(t, 76.6, 77.8)); O.b2Bolts.material.map = X.burstBig[(flick + 1) % 2]; O.b2Bolts.material.rotation = flick * .5;
+    L.setOp(O.b2Core, win(t, 76, 78.6, .08, 1.8) * .5); O.b2Core.scale.setScalar(25 + 35 * ramp(t, 76, 77)); O.b2Core.position.copy(O.b2p).lerp(O.b2hi, ramp(t, 76.6, 77.8));
     L.setOp(O.b2Crack, win(t, 77.4, 81.0, .3, 1.8)); O.b2Crack.scale.setScalar(210); O.b2Crack.position.copy(O.b2hi);
     // portail arc-en-ciel
     var po = win(t, 81.6, 87.7, 1, .5), opn = U.easeOut((t - 81.6) / 1.6) * (1 - ramp(t, 87.1, 87.7));
@@ -1236,15 +1236,15 @@
     }
     if (O.frenzy) O.frenzy.forEach(function (f, i) {
       var w = win(t, f.t, f.t + .8, .04, .55), g = U.easeOut(cl((t - f.t) / .6));
-      L.setOp(f.sp, w * .9); L.setOp(f.co, w * (1 - g * .6)); if (w <= 0) return;
+      L.setOp(f.sp, w * .8); L.setOp(f.co, w * .55 * (1 - g * .6)); if (w <= 0) return;
       f.sp.scale.setScalar(f.s * (.55 + .7 * g)); f.co.scale.setScalar(f.s * (.35 + .25 * g)); f.sp.material.map = X.burstBig[(flick + i) % 2]; f.sp.material.rotation = (flick + i) * .5;
     });
     L.setOp(O.b0Bolts, win(t, 62.3, 64.6, .1, 1.3) * .8); O.b0Bolts.scale.setScalar(160 + 300 * U.easeOut((t - 62.3) / 1)); O.b0Bolts.material.map = X.burstBig[flick % 2]; O.b0Bolts.material.rotation = flick * .45;
     // gerbe finale (110,5)
     var b4 = win(t, 89.3, 92.6, .12, .8); L.setOp(O.b4Bolts, b4 * .8 * (.75 + .25 * hsh(flick))); O.b4Bolts.scale.setScalar(70 + 50 * ramp(t, 89.3, 90.4)); O.b4Bolts.material.map = X.burstBig[flick % 2]; O.b4Bolts.material.rotation = flick * .4;
     L.setOp(O.b4Core, b4 * .9); O.b4Core.scale.setScalar(26 + 14 * win(t, 90.2, 90.8, .1, .3));
-    L.setOp(O.b3Bolts, win(t, 110.85, 115, .08, 2.6) * .8); O.b3Bolts.scale.setScalar(220 + 480 * U.easeOut((t - 110.85) / 1.4)); O.b3Bolts.material.map = X.burstBig[flick % 2]; O.b3Bolts.material.rotation = flick * .37;
-    L.setOp(O.b3Core, win(t, 110.85, 114.2, .08, 2.2) * .85); O.b3Core.scale.setScalar(170 + 150 * ramp(t, 110.85, 111.8));
+    L.setOp(O.b3Bolts, win(t, 110.85, 115, .08, 2.6) * .65); O.b3Bolts.scale.setScalar(170 + 330 * U.easeOut((t - 110.85) / 1.4)); O.b3Bolts.material.map = X.burstBig[flick % 2]; O.b3Bolts.material.rotation = flick * .37;
+    L.setOp(O.b3Core, win(t, 110.85, 114.2, .08, 2.2) * .7); O.b3Core.scale.setScalar(70 + 60 * ramp(t, 110.85, 111.8)); // v121b : le cœur blanc mangeait les éclairs
     L.setOp(O.b3Crack, win(t, 113.8, 117.6, .8, 2)); O.b3Crack.scale.setScalar(440);
   }
 
@@ -1699,7 +1699,7 @@
     var v = veil(), col = '#e6f6ff', op = 0;
     // v89 : éclairs d'écran calés sur les flashs de la vidéo (et donc sur les « boums » de la musique)
     op = Math.max(op, win(t, 33.25, 34.6, .12, 1.1) * .06, win(t, 38.75, 39.7, .07, .6) * .3, win(t, 62.3, 63.0, .06, .5) * .1, win(t, 110.6, 111.6, .1, .9) * .08);
-    op = Math.max(op, win(t, 75.05, 75.55, .05, .35) * .12, win(t, 75.8, 76.3, .05, .35) * .16, win(t, 76.15, 76.95, .06, .5) * .22, win(t, 77.4, 77.9, .05, .35) * .1);
+    op = Math.max(op, win(t, 75.05, 75.55, .05, .35) * .08, win(t, 75.8, 76.3, .05, .35) * .1, win(t, 76.15, 76.95, .06, .5) * .13, win(t, 77.4, 77.9, .05, .35) * .07);
     for (var cf = 0; cf < CAPF.length; cf++) { var c0 = CAPF[cf]; if (t > c0 - .1 && t < c0 + .6) op = Math.max(op, win(t, c0 - .05, c0 + .5, .05, .4) * .09); }
     op = Math.max(op, win(t, 152.6, 155.0, .12, 1.6) * .16, win(t, 155.4, 156.3, .06, .6) * .1, win(t, 183, 184.6, .15, 1.3) * .12, win(t, 216.05, 216.9, .06, .6) * .14);
     op = Math.max(op, win(t, 223.38, 225.4, .1, 1.6) * .55);
