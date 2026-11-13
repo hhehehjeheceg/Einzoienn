@@ -8,6 +8,8 @@
  *  · Les pouvoirs : coup de poing (onde, étincelles), rayon (charge, faisceau en couches, impact qui brûle le sol), saut
  *    écrasant, bond éclair, bouclier hexagonal, attraction (liens d'énergie, tourbillon).
  *  · Le corps : taille, poing qui se serre, bras qui visent, atterrissage poing au sol, poussière des pas, caméra plus large.
+ *  · v124 : charge du super saut (accroupi, anneau au sol, énergie qui monte), décollage, écrasement poing en avant,
+ *    enchaînement direct / crochet / uppercut, rayon tenu à deux mains, garde du bouclier, poing levé après une élimination.
  * Tout passe par AZView (animateAvatar, renderer.render) et AZCh1Models.Animator : aucun fichier du jeu n'est modifié. */
 (function (root) {
   "use strict";
@@ -372,6 +374,7 @@
     FX.guard = new T.Mesh(new T.SphereGeometry(1, 40, 24), new T.ShaderMaterial({ transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide, fog: false, uniforms: { time: { value: 0 }, op: { value: 0 }, hit: { value: 0 }, col: { value: new T.Vector3(1, .62, .25) } }, vertexShader: VS_G, fragmentShader: FS_G }));
     FX.guard.material.toneMapped = false; FX.guard.visible = false; FX.guard.frustumCulled = false; g.add(FX.guard);
     FX.arcs = [0, 1, 2].map(function (i) { var s = sprite(Xt.arcs[i % Xt.arcs.length], 0xffd8a0, 6); g.add(s); return s; });
+    FX.chargeRing = new T.Mesh(plane(), ringMat([1.3, .75, .35], .28)); FX.chargeRing.rotation.x = -Math.PI / 2; FX.chargeRing.visible = false; FX.chargeRing.frustumCulled = false; FX.chargeRing.renderOrder = 6; g.add(FX.chargeRing);
   }
   function teardown() {
     if (!FX) return;
@@ -476,15 +479,15 @@
     var vis = !!h;
     L.setOp(FX.aura, 0); FX.fistLight.intensity = 0; FX.column.visible = false; FX.diveShock.visible = false; L.setOp(FX.diveGlow, 0);
     FX.arcs.forEach(function (s) { L.setOp(s, 0); });
-    if (!vis) { beamFx(null, dt, t); guardFx(null, dt, t); return; }
+    if (!vis) { FX.chargeRing.visible = false; beamFx(null, dt, t); guardFx(null, dt, t); return; }
     var F = fistOf(h), A = h._tAsc;
     // lueur du poing et braises
     L.setOp(FX.aura, (A && A.phase !== "fall" && A.phase !== "clench" ? .35 : .5) + .12 * Math.sin(t * 5)); FX.aura.position.set(F.x, F.y, F.z); FX.aura.scale.setScalar(3.4 * (A ? 1 : 1.25));
     FX.fistLight.position.set(F.x, F.y, F.z); FX.fistLight.intensity = 26 + 6 * Math.sin(t * 7);
     FX.emberAcc += dt;
     while (FX.emberAcc > .09) { FX.emberAcc -= .09; FX.sparks.add(F.x + rr(-.3, .3), F.y + rr(-.3, .3), F.z + rr(-.3, .3), rr(-.6, .6), rr(1.5, 3.5), rr(-.6, .6), rr(.5, 1), rr(.18, .32), FIRE, .8, -.5); }
-    if (A) ascension(h, A, F, dt, t);
-    else stepsFx(h, dt, t);
+    if (A) { ascension(h, A, F, dt, t); FX.chargeRing.visible = false; }
+    else { stepsFx(h, dt, t); chargeFx(h, F, dt, t); poundFx(h, F, dt, t); }
     // éclairs autour du poing juste après qu'il s'est serré
     var cAt = FX.clenchAt && FX.clenchAt[h.id];
     if (cAt != null && t - cAt < 1.1) { var ck = 1 - (t - cAt) / 1.1; FX.arcs.forEach(function (s, i) { L.setOp(s, ck * (R() < .7 ? .9 : .2)); s.position.set(F.x + rr(-.4, .4), F.y + rr(-.4, .4), F.z + rr(-.4, .4)); s.scale.setScalar(rr(3, 6.5) * (A ? 1.2 : 1)); s.material.rotation = R() * 6.28; }); }
@@ -517,6 +520,32 @@
       var g = game(), meP = g && g.player && g.player(); if (meP === h && g.view && g.view.addShake) g.view.addShake(dt * .9 * sp);
     }
   }
+  // charge du super saut : un anneau qui grandit au sol, de l'énergie qui monte le long des jambes
+  function chargeFx(h, F, dt, t) {
+    var C = h._tJc, ring = FX.chargeRing;
+    if (!C) { ring.visible = false; return; }
+    var f = cl(C.t / CFG.jump.charge), full = f >= 1;
+    ring.visible = true; ring.position.set(h.x, h.y + .25, h.z); ring.scale.setScalar(2.2 + 4.5 * f + (full ? .3 * Math.sin(t * 22) : 0));
+    var u = ring.material.uniforms; u.op.value = .35 + .65 * f; u.time.value = t;
+    FX.fistLight.intensity = 30 + 70 * f;
+    var n = Math.max(1, Math.round((2 + 6 * f) * FX.q));
+    for (var i = 0; i < n; i++) { var a = R() * 6.283, r = rr(.8, 1.6) * (1.4 - .5 * f); FX.sparks.add(h.x + Math.cos(a) * r, h.y + rr(0, .6), h.z + Math.sin(a) * r, -Math.cos(a) * 1.5, rr(4, 9) * (.5 + f), -Math.sin(a) * 1.5, rr(.3, .55), rr(.35, .7), full ? WHITE : GOLD, .5, 0); }
+    if (f > .4 && R() < .25 * FX.q) FX.puffs.add({ x: h.x + rr(-1.5, 1.5), y: h.y + .3, z: h.z + rr(-1.5, 1.5), vx: rr(-3, 3), vy: rr(.5, 1.5), vz: rr(-3, 3), drag: 2, rise: .3, life: rr(1.2, 2), s0: 1, s1: 3.5, r: DUST[0], g: DUST[1], b: DUST[2], a: .5, gy: h.y, flat: .3 });
+  }
+  // super saut qui monte (traînée dorée) et écrasement (plongeon en feu)
+  function poundFx(h, F, dt, t) {
+    if (h._tSuper && !h.grounded && (h._vy || 0) > 2) { FX.trailAcc = (FX.trailAcc || 0) + dt; while (FX.trailAcc > .03) { FX.trailAcc -= .03; FX.sparks.add(h.x + rr(-.6, .6), h.y + rr(0, 1.5), h.z + rr(-.6, .6), rr(-1, 1), rr(-4, -1), rr(-1, 1), rr(.4, .8), rr(.4, .8), GOLD, 1, 0); } }
+    if (!h._tPound) return;
+    FX.diveShock.visible = true; FX.diveShock.position.set(F.x, F.y - 1, F.z); FX.diveShock.scale.set(2.2, 2.4, 2.2);
+    var du = FX.diveShock.material.uniforms; du.op.value = .85; du.time.value = t;
+    L.setOp(FX.diveGlow, .6); FX.diveGlow.position.set(F.x, F.y - .5, F.z); FX.diveGlow.scale.setScalar(12);
+    FX.diveAcc += dt;
+    while (FX.diveAcc > .03 / FX.q) {
+      FX.diveAcc -= .03 / FX.q;
+      FX.puffs.add({ x: h.x + rr(-.6, .6), y: h.y + 2 + rr(-.5, .5), z: h.z + rr(-.6, .6), vx: rr(-1, 1), vy: rr(-1, 1), vz: rr(-1, 1), drag: 1, rise: .4, life: rr(1.8, 2.8), s0: 1.8, s1: rr(6, 9), r: SOOT[0], g: SOOT[1], b: SOOT[2], a: .7, warm: 1, warmT: .3, wind: .3 });
+      FX.sparks.add(F.x + rr(-.8, .8), F.y + rr(-.8, .8), F.z + rr(-.8, .8), rr(-5, 5), rr(10, 24), rr(-5, 5), rr(.3, .6), rr(.5, 1), FIRE, 1.5, 0);
+    }
+  }
   function risingRing(x, y0, z, h) {
     var me = new T.Mesh(plane(), ringMat([1.2, .75, .3], .3)); me.rotation.x = -Math.PI / 2; me.frustumCulled = false; me.renderOrder = 6;
     var e = live(.65, function (e, k, dt) { var top = h.y + .8, y = y0 + (top - y0) * eo(k); e.m.position.set(x, y, z); var s = 5.2 - 2.6 * k; e.m.scale.setScalar(s); var u = e.m.material.uniforms; u.op.value = 1.1 * (1 - k); u.time.value += dt; });
@@ -531,6 +560,7 @@
       s.acc = 0; s.side ^= 1;
       var f = FX.fist[h.id], foot = f && f.feet ? f.feet[s.side] : null, fx2 = foot ? foot.x : h.x, fz = foot ? foot.z : h.z;
       for (var i = 0; i < 3; i++) FX.puffs.add({ x: fx2 + rr(-.4, .4), y: h.y + .3, z: fz + rr(-.4, .4), vx: rr(-2, 2), vy: rr(.5, 1.5), vz: rr(-2, 2), drag: 2.5, rise: .3, life: rr(1.4, 2.2), s0: .8, s1: rr(2.4, 3.4), r: DUST[0], g: DUST[1], b: DUST[2], a: .55, gy: h.y, flat: .3 });
+      shakeAt(fx2, h.y, fz, .07, 24);
     }
   }
   function beamFx(h, dt, t) {
@@ -652,13 +682,35 @@
         sparkBurst(x, y + 1.5, z, 50, 22, GOLD, 1, 1, 10);
         break;
       case "punch": {
-        var d = h ? (M.fwd ? M.fwd(h.yaw) : { x: -Math.sin(h.yaw), z: -Math.cos(h.yaw) }) : { x: 0, z: 1 }, dv = V5.set(d.x, 0, d.z).normalize(), hit = ev.hit > 0;
-        ring(x, y, z, [1.3, .8, .4], .4, hit ? 3.2 : 2.3, hit ? .32 : .24, .35, hit ? .75 : .5, dv.clone());
-        flash(x, y, z, 0xffc070, 1.5, hit ? 9 : 6, .28, hit ? 1 : .7, "glow");
-        sparkBurst(x, y, z, hit ? 40 : 14, hit ? 26 : 16, FIRE, .55, .8, 10, dv, .7);
-        if (hit) { flash(x, y, z, 0xfff0d0, 1, 5, .18, 1, "star"); var g = game(), meP = g && g.player && g.player(); if (meP === h && g.view && g.view.addShake) g.view.addShake(.22); else shakeAt(x, y, z, .25, 12); }
+        var d = h ? (M.fwd ? M.fwd(h.yaw) : { x: -Math.sin(h.yaw), z: -Math.cos(h.yaw) }) : { x: 0, z: 1 }, dv = V5.set(d.x, 0, d.z).normalize(), hit = ev.hit > 0, fin = ev.n === 3;
+        ring(x, y, z, [1.3, .8, .4], .4, fin ? 4.6 : hit ? 3.2 : 2.3, fin ? .4 : hit ? .32 : .24, .35, fin ? .95 : hit ? .75 : .5, dv.clone());
+        flash(x, y, z, 0xffc070, 1.5, fin ? 12 : hit ? 9 : 6, .28, hit || fin ? 1 : .7, "glow");
+        sparkBurst(x, y, z, fin ? 50 : hit ? 40 : 14, fin ? 30 : hit ? 26 : 16, FIRE, .55, .8, 10, fin ? V4.set(dv.x * .5, 1, dv.z * .5).normalize() : dv, .7);
+        if (fin) { dustRing(x - dv.x * 2.8, y - 1.6, z - dv.z * 2.8, 10, 1, 10, 2.5, DUST, 1.8); }
+        if (hit || fin) { flash(x, y, z, 0xfff0d0, 1, 5, .18, 1, "star"); var g = game(), meP = g && g.player && g.player(); if (meP === h && g.view && g.view.addShake) g.view.addShake(fin ? .35 : .22); else shakeAt(x, y, z, .25, 12); }
         break;
       }
+      case "jump":
+        dustRing(x, y, z, 8, 1, 8, 2.5, DUST, 1.6);
+        break;
+      case "superjump": {
+        var c = ev.c == null ? 1 : ev.c;
+        flash(x, y + 1, z, 0xffc070, 3, 10 + 14 * c, .5, .8, "glow");
+        ring(x, y + .4, z, [1.2, .7, .3], 1.5, 6 + 10 * c, .55, .25, .9);
+        dustRing(x, y, z, Math.round(14 + 18 * c), 1.5, 14 + 16 * c, 3 + 3 * c, DUST, 3);
+        if (c > .6) debrisBurst(x, y, z, 8, 9, 12, .5);
+        sparkBurst(x, y + .5, z, 30, 18, GOLD, .7, .9, 8, UP, .8);
+        shakeAt(x, y, z, .25 + .3 * c, 50);
+        break;
+      }
+      case "pound":
+        ring(x, y, z, [1.2, .6, .25], 5, 1, .35, .25, .9);
+        flash(x, y + 1, z, 0xffc070, 3, 10, .4, .8, "glow");
+        break;
+      case "taunt":
+        if (F) { ring(F.x, F.y, F.z, [1.3, .8, .4], 1, 9, .6, .25, .9, V4.set(0, 0, 1).applyQuaternion(FX.view.camera.quaternion).clone()); flash(F.x, F.y, F.z, 0xffd090, 2, 10, .6, .9, "glow"); sparkBurst(F.x, F.y, F.z, 40, 16, GOLD, 1, .9, 4, UP, .7); }
+        ring(x, y + .4, z, [1.2, .7, .3], 2, 14, .7, .2, .8);
+        break;
       case "beam":
         if (F) ring(F.x, F.y, F.z, [1.3, .8, .4], 4, .5, CFG.beam.charge + .05, .3, .9, V5.set(0, 0, 1).applyQuaternion(FX.view.camera.quaternion).clone());
         break;
@@ -667,15 +719,16 @@
         ring(x, y + .4, z, [1.1, .7, .3], 1.5, 8, .5, .25, .7);
         break;
       case "slam": {
-        var sr = CFG.slam.r;
-        flash(x, y + 1.5, z, 0xffc070, 6, 30, .55, .9, "glow");
+        // atterrissage d'un super saut (plus fort si le saut était chargé) ou d'un écrasement (le plus fort)
+        var sr = ev.r || CFG.slam.r, cc = ev.big ? 1.3 : (ev.c == null ? 1 : ev.c);
+        flash(x, y + 1.5, z, 0xffc070, 6, 18 + 18 * cc, .55, .9, "glow");
         ring(x, y + .5, z, [1.2, .6, .25], 2, sr * 1.8, .8, .2, 1);
         ring(x, y + .6, z, [1.3, 1.1, .8], 1, sr * 1.1, .55, .3, .8);
-        dustRing(x, y, z, 30, 2, 30, 5.5, DUST, 4.5);
-        debrisBurst(x, y, z, 14, 13, 13, .7);
-        sparkBurst(x, y + .5, z, 50, 24, FIRE, 1, 1, 22);
-        crater(x, z, 11, 12, .8);
-        shakeAt(x, y, z, .7, 70);
+        dustRing(x, y, z, Math.round(18 + 18 * cc), 2, 24 + 10 * cc, 4 + 2 * cc, DUST, 4.5);
+        debrisBurst(x, y, z, Math.round(6 + 10 * cc), 10 + 6 * cc, 11 + 4 * cc, .6 + .2 * cc);
+        sparkBurst(x, y + .5, z, Math.round(30 + 30 * cc), 20 + 8 * cc, FIRE, 1, 1, 22);
+        crater(x, z, sr * .95, 14, .85);
+        shakeAt(x, y, z, .4 + .5 * cc, 60 + 30 * cc);
         break;
       }
       case "blink": {
@@ -721,6 +774,9 @@
       else o = { base: "Jump_Loop", scale: .45, fade: .25 };
     } else if (p._tLandAt != null && e >= p._tLandAt && e - p._tLandAt < .85) o = { base: "Jump_Land", scale: .7, fade: .05 };
     else if (p._tSlamAt != null && e >= p._tSlamAt && e - p._tSlamAt < .5) o = { base: "Jump_Land", scale: 1, fade: .05 };
+    else if (p._tJc) o = { base: "Crouch_Idle_Loop", scale: .8, fade: .12 };
+    else if (p._tJumpAt != null && e >= p._tJumpAt && e - p._tJumpAt < .22 && (p._tJumpC || 0) >= .3) o = { base: "Jump_Start", scale: 1.5, fade: .05 };
+    else if (p._tPound) o = { base: "Jump_Loop", scale: .4, fade: .1 };
     inst.__tAct = o;
   }
   if (CH && CH.Animator && CH.Animator.prototype && !CH.Animator.prototype.__azTitanFx) {
@@ -776,7 +832,7 @@
     if (A && A.phase === "fall") {
       var hg = p.y - H(p.x, p.z), tilt = 1.3 * sm(A.t / .35) * sm((hg - 10) / 32);
       if (tilt > .001) { inst.model.matrix.multiply(M1.makeTranslation(0, .95, 0)).multiply(M2.makeRotationX(tilt)).multiply(M1.makeTranslation(0, -.95, 0)); }
-    }
+    } else if (!A && p._tPound) inst.model.matrix.multiply(M1.makeTranslation(0, .95, 0)).multiply(M2.makeRotationX(.45)).multiply(M1.makeTranslation(0, -.95, 0));
     model.updateMatrixWorld(true);
     var mw = inst.model.matrixWorld;
     _up.set(0, 1, 0).transformDirection(mw); _rt.set(-1, 0, 0).transformDirection(mw); _fw.set(0, 0, 1).transformDirection(mw);
@@ -798,6 +854,7 @@
       curl = A.phase === "clench" ? 1.12 * sm(A.t / .14) : A.phase === "fall" ? 1.12 : .05;
     } else {
       var lt = p._tLandAt != null ? e - p._tLandAt : 99, sl = p._tSlamAt != null ? e - p._tSlamAt : 99, pt = p._tPunchAt != null ? e - p._tPunchAt : 99, pu = p._tPullAt != null ? e - p._tPullAt : 99;
+      var ta = p._tTauntAt != null ? e - p._tTauntAt : 99, gt = p._tGuardAt != null ? e - p._tGuardAt : 99;
       if (lt >= 0 && lt < .8 || sl >= 0 && sl < .45) {
         // atterrissage : le poing frappe le sol devant lui
         var kk = lt < .8 ? lt : sl, len2 = lt < .8 ? .8 : .45;
@@ -805,20 +862,44 @@
         _tg.set(p.x, p.y + .08 * s, p.z).addScaledVector(_fw, .55 * s).addScaledVector(_rt, .28 * s);
         _pl.copy(_sh).addScaledVector(_rt, 1 * s).addScaledVector(_up, .6 * s);
         solveArm(B.upperarm_r, B.lowerarm_r, B.hand_r, _tg, _pl, W); curl = 1.12;
+      } else if (p._tJc) {
+        // charge du super saut : accroupi, le poing ramené bas contre la hanche
+        W = .85 * sm(p._tJc.t / .2);
+        _tg.copy(_sh).addScaledVector(_up, -reach * .78).addScaledVector(_fw, -.22 * s).addScaledVector(_rt, .22 * s);
+        _pl.copy(_sh).addScaledVector(_rt, 1 * s).addScaledVector(_fw, -.4 * s);
+        solveArm(B.upperarm_r, B.lowerarm_r, B.hand_r, _tg, _pl, W); curl = 1.12;
       } else if (p._tBeam > 0 && p._tBeamEnd) {
-        // le rayon : bras tendu vers la cible, main ouverte
-        var bw = p._tBeamCharge > 0 ? sm((CFG.beam.charge - p._tBeamCharge) / .25) : 1;
+        // le rayon : bras tendu vers la cible, main ouverte, l'autre main tient le poignet
+        var bw = p._tBeamCharge > 0 ? sm((CFG.beam.charge - p._tBeamCharge) / .2) : 1;
         _tg.set(p._tBeamEnd.x, p._tBeamEnd.y, p._tBeamEnd.z).sub(_sh).normalize().multiplyScalar(reach).add(_sh);
         _pl.copy(_sh).addScaledVector(_rt, .7 * s).addScaledVector(_up, -.9 * s);
-        solveArm(B.upperarm_r, B.lowerarm_r, B.hand_r, _tg, _pl, bw); curl = .08;
         rotWorld(B.spine_03, _up, .22 * bw);
+        solveArm(B.upperarm_r, B.lowerarm_r, B.hand_r, _tg, _pl, bw); curl = .08;
+        if (B.upperarm_l && B.lowerarm_l && B.hand_l) {
+          B.lowerarm_r.getWorldPosition(V3); B.hand_r.getWorldPosition(V4); V3.lerp(V4, .6);
+          B.upperarm_l.getWorldPosition(_sh);
+          _pl.copy(_sh).addScaledVector(_rt, -.8 * s).addScaledVector(_up, -.7 * s);
+          solveArm(B.upperarm_l, B.lowerarm_l, B.hand_l, V3, _pl, .9 * bw);
+        }
       } else if (pt >= 0 && pt < .42) {
-        // coup de poing du gant : armé, détendu, ramené (un direct puis un crochet montant)
-        W = pt < .06 ? 0 : pt < .13 ? sm((pt - .06) / .07) : 1 - sm((pt - .2) / .2);
-        var upper = (p._tPunchN || 0) % 2 === 0;
-        _tg.copy(_sh).addScaledVector(_fw, reach * (upper ? .8 : .97)).addScaledVector(_rt, -.14 * s).addScaledVector(_up, (upper ? .32 : -.04) * s);
-        _pl.copy(_sh).addScaledVector(_rt, .8 * s).addScaledVector(_up, -.6 * s);
-        rotWorld(B.spine_03, _up, .38 * W); rotWorld(B.spine_02, _up, .18 * W);
+        // coups de poing : direct, crochet qui balaie de la droite, uppercut qui remonte du bas
+        var n = p._tCombo || 1;
+        W = pt < .05 ? 0 : pt < .12 ? sm((pt - .05) / .07) : 1 - sm((pt - .2) / .2);
+        if (n === 2) {
+          var sw = sm((pt - .05) / .14);
+          _tg.copy(_sh).addScaledVector(_fw, reach * (.45 + .4 * sw)).addScaledVector(_rt, (.55 - .75 * sw) * s).addScaledVector(_up, .05 * s);
+          _pl.copy(_sh).addScaledVector(_rt, .6 * s).addScaledVector(_up, .5 * s).addScaledVector(_fw, -.3 * s);
+          rotWorld(B.spine_03, _up, .6 * W * sw); rotWorld(B.spine_02, _up, .25 * W * sw);
+        } else if (n === 3) {
+          var ug = sm((pt - .05) / .16);
+          _tg.copy(_sh).addScaledVector(_fw, reach * (.35 + .35 * ug)).addScaledVector(_up, reach * (-.55 + 1.2 * ug)).addScaledVector(_rt, -.1 * s);
+          _pl.copy(_sh).addScaledVector(_rt, .9 * s).addScaledVector(_up, -.3 * s);
+          rotWorld(B.spine_03, _rt, (-.25 * (1 - ug) + .2 * ug) * W); rotWorld(B.spine_02, _up, .3 * W);
+        } else {
+          _tg.copy(_sh).addScaledVector(_fw, reach * .97).addScaledVector(_rt, -.14 * s).addScaledVector(_up, -.04 * s);
+          _pl.copy(_sh).addScaledVector(_rt, .8 * s).addScaledVector(_up, -.6 * s);
+          rotWorld(B.spine_03, _up, .38 * W); rotWorld(B.spine_02, _up, .18 * W);
+        }
         solveArm(B.upperarm_r, B.lowerarm_r, B.hand_r, _tg, _pl, W); curl = 1.12;
       } else if (pu >= 0 && pu < .75) {
         // attraction : main ouverte tendue, puis le poing se ferme et tire
@@ -827,11 +908,26 @@
         _tg.copy(_sh).addScaledVector(_fw, reach * (1 - .55 * yank)).addScaledVector(_up, .1 * s);
         _pl.copy(_sh).addScaledVector(_rt, .9 * s).addScaledVector(_up, -.5 * s);
         solveArm(B.upperarm_r, B.lowerarm_r, B.hand_r, _tg, _pl, W); curl = pu < .22 ? .05 : 1.12;
-      } else if (p._tSlam && !p.grounded) {
-        // saut écrasant : poing levé au-dessus de la tête
+      } else if (gt >= 0 && gt < .7) {
+        // bouclier : les avant-bras croisés devant la poitrine, le temps qu'il s'allume
+        W = sm(gt / .12) * (1 - sm((gt - .5) / .2));
+        _tg.copy(_sh).addScaledVector(_rt, -.32 * s).addScaledVector(_fw, .38 * s).addScaledVector(_up, -.12 * s);
+        _pl.copy(_sh).addScaledVector(_rt, .9 * s).addScaledVector(_up, -.6 * s);
+        solveArm(B.upperarm_r, B.lowerarm_r, B.hand_r, _tg, _pl, W); curl = 1.12;
+        if (B.upperarm_l && B.lowerarm_l && B.hand_l) { B.upperarm_l.getWorldPosition(V3); V4.copy(V3).addScaledVector(_rt, .32 * s).addScaledVector(_fw, .4 * s).addScaledVector(_up, -.05 * s); _pl.copy(V3).addScaledVector(_rt, -.9 * s).addScaledVector(_up, -.6 * s); solveArm(B.upperarm_l, B.lowerarm_l, B.hand_l, V4, _pl, W); }
+      } else if ((p._tSuper || p._tPound) && !p.grounded) {
+        // super saut : poing levé ; écrasement : les deux poings au-dessus de la tête
         _tg.copy(_sh).addScaledVector(_up, reach * .97).addScaledVector(_fw, .15 * s);
         _pl.copy(_sh).addScaledVector(_rt, 1 * s);
         solveArm(B.upperarm_r, B.lowerarm_r, B.hand_r, _tg, _pl, .85); curl = 1.12;
+        if (p._tPound && B.upperarm_l && B.lowerarm_l && B.hand_l) { B.upperarm_l.getWorldPosition(V3); V4.copy(V3).addScaledVector(_up, reach * .97).addScaledVector(_fw, .15 * s); _pl.copy(V3).addScaledVector(_rt, -1 * s); solveArm(B.upperarm_l, B.lowerarm_l, B.hand_l, V4, _pl, .85); }
+      } else if (ta >= 0 && ta < .95) {
+        // après une élimination : il lève le poing
+        W = sm(ta / .15) * (1 - sm((ta - .7) / .25));
+        _tg.copy(_sh).addScaledVector(_up, reach).addScaledVector(_rt, .06 * s).addScaledVector(_fw, .1 * s);
+        _pl.copy(_sh).addScaledVector(_rt, 1.2 * s).addScaledVector(_fw, -.3 * s);
+        solveArm(B.upperarm_r, B.lowerarm_r, B.hand_r, _tg, _pl, W); curl = 1.12;
+        rotWorld(B.neck_01, _rt, .25 * W);
       }
     }
     // 2. les doigts du gant

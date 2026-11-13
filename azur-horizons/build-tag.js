@@ -2,7 +2,7 @@
  * d'œil quelle version tourne (hébergeur, cache du navigateur). À changer à chaque version livrée. */
 (function (root) {
   "use strict";
-  var BUILD = "v123"; // réglage : la version livrée
+  var BUILD = "v124"; // réglage : la version livrée
   root.AZ_BUILD = BUILD;
   if (root.console && console.info) console.info("[AZUR] version " + BUILD);
   var el = null;
