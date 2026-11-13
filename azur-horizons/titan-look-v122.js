@@ -51,12 +51,16 @@
     var ring2 = mesh(new T.TorusGeometry(.056, .011, 8, 22), m.bronzeDark); ring2.rotation.x = Math.PI / 2; g.add(ring2);
     var palm = mesh(new T.SphereGeometry(1, 16, 12), m.obsidian); palm.scale.set(.06, .07, .036); palm.position.y = -.06; g.add(palm);
     var back = mesh(new T.SphereGeometry(1, 16, 12), m.bronze); back.scale.set(.058, .062, .02); back.position.set(0, -.058, .026); g.add(back);
-    var core = mesh(new T.OctahedronGeometry(.032, 0), m.crystal); core.scale.set(1, 1.35, .6); core.position.set(0, -.056, .046); g.add(core); g.userData.core = core;
+    var core = mesh(new T.OctahedronGeometry(.032, 0), m.crystal); core.name = "tg-core"; core.scale.set(1, 1.35, .6); core.position.set(0, -.056, .046); g.add(core);
+    // doigts articulés (pivot à la jointure) : le poing peut se serrer (titan-fx-v123.js les plie, rotation.x > 0 = vers la paume)
     for (var i = 0; i < 4; i++) {
-      var x = -.039 + i * .026, f = mesh(new T.CapsuleGeometry(.0115, .058, 4, 8), m.obsidian); f.position.set(x, -.155, .004); g.add(f);
+      var x = -.039 + i * .026, pv = new T.Group(); pv.name = "tg-finger"; pv.position.set(x, -.112, .004); g.add(pv);
+      var f = mesh(new T.CapsuleGeometry(.0115, .058, 4, 8), m.obsidian); f.position.set(0, -.043, 0); pv.add(f);
+      var tip = mesh(new T.ConeGeometry(.008, .016, 6), m.bronze); tip.position.set(0, -.083, 0); tip.rotation.x = Math.PI; pv.add(tip);
       var kn = mesh(new T.ConeGeometry(.009, .03, 6), m.bronze); kn.position.set(x, -.112, .036); kn.rotation.x = Math.PI / 2; g.add(kn);
     }
-    var th = mesh(new T.CapsuleGeometry(.013, .04, 4, 8), m.obsidian); th.position.set(.064, -.08, .014); th.rotation.z = -.6; g.add(th);
+    var tp = new T.Group(); tp.name = "tg-thumb"; tp.position.set(.05, -.06, .014); g.add(tp);
+    var th = mesh(new T.CapsuleGeometry(.013, .04, 4, 8), m.obsidian); th.position.set(.014, -.02, 0); th.rotation.z = -.6; tp.add(th);
     for (var v = 0; v < 3; v++) { var ln = mesh(new T.BoxGeometry(.005, .08, .004), m.magma); ln.position.set(-.024 + v * .024, .08, .066); g.add(ln); }
     if (scale) g.scale.setScalar(scale);
     return g;

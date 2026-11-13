@@ -5,8 +5,10 @@
  * Pouvoirs : 1 / clic = coup de poing (repousse, casse les constructions) · 2 = rayon du gant · 3 = saut écrasant (onde
  * au sol à l'atterrissage) · 4 = bond éclair (téléportation courte) · 5 = bouclier d'énergie (-75 % de dégâts) ·
  * 6 = attraction (tire les ennemis proches vers lui). Chaque élimination lui rend du bouclier et de la vie.
- * Le fichier enveloppe la simulation (AZSim.World, seulement quand world.titanMode), la vue (taille du Titan, caméra,
- * effets : météore, gant au sol et son faisceau, pouvoirs) et ajoute l'interface (annonces, repère, barre des pouvoirs). */
+ * v123 — quand on ramasse le gant : il s'élève à 200 m, lève le gant, serre le poing (il grandit d'un coup), puis
+ * tombe en chute libre et s'écrase au sol (onde de choc). Intouchable pendant toute la séquence.
+ * Le fichier enveloppe la simulation (AZSim.World, seulement quand world.titanMode) et ajoute l'interface (annonces,
+ * repère, barre des pouvoirs). Les effets visuels et les animations sont dans titan-fx-v123.js. */
 (function (root) {
   "use strict";
   var S = root.AZSim, T = root.THREE;
@@ -18,15 +20,22 @@
 
   // réglages du mode
   var CFG = {
-    dropAt: 40, fall: 7,               // le gant touche le sol 40 s après le début de la partie, après 7 s de chute
+    dropAt: 40, fall: 12,              // le gant touche le sol 40 s après le début de la partie, après 12 s de chute (on le voit venir)
     hp: 700, shield: 300, killShield: 75, killHp: 25,
     pickR: 3.6, regrab: 1.5,
+    // course au gant : les IA connaissent la carte par cœur, alors le joueur part avec une vraie chance —
+    // le gant tombe à 45-85 m de lui (là où aucune IA n'est plus près), les IA ne le voient qu'une fois au sol
+    // (3 à 9 s de réaction, seulement les 4 plus proches) et ne peuvent pas le prendre pendant 12 s (7 s quand un Titan tombe)
+    race: { near: [45, 85], wait: 75, lock: 12, relock: 7, react: [3, 9], notice: 70, grow: 9, seekers: 4, humanR: 4.6, autoR: 2.2 },
     cd: [0, .75, 7, 8, 6, 16, 12],     // recharge des pouvoirs 1 → 6 (s)
     punch: { dmg: 80, range: 5.8, cone: .55, build: 450 },
-    beam: { dps: 75, len: 90, width: 2.6, time: 1.8, build: 360 },
+    beam: { dps: 75, len: 90, width: 2.6, time: 1.8, charge: .4, build: 360 }, // charge : le gant se charge avant de tirer
     slam: { vy: 16.5, fwd: 10.5, dmg: 70, r: 12, build: 600 }, // fwd : vitesse du bond vers l'avant (m/s) — ~16 m par saut
     blink: 24, guard: { time: 5, k: .25 },
-    pull: { r: 34, dmg: 25, time: .85, speed: 22 }
+    pull: { r: 34, dmg: 25, time: .85, speed: 22 },
+    // la transformation : il s'élève, lève le gant, serre le poing, puis chute libre jusqu'au sol
+    asc: { lift: .45, rise: 2.8, hover: .8, clench: .8, height: 200, g: 34, vmax: 85, steer: 10, drift: 30 },
+    landing: { r: 17, dmg: 90, build: 900 }
   };
   var POWERS = [null,
     { key: "1", name: "Coup de poing", ico: "✊" }, { key: "2", name: "Rayon du gant", ico: "☄" }, { key: "3", name: "Saut écrasant", ico: "⬆" },
@@ -43,8 +52,40 @@
   function news(w, text, kind) { var G = st(w); G.news.push({ seq: ++G.nseq, text: text, kind: kind || "", t: w.elapsed }); if (G.news.length > 8) G.news.shift(); }
   function holder(w) { var G = w.titan; if (!G || G.phase !== "held") return null; var p = w._find(G.holder); return p && p.alive ? p : null; }
 
-  // où tombe le gant : près d'un lieu nommé, dans la zone sûre, sur la terre ferme et à découvert
+  // les joueurs humains encore en jeu (en solo : toi)
+  function humans(w) { return w.players.filter(function (q) { return !q.bot && q.alive && q.deployed && !q.downed; }); }
+  function contender(w) { return humans(w).some(function (q) { return !q._titan; }); }
+  function airborne(q) { return !q.deployed || q.airborneFromBus || q.gliding || q.autoGlider || (!q.grounded && q.y - H(q.x, q.z) > 25); }
+  function openGround(w, x, z) {
+    var y = H(x, z);
+    if (y < 1.5 || (S.isWater && S.isWater(x, z))) return null;
+    if (w._blocked(x, z, 2.2, y + .2)) return null;
+    for (var oi = 0; oi < w.objects.length; oi++) { var ob = w.objects[oi]; if (!ob.dead && ob.type === "house" && Math.hypot(ob.x - x, ob.z - z) < 14 + Math.max(ob.w || 0, ob.d || 0)) return null; }
+    if (Math.abs(H(x + 3, z) - y) > 2 || Math.abs(H(x, z + 3) - y) > 2) return null;
+    return y;
+  }
+  function nearRegion(x, z) { var b = "", bd = 260; (S.regions || []).forEach(function (r) { var d = Math.hypot(r.x - x, r.z - z); if (d < bd) { bd = d; b = r.name || ""; } }); return b; }
+  // où tombe le gant : à 45-85 m du joueur, sur la terre ferme, à découvert, dans la zone sûre, là où les IA sont le plus loin
   function pickSpot(w, G) {
+    var hs = humans(w).filter(function (q) { return !q._titan && !airborne(q); }), R = CFG.race;
+    if (hs.length) {
+      var me = hs[Math.floor(w.rng.next() * hs.length) % hs.length], best = null, bs = -1e9;
+      var safe = Math.min(w.storm.radius, w.storm.nextRadius || w.storm.radius) * .85;
+      // d'abord à 45-85 m ; en pleine ville (aucun terrain dégagé), un peu plus loin
+      for (var t = 0; t < 150 && !(best && t >= 90); t++) {
+        var lo = t < 90 ? R.near[0] : R.near[1], hi = t < 90 ? R.near[1] : R.near[1] + 55;
+        var a = w.rng.next() * Math.PI * 2, d = lo + w.rng.next() * (hi - lo), x = me.x + Math.cos(a) * d, z = me.z + Math.sin(a) * d;
+        if (Math.hypot(x - w.storm.x, z - w.storm.z) > safe) continue;
+        var y = openGround(w, x, z); if (y == null) continue;
+        var nb = 1e9; w.players.forEach(function (q) { if (q.bot && q.alive && q.deployed) nb = Math.min(nb, Math.hypot(q.x - x, q.z - z)); });
+        var sc = Math.min(nb, 160) - d; if (sc > bs) { bs = sc; best = { x: x, y: y, z: z }; }
+      }
+      if (best) { G.x = best.x; G.y = best.y; G.z = best.z; G.region = nearRegion(best.x, best.z); G.forX = me.x; G.forZ = me.z; return; }
+    }
+    pickRegionSpot(w, G);
+  }
+  // sans joueur au sol : près d'un lieu nommé
+  function pickRegionSpot(w, G) {
     var sx = w.storm.x, sz = w.storm.z, rad = Math.min(w.storm.radius, w.storm.nextRadius || w.storm.radius) * .62, R = S.regions || [];
     var cand = R.filter(function (r) { return Math.hypot(r.x - sx, r.z - sz) < rad && H(r.x, r.z) > 1.5; });
     if (!cand.length) cand = R.length ? R : [{ x: 0, z: 0 }];
@@ -69,23 +110,62 @@
     p._titan = true; p.hp = CFG.hp; p.shield = CFG.shield; p.maxHp = CFG.hp; p.maxShield = CFG.shield;
     p._tcd = [0, 0, 0, 0, 0, 0, 0]; p._tq = []; p._tGuard = 0; p._tBeam = 0; p._tSlam = false; p._tBeamAcc = 0;
     G.phase = "held"; G.holder = p.id; G.since = w.elapsed; G.titans = (G.titans || 0) + 1;
-    fx(w, "transform", p.x, p.y, p.z, { id: p.id });
-    news(w, p.bot ? p.name + " est devenu le Titan !" : "Tu es devenu le Titan !", "titan");
-    if (!p.bot) w._emit("message", p.x, p.y, p.z, { playerId: p.id, text: "Tu es le Titan ! Clic : coup de poing · 2 à 6 : pouvoirs" });
+    p._tAsc = { phase: "lift", t: 0, x: p.x, z: p.z, y0: p.y, vy: 0 };
+    p.grounded = false; p.jumping = true; p.gliding = false; p.falling = false; p.airborneFromBus = false; p.vehicleId = null;
+    fx(w, "pickup", p.x, p.y, p.z, { id: p.id });
+    news(w, p.bot ? p.name + " a ramassé le Gant du Titan !" : "Tu as ramassé le Gant du Titan !", "pickup");
+  }
+  function sm(x) { x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); }
+  function nextPhase(A, ph) { A.phase = ph; A.t = 0; }
+  function ascStep(w, p, dt) {
+    var A = p._tAsc, C = CFG.asc, i = p._input || {}; A.t += dt;
+    if (i.yaw != null) p.yaw = i.yaw; if (i.pitch != null) p.pitch = i.pitch;
+    p.grounded = false; p.jumping = true; p.gliding = false; p.autoGlider = false; p.falling = false; p.airborneFromBus = false; p.swimming = false; p.crouching = false;
+    p._vy = 0; p._vx = 0; p._vz = 0; p._edge.length = 0; if (p._tq) p._tq.length = 0; p.emote = 0;
+    var top = A.y0 + C.height;
+    if (A.phase === "lift") { p.y = A.y0 + .8 * sm(A.t / C.lift); if (A.t >= C.lift) nextPhase(A, "rise"); }
+    else if (A.phase === "rise") { var k = sm(A.t / C.rise); p.y = A.y0 + .8 + (C.height - .8) * k; if (A.t >= C.rise) nextPhase(A, "hover"); }
+    else if (A.phase === "hover") { p.y = top + Math.sin(A.t * 3) * .25; if (A.t >= C.hover) { nextPhase(A, "clench"); fx(w, "clench", p.x, p.y, p.z, { id: p.id }); news(w, p.bot ? p.name + " est devenu le Titan !" : "Tu es devenu le Titan !", "titan"); if (!p.bot) w._emit("message", p.x, p.y, p.z, { playerId: p.id, text: "Tu es le Titan ! Clic : coup de poing · 2 à 6 : pouvoirs" }); } }
+    else if (A.phase === "clench") { p.y = top + .25 * Math.sin(A.t * 9) * (1 - A.t / C.clench); if (A.t >= C.clench) { nextPhase(A, "fall"); A.vy = 4; fx(w, "dive", p.x, p.y, p.z, { id: p.id }); } }
+    else if (A.phase === "fall") {
+      A.vy = Math.min(C.vmax, A.vy + C.g * dt);
+      // on peut se diriger un peu pendant la chute (sans s'éloigner de plus de 30 m : on retombe toujours sur la terre ferme)
+      var mx = Math.max(-1, Math.min(1, +i.moveX || 0)), mz = Math.max(-1, Math.min(1, +i.moveZ || 0)), f = fwd(p.yaw), rx = Math.cos(p.yaw), rz = -Math.sin(p.yaw);
+      var nx = p.x + (f.x * mz + rx * mx) * C.steer * dt, nz = p.z + (f.z * mz + rz * mx) * C.steer * dt, dd = Math.hypot(nx - A.x, nz - A.z);
+      if (dd > C.drift) { nx = A.x + (nx - A.x) * C.drift / dd; nz = A.z + (nz - A.z) * C.drift / dd; }
+      if (S.isWater && S.isWater(nx, nz) && H(nx, nz) < .8) { nx = p.x; nz = p.z; }
+      p.x = nx; p.z = nz;
+      var ny = p.y - A.vy * dt, ground = w.supportAt ? w.supportAt(p.x, p.z, p.y + .5) : H(p.x, p.z);
+      if (!isFinite(ground)) ground = H(p.x, p.z);
+      if (ny <= ground + .05) land(w, p, ground); else p.y = ny;
+    }
+    p._lastX = p.x; p._lastZ = p.z;
+  }
+  function land(w, p, ground) {
+    var A = p._tAsc, L = CFG.landing; p.y = ground; p._tAsc = null;
+    p.grounded = true; p.falling = false; p.jumping = false; p._vy = 0; p._tLandAt = w.elapsed;
+    w.players.forEach(function (q) {
+      if (!foe(p, q)) return; var dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz);
+      if (d > L.r || Math.abs(q.y - p.y) > 8) return; var k = 1 - d / (L.r * 1.1);
+      w._damage(q, p, L.dmg * k, "Titan", {}); knock(q, dx / (d || 1), dz / (d || 1), 8 + 12 * k, 5 + 8 * k);
+    });
+    smash(w, p.x, p.y + 1, p.z, 11, L.build, p);
+    fx(w, "landing", p.x, p.y, p.z, { id: p.id, speed: A ? A.vy : 0 });
   }
   function dropGauntlet(w, p) {
     var G = st(w), x = p ? p.x : G.x, z = p ? p.z : G.z, y = Math.max(H(x, z), p ? Math.min(p.y, H(x, z) + 40) : G.y);
     if (S.isWater && S.isWater(x, z)) { var safe = null; for (var a = 0; a < 16 && !safe; a++) for (var d = 8; d < 120 && !safe; d += 8) { var tx = x + Math.cos(a * .4) * d, tz = z + Math.sin(a * .4) * d; if (!S.isWater(tx, tz) && H(tx, tz) > 1) safe = { x: tx, z: tz }; } if (safe) { x = safe.x; z = safe.z; } }
     y = w.supportAt ? w.supportAt(x, z, y + 1) : H(x, z);
-    G.phase = "ground"; G.x = x; G.y = y; G.z = z; G.t0 = w.elapsed; G.regrab = CFG.regrab; G.holder = null;
-    if (p) { p._titan = false; p._tBeam = 0; p._tGuard = 0; if (p._titanEq) p.equipment = p._titanEq; delete p.maxHp; delete p.maxShield; }
+    G.phase = "ground"; G.x = x; G.y = y; G.z = z; G.t0 = w.elapsed; G.regrab = CFG.regrab; G.holder = null; G.lock = w.elapsed + CFG.race.relock; G.seq2 = (G.seq2 || 0) + 1;
+    if (p) { p._titan = false; p._tBeam = 0; p._tGuard = 0; p._tAsc = null; if (p._titanEq) p.equipment = p._titanEq; delete p.maxHp; delete p.maxShield; }
     fx(w, "drop", x, y, z, {});
     news(w, "Le Titan est tombé ! Le gant est à terre.", "drop");
   }
   function tryPickup(w, p) {
     var G = w.titan; if (!G || G.phase !== "ground" || p._titan || !p.alive || !p.deployed || p.downed || p.vehicleId) return false;
     if (w.elapsed < G.t0 + (G.regrab || 0)) return false;
-    if (Math.hypot(p.x - G.x, p.z - G.z) > CFG.pickR || Math.abs(p.y - G.y) > 4) return false;
+    if (p.bot && w.elapsed < (G.lock || 0) && contender(w)) return false; // le joueur a quelques secondes d'avance
+    if (Math.hypot(p.x - G.x, p.z - G.z) > (p.bot ? CFG.pickR : CFG.race.humanR) || Math.abs(p.y - G.y) > 4) return false;
     becomeTitan(w, p); return true;
   }
   function knock(q, nx, nz, sp, vy) {
@@ -101,7 +181,7 @@
   }
   function punch(w, p) {
     if ((p._tcd[1] || 0) > 0) return false;
-    p._tcd[1] = CFG.cd[1]; p._cool = CFG.cd[1];
+    p._tcd[1] = CFG.cd[1]; p._cool = CFG.cd[1]; p._tPunchAt = w.elapsed; p._tPunchN = (p._tPunchN || 0) + 1;
     var f = fwd(p.yaw), hit = 0;
     w.players.forEach(function (q) {
       if (!foe(p, q)) return; var dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz);
@@ -114,11 +194,13 @@
     return true;
   }
   function beamTick(w, p, dt) {
-    p._tBeam = Math.max(0, p._tBeam - dt); p._tBeamAcc = (p._tBeamAcc || 0) + dt;
+    p._tBeam = Math.max(0, p._tBeam - dt);
+    if (p._tBeamCharge > 0) { p._tBeamCharge = Math.max(0, p._tBeamCharge - dt); p._tBeamAcc = 0; }
+    else p._tBeamAcc = (p._tBeamAcc || 0) + dt;
     var d = aim(p), f = fwd(p.yaw), ox = p.x + f.x * 1.1, oy = p.y + 2.5, oz = p.z + f.z * 1.1, len = CFG.beam.len;
     for (var s = 4; s < CFG.beam.len; s += 2) { if (oy + d.y * s < H(ox + d.x * s, oz + d.z * s) - .3) { len = s; break; } }
-    p._tBeamEnd = { x: ox + d.x * len, y: oy + d.y * len, z: oz + d.z * len, len: len };
-    if (p._tBeamAcc < .2 && p._tBeam > 0) return;
+    p._tBeamEnd = { x: ox + d.x * len, y: oy + d.y * len, z: oz + d.z * len, len: len, ground: len < CFG.beam.len };
+    if (p._tBeamCharge > 0 || (p._tBeamAcc < .2 && p._tBeam > 0)) return;
     var tick = p._tBeamAcc; p._tBeamAcc = 0;
     w.players.forEach(function (q) {
       if (!foe(p, q)) return;
@@ -140,7 +222,7 @@
       w._damage(q, p, CFG.slam.dmg * k, "Titan", {}); knock(q, dx / (d || 1), dz / (d || 1), 6 + 10 * k, 3 + 7 * k);
     });
     smash(w, p.x, p.y + 1, p.z, 8, CFG.slam.build, p);
-    fx(w, "slam", p.x, p.y, p.z, { id: p.id });
+    p._tSlamAt = w.elapsed; fx(w, "slam", p.x, p.y, p.z, { id: p.id });
   }
   function blink(w, p) {
     if (p.vehicleId || p.swimming) return false;
@@ -155,7 +237,7 @@
     if (ok < 3) return false;
     fx(w, "blink", p.x, p.y, p.z, { id: p.id, tx: x, ty: y, tz: z });
     p.x = x; p.z = z; p.y = y; p._lastX = x; p._lastZ = z; p._vy = 0; p._vx = 0; p._vz = 0;
-    p.grounded = true; p.jumping = false; p.falling = false; p.gliding = false; p._tcd[4] = CFG.cd[4];
+    p.grounded = true; p.jumping = false; p.falling = false; p.gliding = false; p._tcd[4] = CFG.cd[4]; p._tBlinkAt = w.elapsed;
     return true;
   }
   function pull(w, p) {
@@ -165,34 +247,37 @@
       if (d > CFG.pull.r || d < 2.5 || Math.abs(q.y - p.y) > 14) return;
       w._damage(q, p, CFG.pull.dmg, "Titan", {}); q._tPull = { id: p.id, t: CFG.pull.time }; n++;
     });
-    p._tcd[6] = CFG.cd[6]; fx(w, "pull", p.x, p.y, p.z, { id: p.id, n: n });
+    p._tcd[6] = CFG.cd[6]; p._tPullAt = w.elapsed; fx(w, "pull", p.x, p.y, p.z, { id: p.id, n: n });
     return true;
   }
   function usePower(w, p, k) {
-    if (!p._titan || !p.alive || !p.deployed || (p._tcd[k] || 0) > 0) return false;
+    if (!p._titan || !p.alive || !p.deployed || p._tAsc || (p._tcd[k] || 0) > 0) return false;
     if (k === 1) return punch(w, p);
-    if (k === 2) { p._tBeam = CFG.beam.time; p._tBeamAcc = 0; p._tcd[2] = CFG.cd[2]; fx(w, "beam", p.x, p.y, p.z, { id: p.id, time: CFG.beam.time }); return true; }
+    if (k === 2) { p._tBeam = CFG.beam.time + CFG.beam.charge; p._tBeamCharge = CFG.beam.charge; p._tBeamAcc = 0; p._tcd[2] = CFG.cd[2]; p._tBeamAt = w.elapsed; fx(w, "beam", p.x, p.y, p.z, { id: p.id, time: CFG.beam.time }); return true; }
     if (k === 3) {
       if (!p.grounded || p.swimming || p.vehicleId) return false;
       var f = fwd(p.yaw); p._vy = CFG.slam.vy; p.grounded = false; p.jumping = true; p._jumpTime = 0; p._vx = f.x * 9; p._vz = f.z * 9;
       p._tSlam = true; p._tLeap = { x: f.x * CFG.slam.fwd, z: f.z * CFG.slam.fwd }; p._tcd[3] = CFG.cd[3]; fx(w, "leap", p.x, p.y, p.z, { id: p.id }); return true;
     }
     if (k === 4) return blink(w, p);
-    if (k === 5) { p._tGuard = CFG.guard.time; p._tcd[5] = CFG.cd[5]; fx(w, "guard", p.x, p.y, p.z, { id: p.id, time: CFG.guard.time }); return true; }
+    if (k === 5) { p._tGuard = CFG.guard.time; p._tcd[5] = CFG.cd[5]; p._tGuardAt = w.elapsed; fx(w, "guard", p.x, p.y, p.z, { id: p.id, time: CFG.guard.time }); return true; }
     if (k === 6) return pull(w, p);
     return false;
   }
   function stepTitan(w, dt) {
     var G = st(w); if (w.phase !== "active") return;
     var e = w.elapsed;
-    if (G.phase === "pending" && e >= CFG.dropAt - CFG.fall) {
+    if (G.phase === "pending" && e >= CFG.dropAt - CFG.fall && (e >= CFG.race.wait || !humans(w).some(airborne))) {
       pickSpot(w, G); G.phase = "falling"; G.fallStart = e;
-      var a = w.rng.next() * Math.PI * 2; G.from = { x: G.x + Math.cos(a) * 900, y: G.y + 1300, z: G.z + Math.sin(a) * 900 };
+      // il arrive en biais (25°) et de côté par rapport au joueur : sa traînée traverse le ciel devant lui
+      var a = w.rng.next() * Math.PI * 2;
+      if (G.forX != null) a = Math.atan2(G.z - G.forZ, G.x - G.forX) + (w.rng.next() < .5 ? -1 : 1) * (.7 + w.rng.next() * .5);
+      G.from = { x: G.x + Math.cos(a) * 1500, y: G.y + 700, z: G.z + Math.sin(a) * 1500 };
       fx(w, "meteor", G.x, G.y, G.z, {}); news(w, "Un météore tombe du ciel : le Gant du Titan arrive" + (G.region ? " près de " + G.region : "") + " !", "meteor");
     }
     if (G.phase === "falling" && e >= G.fallStart + CFG.fall) {
-      G.phase = "ground"; G.t0 = e; G.regrab = 0;
-      fx(w, "impact", G.x, G.y, G.z, {}); news(w, "Le Gant du Titan est tombé ! Ramasse-le (E) pour devenir le Titan.", "ground");
+      G.phase = "ground"; G.t0 = e; G.regrab = 0; G.lock = e + CFG.race.lock; G.seq2 = (G.seq2 || 0) + 1;
+      fx(w, "impact", G.x, G.y, G.z, {}); news(w, contender(w) ? "Le Gant du Titan est tombé ! Les IA ne peuvent pas le prendre avant " + CFG.race.lock + " s : fonce (E) !" : "Le Gant du Titan est tombé !", "ground");
       w.players.forEach(function (q) { if (!q.alive || !q.deployed) return; var d = Math.hypot(q.x - G.x, q.z - G.z); if (d < 16) { w._damage(q, null, 30 * (1 - d / 16), "météore", {}); knock(q, (q.x - G.x) / (d || 1), (q.z - G.z) / (d || 1), 10, 7); } });
       smash(w, G.x, G.y, G.z, 10, 800, null);
     }
@@ -219,7 +304,12 @@
       if (tt && tt.alive) { var dx = tt.x - p.x, dz = tt.z - p.z, d = Math.hypot(dx, dz); if (d > 3) { var stp = Math.min(d - 3, CFG.pull.speed * dt), nx = p.x + dx / d * stp, nz = p.z + dz / d * stp; if (!this._blocked(nx, nz, .46, p.y)) { p.x = nx; p.z = nz; } if (p.grounded) { var gy = this.supportAt(p.x, p.z, p.y + 1.2); if (isFinite(gy)) p.y = gy; } } }
       if (p._tPull.t <= 0) p._tPull = null;
     }
-    if (!p._titan) return up0.apply(this, arguments);
+    if (!p._titan) {
+      var r0 = up0.apply(this, arguments), G0 = this.titan;
+      if (!p.bot && G0 && G0.phase === "ground" && p.alive && Math.hypot(p.x - G0.x, p.z - G0.z) < CFG.race.autoR && Math.abs(p.y - G0.y) < 3) tryPickup(this, p);
+      return r0;
+    }
+    if (p._tAsc && p.alive) { ascStep(this, p, dt); return; }
     for (var i = 1; i < 7; i++) if (p._tcd[i] > 0) p._tcd[i] = Math.max(0, p._tcd[i] - dt);
     if (p._tGuard > 0) p._tGuard = Math.max(0, p._tGuard - dt);
     if (p.inventory.length) p.inventory.length = 0; // le Titan n'a jamais d'armes
@@ -250,6 +340,7 @@
   }
   var dmg0 = Wp._damage;
   Wp._damage = function (v, src, amount, why, meta) {
+    if (this.titanMode && v && v._tAsc) return; // la transformation ne s'interrompt pas
     if (this.titanMode && v && ((v._titan) || (src && src._titan))) {
       meta = meta || {}; var f = builtIn(src, v, why, meta), want = f;
       if (v._titan) { want = src ? (src.bot ? (v.bot ? .45 : .42) : 1) : f; if (v._tGuard > 0) want *= CFG.guard.k; }
@@ -276,12 +367,28 @@
     if (this.titanMode && p && !p._titan) { var h = holder(this); if (h && h !== p && h.deployed && Math.hypot(h.x - p.x, h.z - p.z) < (max || 120) * 1.35) return h; }
     return near0.apply(this, arguments);
   };
+  function hash01(id, n) { var s = String(id) + ":" + n, h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 1000) / 1000; }
+  // seulement les quelques IA les plus proches courent vers le gant (pas toute la carte d'un coup)
+  function seeker(w, G, p) {
+    if (!G._sk || w.elapsed - G._sk.t > 1 || G._sk.seq !== G.seq2) {
+      var list = w.players.filter(function (q) { return q.bot && q.alive && q.deployed && !q.downed && !q._titan; }).map(function (q) { return { id: q.id, d: Math.hypot(q.x - G.x, q.z - G.z) }; });
+      list.sort(function (a, b) { return a.d - b.d; });
+      G._sk = { t: w.elapsed, seq: G.seq2, ids: list.slice(0, CFG.race.seekers).map(function (o) { return o.id; }) };
+    }
+    return G._sk.ids.indexOf(p.id) >= 0;
+  }
   function seekGauntlet(w, p) {
-    var G = w.titan; if (!G || (G.phase !== "ground" && G.phase !== "falling") || p.falling || p.gliding || p.vehicleId) return;
-    var d = Math.hypot(G.x - p.x, G.z - p.z); if (d > (G.phase === "falling" ? 170 : 240)) return;
+    // pendant la chute, les IA ne savent pas où il va tomber : elles réagissent quelques secondes après l'impact
+    var G = w.titan; if (!G || G.phase !== "ground" || p.falling || p.gliding || p.vehicleId) return;
+    var R = CFG.race, since = w.elapsed - G.t0, react = R.react[0] + hash01(p.id, G.seq2 || 0) * (R.react[1] - R.react[0]);
+    if (since < react) return;
+    var d = Math.hypot(G.x - p.x, G.z - p.z); if (d > Math.min(240, R.notice + R.grow * (since - react))) return;
+    if (!seeker(w, G, p)) return;
+    var locked = w.elapsed < (G.lock || 0) && contender(w);
+    if (locked && d < 20) return; // elle ne peut pas encore le prendre : elle se bat autour au lieu d'attendre dessus
     var inp = p._input || (p._input = {}), goal = w._routeGoal ? w._routeGoal(p, { x: G.x, z: G.z }) : { x: G.x, z: G.z }, gx = goal.x - p.x, gz = goal.z - p.z;
     p.yaw = inp.yaw = Math.atan2(-gx, -gz); inp.moveZ = 1; inp.moveX = w._aiSteer ? w._aiSteer(p, gx, gz) : 0; inp.sprint = true; inp.fire = false; inp.aim = false;
-    if (G.phase === "ground" && d < CFG.pickR - .4) p._edge.push({ interact: true });
+    if (!locked && d < CFG.pickR - .4) p._edge.push({ interact: true });
   }
   function titanBrain(w, p) {
     var inp = p._input || (p._input = {}), best = null, bd = 1e9, crowd = 0;
@@ -304,158 +411,10 @@
   Wp._bot = function (p, dt) {
     var before = p._aiLastThink, r = bot0.apply(this, arguments);
     if (!this.titanMode || !p.alive || !p.deployed || this.phase !== "active" || p._aiLastThink === before) return r;
-    try { if (p._titan) titanBrain(this, p); else seekGauntlet(this, p); } catch (e) {}
+    try { if (p._tAsc) return r; if (p._titan) titanBrain(this, p); else seekGauntlet(this, p); } catch (e) {}
     return r;
   };
   void ctor0;
-
-  /* ================================================================ vue : taille, caméra, effets */
-  var V = root.AZView && root.AZView.View, VP = V && V.prototype;
-  var tex = null;
-  function glowTex() {
-    if (tex) return tex;
-    var c = document.createElement("canvas"); c.width = c.height = 128; var g = c.getContext("2d"), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-    gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(.18, "rgba(255,240,210,.85)"); gr.addColorStop(.45, "rgba(255,150,60,.32)"); gr.addColorStop(1, "rgba(255,90,20,0)");
-    g.fillStyle = gr; g.fillRect(0, 0, 128, 128); tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; return tex;
-  }
-  function sprite(color, size, op) { var m = new T.SpriteMaterial({ map: glowTex(), color: color, transparent: true, depthWrite: false, blending: T.AdditiveBlending, opacity: op == null ? 1 : op, fog: false }); m.toneMapped = false; var s = new T.Sprite(m); s.scale.setScalar(size); s.frustumCulled = false; return s; }
-  function addMat(color, op) { var m = new T.MeshBasicMaterial({ color: color, transparent: true, opacity: op == null ? 1 : op, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide, fog: false }); m.toneMapped = false; return m; }
-  var FX = { root: null, view: null, seen: 0, live: [], world: null };
-  function buildFx(view) {
-    if (FX.root && FX.root.parent) FX.root.parent.remove(FX.root);
-    var g = FX.root = new T.Group(); g.name = "az-titan-fx"; view.scene.add(g); FX.view = view; FX.seen = 0; FX.live = [];
-    // le gant au sol : il flotte et tourne au-dessus d'un cratère qui rougeoie, sous un grand faisceau visible de loin
-    var gl = FX.gl = new T.Group(); gl.visible = false; g.add(gl);
-    var model = root.AZTitanLook && root.AZTitanLook.gauntlet ? root.AZTitanLook.gauntlet(9) : new T.Mesh(new T.OctahedronGeometry(1), addMat(0xff8a2a));
-    model.rotation.x = Math.PI; model.position.y = 2.6; gl.add(model); FX.glModel = model;
-    gl.add(FX.glHalo = sprite(0xff9a40, 7, .55)); FX.glHalo.position.y = 2.4;
-    var beam = FX.glBeam = new T.Mesh(new T.CylinderGeometry(1.1, 2.2, 1, 20, 1, true), addMat(0xffb060, .22)); beam.position.y = 150; beam.scale.y = 300; gl.add(beam);
-    var core = FX.glBeamCore = new T.Mesh(new T.CylinderGeometry(.35, .6, 1, 12, 1, true), addMat(0xfff0c8, .5)); core.position.y = 150; core.scale.y = 300; gl.add(core);
-    var ring = FX.glRing = new T.Mesh(new T.RingGeometry(2.2, 6.5, 48), addMat(0xff6a1a, .45)); ring.rotation.x = -Math.PI / 2; ring.position.y = .15; gl.add(ring);
-    var crater = FX.crater = new T.Mesh(new T.CircleGeometry(9, 40), new T.MeshBasicMaterial({ color: 0x120c0a, transparent: true, opacity: .75, depthWrite: false })); crater.rotation.x = -Math.PI / 2; crater.position.y = .08; gl.add(crater);
-    FX.glLight = new T.PointLight(0xff8a3a, 0, 60, 1.6); FX.glLight.position.y = 4; gl.add(FX.glLight);
-    // le météore qui l'apporte
-    var met = FX.met = new T.Group(); met.visible = false; g.add(met);
-    var rock = new T.Mesh(new T.IcosahedronGeometry(4.5, 1), new T.MeshStandardMaterial({ color: 0x2a2220, emissive: 0xff5a10, emissiveIntensity: .9, roughness: .9, flatShading: true })); met.add(rock); FX.metRock = rock;
-    met.add(FX.metGlow = sprite(0xff7a2a, 42, .9)); met.add(FX.metCore = sprite(0xfff2d0, 16, 1));
-    var tail = FX.metTail = new T.Mesh(new T.ConeGeometry(5.5, 1, 16, 1, true), addMat(0xff8a3a, .45)); tail.geometry.rotateX(Math.PI); tail.geometry.translate(0, .5, 0); met.add(tail); // base large contre la roche, pointe vers le ciel
-    // aura du Titan (lueur du gant), rayon, bouclier
-    FX.aura = sprite(0xff8a3a, 3.2, .7); FX.aura.visible = false; g.add(FX.aura);
-    FX.auraLight = new T.PointLight(0xff8a3a, 0, 14, 1.6); g.add(FX.auraLight);
-    FX.beam = new T.Group(); FX.beam.visible = false; g.add(FX.beam);
-    FX.beamOut = new T.Mesh(new T.CylinderGeometry(1, 1, 1, 14, 1, true), addMat(0xff7a2a, .5)); FX.beam.add(FX.beamOut);
-    FX.beamIn = new T.Mesh(new T.CylinderGeometry(.42, .42, 1, 10, 1, true), addMat(0xfff4d8, .95)); FX.beam.add(FX.beamIn);
-    FX.beamHit = sprite(0xffb060, 9, 1); FX.beamHit.visible = false; g.add(FX.beamHit);
-    FX.guard = new T.Mesh(new T.SphereGeometry(1, 28, 18), addMat(0xff9a40, .16)); FX.guard.visible = false; g.add(FX.guard);
-    FX.guardRim = new T.Mesh(new T.SphereGeometry(1.02, 18, 10), new T.MeshBasicMaterial({ color: 0xffc070, wireframe: true, transparent: true, opacity: .25, depthWrite: false, blending: T.AdditiveBlending })); FX.guard.add(FX.guardRim);
-  }
-  function spawn(kind, x, y, z, o) { o = o || {}; var e = { kind: kind, x: x, y: y, z: z, t0: performance.now() / 1000, life: o.life || 1, objs: [], o: o }; FX.live.push(e); return e; }
-  function ringAt(e, color, r0, op) { var m = new T.Mesh(new T.RingGeometry(.86, 1, 64), addMat(color, op)); m.rotation.x = -Math.PI / 2; m.position.set(e.x, e.y + .25, e.z); m.scale.setScalar(r0); FX.root.add(m); e.objs.push(m); return m; }
-  function flashAt(e, color, size, y) { var s = sprite(color, size, 1); s.position.set(e.x, e.y + (y || 0), e.z); FX.root.add(s); e.objs.push(s); return s; }
-  function onFx(w, ev) {
-    var x = ev.x, y = ev.y, z = ev.z, e;
-    if (ev.type === "punch") { e = spawn("punch", x, y, z, { life: .45 }); e.f = flashAt(e, 0xffc070, 3, 0); e.r = ringAt(e, 0xffa050, 1, .7); e.r.position.y = y; e.r.rotation.set(0, 0, 0); e.r.lookAt(FX.view.camera.position); }
-    else if (ev.type === "slam") { e = spawn("slam", x, y, z, { life: .9 }); e.r = ringAt(e, 0xff8a3a, 2, .85); e.r2 = ringAt(e, 0xfff0c8, 1, .7); e.f = flashAt(e, 0xffb060, 14, 1); }
-    else if (ev.type === "leap") { e = spawn("leap", x, y, z, { life: .5 }); e.r = ringAt(e, 0xffc070, 1.5, .6); }
-    else if (ev.type === "blink") {
-      e = spawn("blink", x, y, z, { life: .55 }); e.f = flashAt(e, 0xffc070, 7, 2); var f2 = sprite(0xfff0c8, 9, 1); f2.position.set(ev.tx, ev.ty + 2, ev.tz); FX.root.add(f2); e.objs.push(f2); e.f2 = f2;
-      var a = new T.Vector3(x, y + 2, z), b = new T.Vector3(ev.tx, ev.ty + 2, ev.tz), ln = new T.Mesh(new T.CylinderGeometry(.5, .5, 1, 8, 1, true), addMat(0xffb060, .7));
-      ln.position.copy(a).lerp(b, .5); ln.scale.y = a.distanceTo(b); ln.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), b.clone().sub(a).normalize()); FX.root.add(ln); e.objs.push(ln); e.ln = ln;
-    }
-    else if (ev.type === "pull") { e = spawn("pull", x, y, z, { life: .9 }); e.r = ringAt(e, 0xff9a40, CFG.pull.r, .8); e.r2 = ringAt(e, 0xfff0c8, CFG.pull.r * .7, .5); }
-    else if (ev.type === "transform") { e = spawn("transform", x, y, z, { life: 1.6 }); e.f = flashAt(e, 0xffd090, 9, 3); e.r = ringAt(e, 0xff8a3a, 3, .9); var pil = new T.Mesh(new T.CylinderGeometry(3, 4.5, 120, 20, 1, true), addMat(0xffb060, .45)); pil.position.set(x, y + 60, z); FX.root.add(pil); e.objs.push(pil); e.pil = pil; }
-    else if (ev.type === "impact") { e = spawn("impact", x, y, z, { life: 2.2 }); e.f = flashAt(e, 0xfff0c8, 60, 4); e.r = ringAt(e, 0xff8a3a, 4, .9); e.r2 = ringAt(e, 0xffd090, 2, .6); }
-    else if (ev.type === "drop") { e = spawn("drop", x, y, z, { life: 1.2 }); e.f = flashAt(e, 0xffc070, 18, 2); e.r = ringAt(e, 0xff8a3a, 2, .8); }
-  }
-  function tickFx(now) {
-    for (var i = FX.live.length - 1; i >= 0; i--) {
-      var e = FX.live[i], k = (now - e.t0) / e.life;
-      if (k >= 1) { e.objs.forEach(function (o) { if (o.parent) o.parent.remove(o); if (o.geometry && o.geometry !== FX.sharedGeo) o.geometry.dispose(); if (o.material) o.material.dispose(); }); FX.live.splice(i, 1); continue; }
-      var fade = 1 - k, ek = 1 - Math.pow(1 - k, 3);
-      if (e.kind === "punch") { e.f.material.opacity = fade; e.f.scale.setScalar(3 + 5 * ek); e.r.scale.setScalar(1 + 4.5 * ek); e.r.material.opacity = .7 * fade; }
-      else if (e.kind === "slam") { e.r.scale.setScalar(2 + CFG.slam.r * 1.25 * ek); e.r.material.opacity = .85 * fade; e.r2.scale.setScalar(1 + CFG.slam.r * .8 * ek); e.r2.material.opacity = .7 * fade; e.f.material.opacity = fade * fade; e.f.scale.setScalar(14 + 10 * ek); }
-      else if (e.kind === "leap") { e.r.scale.setScalar(1.5 + 5 * ek); e.r.material.opacity = .6 * fade; }
-      else if (e.kind === "blink") { e.f.material.opacity = fade; e.f2.material.opacity = fade; e.f2.scale.setScalar(9 + 6 * ek); e.ln.material.opacity = .7 * fade * fade; e.ln.scale.x = e.ln.scale.z = 1 - .8 * k; }
-      else if (e.kind === "pull") { e.r.scale.setScalar(CFG.pull.r * (1 - .92 * ek)); e.r.material.opacity = .8 * fade; e.r2.scale.setScalar(CFG.pull.r * .7 * (1 - .9 * ek)); e.r2.material.opacity = .5 * fade; }
-      else if (e.kind === "transform") { e.f.material.opacity = fade * fade * .8; e.f.scale.setScalar(9 + 12 * ek); e.r.scale.setScalar(3 + 30 * ek); e.r.material.opacity = .9 * fade; e.pil.material.opacity = .45 * fade; e.pil.scale.x = e.pil.scale.z = 1 + 1.5 * k; }
-      else if (e.kind === "impact") { e.f.material.opacity = fade * fade; e.f.scale.setScalar(60 + 60 * ek); e.r.scale.setScalar(4 + 60 * ek); e.r.material.opacity = .9 * fade; e.r2.scale.setScalar(2 + 34 * ek); e.r2.material.opacity = .6 * fade; }
-      else if (e.kind === "drop") { e.f.material.opacity = fade; e.r.scale.setScalar(2 + 14 * ek); e.r.material.opacity = .8 * fade; }
-    }
-  }
-  var _a = null, _b = null;
-  function updateFx(view, w, p, dt) {
-    if (!FX.root || FX.view !== view || !FX.root.parent || FX.world !== w) { buildFx(view); FX.world = w; }
-    var G = st(w), now = performance.now() / 1000;
-    for (var i = 0; i < G.fx.length; i++) { var ev = G.fx[i]; if (ev.seq > FX.seen) { FX.seen = ev.seq; try { onFx(w, ev); } catch (e) {} } }
-    tickFx(now);
-    // gant au sol
-    var onGround = G.phase === "ground";
-    FX.gl.visible = onGround;
-    if (onGround) {
-      FX.gl.position.set(G.x, G.y, G.z);
-      FX.glModel.rotation.y = now * .9; FX.glModel.position.y = 2.6 + Math.sin(now * 2.1) * .35;
-      var pul = .8 + .2 * Math.sin(now * 4);
-      FX.glHalo.material.opacity = .55 * pul; FX.glRing.material.opacity = .45 * pul; FX.glLight.intensity = 30 * pul;
-      FX.glRing.rotation.z = now * .4; FX.crater.visible = (G.t0 || 0) > 0 && !G.regrab;
-    } else FX.glLight.intensity = 0;
-    // le météore
-    var falling = G.phase === "falling" && G.from;
-    FX.met.visible = !!falling;
-    if (falling) {
-      var k = Math.min(1, Math.max(0, (w.elapsed - G.fallStart) / CFG.fall)), kk = k * k;
-      FX.met.position.set(G.from.x + (G.x - G.from.x) * kk, G.from.y + (G.y + 4 - G.from.y) * kk, G.from.z + (G.z - G.from.z) * kk);
-      _a = _a || new T.Vector3(); _b = _b || new T.Vector3(); _a.set(G.from.x - G.x, G.from.y - G.y, G.from.z - G.z).normalize();
-      FX.metTail.quaternion.setFromUnitVectors(_b.set(0, 1, 0), _a); FX.metTail.scale.set(1, 120 + 260 * (1 - k), 1);
-      FX.metRock.rotation.x += dt * 2; FX.metRock.rotation.y += dt * 1.3; FX.metGlow.scale.setScalar(42 + 8 * Math.sin(now * 20));
-    }
-    // le Titan : taille, lueur du gant, rayon, bouclier
-    var h = holder(w);
-    FX.aura.visible = !!h; FX.auraLight.intensity = 0; FX.beam.visible = false; FX.beamHit.visible = false; FX.guard.visible = false;
-    if (h) {
-      var f = fwd(h.yaw), rx = -f.z, rz = f.x; // droite du Titan
-      FX.aura.position.set(h.x - rx * .9 + f.x * .3, h.y + 1.5, h.z - rz * .9 + f.z * .3); FX.aura.material.opacity = .45 + .15 * Math.sin(now * 5);
-      FX.auraLight.position.copy(FX.aura.position); FX.auraLight.intensity = 6;
-      if (h._tBeam > 0 && h._tBeamEnd) {
-        var o = new T.Vector3(h.x + f.x * 1.1 - rx * .6, h.y + 2.5, h.z + f.z * 1.1 - rz * .6), en = new T.Vector3(h._tBeamEnd.x, h._tBeamEnd.y, h._tBeamEnd.z), L = o.distanceTo(en);
-        FX.beam.visible = L > .5; FX.beam.position.copy(o).lerp(en, .5); FX.beam.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), en.clone().sub(o).normalize());
-        var wob = 1 + .12 * Math.sin(now * 40); FX.beamOut.scale.set(wob, L, wob); FX.beamIn.scale.set(1, L, 1);
-        FX.beamHit.visible = true; FX.beamHit.position.copy(en); FX.beamHit.scale.setScalar(8 + 3 * Math.sin(now * 30));
-      }
-      if (h._tGuard > 0) { FX.guard.visible = true; FX.guard.position.set(h.x, h.y + 1.7 * SCALE * .6, h.z); FX.guard.scale.setScalar(2.9 * (1 + .03 * Math.sin(now * 7))); FX.guard.material.opacity = .14 + .06 * Math.sin(now * 5); FX.guard.rotation.y = now * .6; }
-    }
-  }
-  var ownCam = false;
-  function afterView(view, w, p, dt, opts) {
-    try {
-      var E = root.AZEvent || (root.AZEvent = {});
-      if (w && w.titanMode && !(opts && opts.menu)) {
-        updateFx(view, w, p, dt);
-        // caméra plus loin et plus haute quand on est le Titan
-        if (p && p._titan && p.alive) { E.cameraZoom = 1.6; E.cameraPivotY = 3.4; E.cameraShoulder = 1.4; ownCam = true; }
-        else if (ownCam) { E.cameraZoom = 1; E.cameraPivotY = undefined; E.cameraShoulder = 1; ownCam = false; }
-      } else {
-        if (FX.root && FX.root.parent) { FX.root.parent.remove(FX.root); FX.root = null; }
-        if (ownCam) { E.cameraZoom = 1; E.cameraPivotY = undefined; E.cameraShoulder = 1; ownCam = false; }
-      }
-    } catch (e) { if (!root.__tWarn) { root.__tWarn = 1; console.warn("[Titan] vue", e); } }
-  }
-  // client.js remplace view.update par une copie liée à l'instance : on s'accroche à celle qui est vraiment appelée
-  function hookView() {
-    var g = root.AZUR, v = g && g.view; if (!v || typeof v.update !== "function" || v.update.__azTitan) return;
-    var own = v.update, wrap = function (w, p, dt, opts) { var r = own.apply(this, arguments); afterView(v, w, p, dt, opts); return r; };
-    wrap.__azTitan = true; v.update = wrap;
-  }
-  if (VP && !VP.__azTitan) {
-    VP.__azTitan = true;
-    var an0 = VP.animateAvatar;
-    VP.animateAvatar = function (model, player, dt, options) {
-      if (model && player && player._titan) { model.scale.set(SCALE, SCALE, SCALE); model.userData.azTitanScaled = true; }
-      else if (model && model.userData.azTitanScaled) { model.scale.set(1, 1, 1); model.userData.azTitanScaled = false; }
-      var r = an0.apply(this, arguments);
-      if (model && player && player._titan) { model.scale.x = model.scale.z = SCALE; } // le corps garde sa largeur (accroupi / nage ne touchent que la hauteur)
-      return r;
-    };
-  }
 
   /* ================================================================ interface */
   var UI = null, lastNews = 0;
@@ -467,8 +426,9 @@
       "#az-titan-ui .tt-banner.on{opacity:1}#az-titan-ui .tt-banner b{color:#ffb35c}",
       "#az-titan-ui .tt-prompt{position:absolute;left:50%;bottom:calc(30% + env(safe-area-inset-bottom,0px));transform:translateX(-50%);padding:8px 16px;border-radius:6px;background:rgba(12,10,14,.78);border:1px solid rgba(255,150,60,.65);font-weight:800;font-size:18px;letter-spacing:.05em;display:none;pointer-events:auto}",
       "#az-titan-ui .tt-prompt kbd{display:inline-block;min-width:22px;margin-right:8px;padding:1px 6px;border-radius:4px;background:#ffb35c;color:#1a0d04;text-align:center}",
-      "#az-titan-ui .tt-mark{position:absolute;transform:translate(-50%,-50%);display:none;text-align:center;font-weight:800;font-size:13px;letter-spacing:.06em;text-shadow:0 1px 3px #000}",
+      "#az-titan-ui .tt-mark{position:absolute;transform:translate(-50%,-50%);display:none;text-align:center;white-space:pre-line;font-weight:800;font-size:13px;letter-spacing:.06em;text-shadow:0 1px 3px #000}",
       "#az-titan-ui .tt-mark i{display:block;width:26px;height:26px;margin:0 auto 2px;border-radius:50%;background:radial-gradient(circle,#fff2d0 0,#ff9a40 45%,rgba(255,90,20,0) 72%);box-shadow:0 0 14px #ff8a2a}",
+      "#az-titan-ui .tt-edge{position:absolute;transform:translate(-50%,-50%);display:none;text-align:center;font-weight:800;font-size:12px;letter-spacing:.08em;color:#ffd09a;text-shadow:0 1px 3px #000}#az-titan-ui .tt-edge b{display:block;font-size:26px;line-height:1;color:#ff8a2a;filter:drop-shadow(0 0 6px #ff6a1a)}",
       "#az-titan-ui .tt-mark.enemy i{background:radial-gradient(circle,#fff 0,#ff4a2a 45%,rgba(255,40,20,0) 72%);box-shadow:0 0 14px #ff3a1a}",
       "#az-titan-ui .tt-pw{position:absolute;left:50%;bottom:calc(168px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:none;gap:8px;pointer-events:auto}",
       "#az-titan-ui .tt-pw.on{display:flex}",
@@ -487,7 +447,7 @@
   function buildUi() {
     css();
     var d = document.createElement("div"); d.id = "az-titan-ui";
-    d.innerHTML = '<div class="tt-banner"></div><div class="tt-prompt"><kbd>E</kbd>Ramasser le Gant du Titan</div><div class="tt-mark gl"><i></i><span></span></div><div class="tt-mark enemy ti"><i></i><span></span></div><div class="tt-tag">TITAN</div><div class="tt-pw"></div>';
+    d.innerHTML = '<div class="tt-banner"></div><div class="tt-prompt"><kbd>E</kbd>Ramasser le Gant du Titan</div><div class="tt-mark gl"><i></i><span></span></div><div class="tt-mark enemy ti"><i></i><span></span></div><div class="tt-edge"><b>➤</b><span>GANT</span></div><div class="tt-tag">TITAN</div><div class="tt-pw"></div>';
     document.body.appendChild(d);
     var pw = d.querySelector(".tt-pw"), btns = [];
     for (var k = 1; k <= 6; k++) {
@@ -497,7 +457,7 @@
       pw.appendChild(b); btns.push({ el: b, cd: b.querySelector(".cd"), cdt: b.querySelector(".cdt"), k: k });
     }
     d.querySelector(".tt-prompt").addEventListener("pointerdown", function (ev) { ev.preventDefault(); send({ interact: true }); });
-    UI = { root: d, banner: d.querySelector(".tt-banner"), prompt: d.querySelector(".tt-prompt"), mGl: d.querySelector(".tt-mark.gl"), mTi: d.querySelector(".tt-mark.ti"), pw: pw, btns: btns, tag: d.querySelector(".tt-tag"), bannerUntil: 0 };
+    UI = { root: d, edge: d.querySelector(".tt-edge"), banner: d.querySelector(".tt-banner"), prompt: d.querySelector(".tt-prompt"), mGl: d.querySelector(".tt-mark.gl"), mTi: d.querySelector(".tt-mark.ti"), pw: pw, btns: btns, tag: d.querySelector(".tt-tag"), bannerUntil: 0 };
   }
   var _pv = null;
   function mark(el, cam, x, y, z, label, W, Hh) {
@@ -507,9 +467,20 @@
     sx = Math.max(30, Math.min(W - 30, sx)); sy = Math.max(60, Math.min(Hh - 90, sy));
     el.style.display = "block"; el.style.left = sx + "px"; el.style.top = sy + "px"; el.lastChild.textContent = label;
   }
+  function edgeMark(el, cam, x, y, z, W, Hh) {
+    _pv = _pv || new T.Vector3(); _pv.set(x, y, z).project(cam);
+    var behind = _pv.z > 1, nx = behind ? -_pv.x : _pv.x, ny = behind ? -_pv.y : _pv.y;
+    if (!behind && Math.abs(nx) < .92 && Math.abs(ny) < .9) { el.style.display = "none"; return; }
+    var m = Math.max(Math.abs(nx) / .9, Math.abs(ny) / .82, 1e-3); nx /= m; ny /= m;
+    var ang = Math.atan2(-ny, nx) * 180 / Math.PI; // ➤ pointe vers la droite : on le tourne vers le météore
+    el.style.display = "block"; el.style.left = ((nx * .5 + .5) * W) + "px"; el.style.top = ((-ny * .5 + .5) * Hh) + "px"; el.firstChild.style.transform = "rotate(" + ang.toFixed(0) + "deg)";
+  }
+  function glTag(w, G) {
+    if (G.phase === "falling") return "\nimpact dans " + Math.max(0, Math.ceil(G.fallStart + CFG.fall - w.elapsed)) + " s";
+    var l = (G.lock || 0) - w.elapsed; return l > 0 ? "\nles IA attendent encore " + Math.ceil(l) + " s" : "";
+  }
   function uiTick() {
     root.requestAnimationFrame(uiTick);
-    try { hookView(); } catch (e) {}
     var g = root.AZUR, w = g && g.world;
     if (!w || !w.titanMode || g.screen !== "game") { if (UI) UI.root.style.display = "none"; return; }
     if (!UI) buildUi(); UI.root.style.display = "block";
@@ -521,15 +492,21 @@
     if (!p) return;
     var meT = !!(p._titan && p.alive), W = innerWidth, Hh = innerHeight;
     // invite à ramasser
-    var near = G.phase === "ground" && p.alive && !meT && Math.hypot(p.x - G.x, p.z - G.z) < CFG.pickR + 2.5 && Math.abs(p.y - G.y) < 5;
+    var near = G.phase === "ground" && p.alive && !meT && Math.hypot(p.x - G.x, p.z - G.z) < CFG.race.humanR + 1.5 && Math.abs(p.y - G.y) < 5;
     UI.prompt.style.display = near ? "block" : "none";
     // repères : le gant (au sol ou en chute) et le Titan
-    if (cam && (G.phase === "ground" || G.phase === "falling") && !meT) mark(UI.mGl, cam, G.x, G.y + 4, G.z, "GANT " + Math.round(Math.hypot(p.x - G.x, p.z - G.z)) + " m", W, Hh); else UI.mGl.style.display = "none";
+    if (cam && (G.phase === "ground" || G.phase === "falling") && !meT) mark(UI.mGl, cam, G.x, G.y + 8.5, G.z, "GANT " + Math.round(Math.hypot(p.x - G.x, p.z - G.z)) + " m" + glTag(w, G), W, Hh); else UI.mGl.style.display = "none";
+    // le météore lui-même : s'il est hors du champ, une flèche au bord de l'écran montre où regarder
+    if (cam && G.phase === "falling" && G.from && !meT) {
+      var k = Math.min(1, Math.max(0, (w.elapsed - G.fallStart) / CFG.fall)), kk = k * k;
+      edgeMark(UI.edge, cam, G.from.x + (G.x - G.from.x) * kk, G.from.y + (G.y + 3 - G.from.y) * kk, G.from.z + (G.z - G.from.z) * kk, W, Hh);
+    } else UI.edge.style.display = "none";
     var h = G.phase === "held" ? w._find(G.holder) : null;
     if (cam && h && h.alive && h !== p) mark(UI.mTi, cam, h.x, h.y + 4.6, h.z, "TITAN " + Math.round(Math.hypot(p.x - h.x, p.z - h.z)) + " m", W, Hh); else UI.mTi.style.display = "none";
     // barre des pouvoirs
-    UI.pw.classList.toggle("on", meT); UI.tag.style.display = meT ? "block" : "none";
-    if (meT) UI.btns.forEach(function (b) {
+    var ready = meT && !p._tAsc;
+    UI.pw.classList.toggle("on", ready); UI.tag.style.display = ready ? "block" : "none";
+    if (ready) UI.btns.forEach(function (b) {
       var c = (p._tcd && p._tcd[b.k]) || 0, full = CFG.cd[b.k] || 1, active = (b.k === 2 && p._tBeam > 0) || (b.k === 5 && p._tGuard > 0);
       b.cd.style.height = (c > 0 ? Math.min(100, c / full * 100) : 0) + "%"; b.cdt.textContent = c > 0 && !active ? Math.ceil(c) : "";
       b.el.classList.toggle("ready", !(c > 0)); b.el.style.borderColor = active ? "#fff2c8" : "";
@@ -543,5 +520,6 @@
   }
   if (root.addEventListener) root.addEventListener("keydown", onKey, true);
   if (root.requestAnimationFrame) root.requestAnimationFrame(uiTick);
-  root.AZTitanMode.becomeTitan = becomeTitan; root.AZTitanMode.state = st; root.AZTitanMode.usePower = usePower;
+  root.AZTitanMode.becomeTitan = becomeTitan; root.AZTitanMode.state = st; root.AZTitanMode.usePower = usePower; root.AZTitanMode.holder = holder;
+  root.AZTitanMode.fwd = fwd; root.AZTitanMode.aim = aim;
 })(typeof globalThis !== "undefined" ? globalThis : this);
